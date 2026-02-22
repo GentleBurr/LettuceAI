@@ -50,6 +50,14 @@ use crate::utils::emit_debug;
 const FALLBACK_TEMPERATURE: f64 = 0.7;
 const FALLBACK_TOP_P: f64 = 1.0;
 const FALLBACK_MAX_OUTPUT_TOKENS: u32 = 4096;
+const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
+    "character_trait",
+    "relationship",
+    "plot_event",
+    "world_detail",
+    "preference",
+    "other",
+];
 
 fn resolve_persona_id<'a>(session: &'a Session, explicit: Option<&'a str>) -> Option<&'a str> {
     if explicit.is_some() {
@@ -4315,7 +4323,7 @@ async fn run_memory_tool_update(
         .flatten()
         .map(|t| t.content)
         .unwrap_or_else(|| {
-            "You maintain long-term memories for this chat. Use tools to add or delete concise factual memories. Keep the list tidy and capped at {{max_entries}} entries. Prefer deleting by ID when removing items. When finished, call the done tool.".to_string()
+            "You maintain long-term memories for this chat. Use tools to add or delete concise factual memories. Every create_memory call must include a category tag. Keep the list tidy and capped at {{max_entries}} entries. Prefer deleting by ID when removing items. When finished, call the done tool.".to_string()
         });
 
     let pinned_fixed = ensure_pinned_hot(&mut session.memory_embeddings);
@@ -4445,6 +4453,7 @@ async fn run_memory_tool_update(
     }
 
     let mut actions_log: Vec<Value> = Vec::new();
+    let mut untagged_candidates: Vec<(String, bool)> = Vec::new();
     for call in calls {
         match call.name.as_str() {
             "create_memory" => {
@@ -4490,11 +4499,25 @@ async fn run_memory_tool_update(
                         .get("important")
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false);
-                    let category = call
-                        .arguments
-                        .get("category")
-                        .and_then(|v| v.as_str())
-                        .map(String::from);
+                    let category = match extract_required_memory_category(&call) {
+                        Ok(category) => category,
+                        Err(reason) => {
+                            log_warn(
+                                app,
+                                "dynamic_memory",
+                                format!("Skipping memory without required category: {}", reason),
+                            );
+                            actions_log.push(json!({
+                                "name": "create_memory",
+                                "arguments": call.arguments,
+                                "skipped": true,
+                                "reason": reason,
+                                "timestamp": now_millis().unwrap_or_default(),
+                            }));
+                            untagged_candidates.push((text, is_pinned));
+                            continue;
+                        }
+                    };
                     session.memory_embeddings.push(MemoryEmbedding {
                         id: mem_id.clone(),
                         text,
@@ -4507,7 +4530,7 @@ async fn run_memory_tool_update(
                         is_pinned,
                         access_count: 0,
                         match_score: None,
-                        category,
+                        category: Some(category),
                     });
                     actions_log.push(json!({
                         "name": "create_memory",
@@ -4632,6 +4655,87 @@ async fn run_memory_tool_update(
         }
     }
 
+    if !untagged_candidates.is_empty() {
+        let mut seen = HashSet::new();
+        let candidate_texts: Vec<String> = untagged_candidates
+            .iter()
+            .map(|(text, _)| text.clone())
+            .filter(|text| seen.insert(text.clone()))
+            .collect();
+
+        match run_memory_tag_repair(app, provider_cred, model, api_key, &candidate_texts).await {
+            Ok(repaired) => {
+                for (text, is_pinned) in untagged_candidates {
+                    let Some(category) = repaired.get(&text).cloned() else {
+                        continue;
+                    };
+
+                    let mem_id = generate_memory_id();
+                    let embedding =
+                        match embedding_model::compute_embedding(app.clone(), text.clone()).await {
+                            Ok(vec) => Some(vec),
+                            Err(err) => {
+                                log_error(
+                                    app,
+                                    "dynamic_memory",
+                                    format!("failed to embed repaired memory: {}", err),
+                                );
+                                None
+                            }
+                        };
+                    if let Some(ref new_emb) = embedding {
+                        let is_duplicate = session.memory_embeddings.iter().any(|existing| {
+                            !existing.embedding.is_empty()
+                                && cosine_similarity(new_emb, &existing.embedding) > 0.85
+                        });
+                        if is_duplicate {
+                            actions_log.push(json!({
+                                "name": "create_memory",
+                                "repaired": true,
+                                "text": text,
+                                "skipped": true,
+                                "reason": "duplicate (cosine > 0.85)",
+                                "timestamp": now_millis().unwrap_or_default(),
+                            }));
+                            continue;
+                        }
+                    }
+                    let token_count = crate::tokenizer::count_tokens(app, &text).unwrap_or(0);
+                    session.memory_embeddings.push(MemoryEmbedding {
+                        id: mem_id.clone(),
+                        text: text.clone(),
+                        embedding: embedding.unwrap_or_default(),
+                        created_at: now_millis().unwrap_or_default(),
+                        token_count,
+                        is_cold: false,
+                        last_accessed_at: now_millis().unwrap_or_default(),
+                        importance_score: 1.0,
+                        is_pinned,
+                        access_count: 0,
+                        match_score: None,
+                        category: Some(category.clone()),
+                    });
+                    actions_log.push(json!({
+                        "name": "create_memory",
+                        "repaired": true,
+                        "text": text,
+                        "category": category,
+                        "memoryId": mem_id,
+                        "timestamp": now_millis().unwrap_or_default(),
+                        "updatedMemories": format_memories_with_ids(session),
+                    }));
+                }
+            }
+            Err(err) => {
+                log_warn(
+                    app,
+                    "dynamic_memory",
+                    format!("memory category repair pass failed: {}", err),
+                );
+            }
+        }
+    }
+
     let trimmed = trim_memories_to_max(&mut session.memory_embeddings, max_entries);
     if trimmed > 0 {
         log_info(
@@ -4693,6 +4797,149 @@ fn extract_text_argument(call: &ToolCall) -> Option<String> {
     call.raw_arguments.clone()
 }
 
+fn extract_required_memory_category(call: &ToolCall) -> Result<String, String> {
+    let category = call
+        .arguments
+        .get("category")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "missing required category".to_string())?;
+
+    if !ALLOWED_MEMORY_CATEGORIES.contains(&category.as_str()) {
+        return Err(format!(
+            "invalid category '{}'; expected one of: {}",
+            category,
+            ALLOWED_MEMORY_CATEGORIES.join(", ")
+        ));
+    }
+
+    Ok(category)
+}
+
+fn build_memory_tag_repair_tool_config() -> ToolConfig {
+    ToolConfig {
+        tools: vec![ToolDefinition {
+            name: "retag_memory".to_string(),
+            description: Some("Assign a valid category for each memory text.".to_string()),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "text": { "type": "string", "description": "Original memory text to categorize" },
+                    "category": {
+                        "type": "string",
+                        "enum": ["character_trait", "relationship", "plot_event", "world_detail", "preference", "other"],
+                        "description": "Category tag for the memory"
+                    }
+                },
+                "required": ["text", "category"]
+            }),
+        }],
+        choice: Some(ToolChoice::Any),
+    }
+}
+
+async fn run_memory_tag_repair(
+    app: &AppHandle,
+    provider_cred: &ProviderCredential,
+    model: &Model,
+    api_key: &str,
+    texts: &[String],
+) -> Result<HashMap<String, String>, String> {
+    if texts.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut messages_for_api = Vec::new();
+    let system_role = super::request_builder::system_role_for(provider_cred);
+    crate::chat_manager::messages::push_system_message(
+        &mut messages_for_api,
+        &system_role,
+        Some(
+            "Classify each memory text with exactly one valid category. Use only retag_memory tool calls."
+                .to_string(),
+        ),
+    );
+    messages_for_api.push(json!({
+        "role": "user",
+        "content": format!(
+            "Valid categories: {}.\nReturn one retag_memory tool call per text.\nTexts:\n{}",
+            ALLOWED_MEMORY_CATEGORIES.join(", "),
+            texts
+                .iter()
+                .enumerate()
+                .map(|(i, t)| format!("{}. {}", i + 1, t))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    }));
+
+    let built = super::request_builder::build_chat_request(
+        provider_cred,
+        api_key,
+        &model.name,
+        &messages_for_api,
+        None,
+        0.0,
+        1.0,
+        512,
+        None,
+        false,
+        None,
+        None,
+        None,
+        None,
+        Some(&build_memory_tag_repair_tool_config()),
+        false,
+        None,
+        None,
+        None,
+    );
+
+    let api_request_payload = ApiRequest {
+        url: built.url,
+        method: Some("POST".into()),
+        headers: Some(built.headers),
+        query: None,
+        body: Some(built.body),
+        timeout_ms: Some(30_000),
+        stream: Some(false),
+        request_id: built.request_id.clone(),
+        provider_id: Some(provider_cred.provider_id.clone()),
+    };
+
+    let api_response = api_request(app.clone(), api_request_payload).await?;
+    if !api_response.ok {
+        let fallback = format!("Provider returned status {}", api_response.status);
+        let err_message = extract_error_message(api_response.data()).unwrap_or(fallback.clone());
+        return Err(if err_message == fallback {
+            err_message
+        } else {
+            format!("{} (status {})", err_message, api_response.status)
+        });
+    }
+
+    let mut repaired = HashMap::new();
+    for call in parse_tool_calls(&provider_cred.provider_id, api_response.data()) {
+        if call.name != "retag_memory" {
+            continue;
+        }
+        let Some(text) = call
+            .arguments
+            .get("text")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+        else {
+            continue;
+        };
+        if let Ok(category) = extract_required_memory_category(&call) {
+            repaired.insert(text, category);
+        }
+    }
+
+    Ok(repaired)
+}
+
 fn build_memory_tool_config() -> ToolConfig {
     ToolConfig {
         tools: vec![
@@ -4712,7 +4959,7 @@ fn build_memory_tool_config() -> ToolConfig {
                             "description": "Category of this memory for organization"
                         }
                     },
-                    "required": ["text"]
+                    "required": ["text", "category"]
                 }),
             },
             ToolDefinition {

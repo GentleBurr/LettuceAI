@@ -180,7 +180,7 @@ pub fn default_dynamic_memory_entries() -> Vec<SystemPromptEntry> {
             id: "memory_tools".to_string(),
             name: "Tool Usage".to_string(),
             role: PromptEntryRole::System,
-            content: "Tool Usage:\n- Use `create_memory` with `text` and optionally `important: true` to pin\n- Use `delete_memory` with the memory ID or exact text\n- Use `pin_memory` to mark existing memories as critical (never decay)\n- Use `unpin_memory` to allow a memory to decay normally\n- Call `done` when finished making changes\n- Output NO natural language, only tool calls".to_string(),
+            content: "Tool Usage:\n- Use `create_memory` with `text` and required `category`; optionally add `important: true` to pin\n- Use `delete_memory` with the memory ID or exact text\n- Use `pin_memory` to mark existing memories as critical (never decay)\n- Use `unpin_memory` to allow a memory to decay normally\n- Call `done` when finished making changes\n- Output NO natural language, only tool calls".to_string(),
             enabled: true,
             injection_position: PromptEntryPosition::Relative,
             injection_depth: 0,
