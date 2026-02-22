@@ -1,6 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { readSettings, setAppState } from "./repo";
-import { createDefaultAppState, type AppState, type ChatsViewMode, type CustomColors, type PureModeLevel } from "./schemas";
+import {
+  createDefaultAppState,
+  type AppState,
+  type ChatsViewMode,
+  type CustomColorPreset,
+  type CustomColors,
+  type PureModeLevel,
+} from "./schemas";
 
 type Theme = AppState["theme"];
 
@@ -19,6 +26,10 @@ function cloneAppState(state?: AppState): AppState {
     appActiveUsageStartedAtMs: source.appActiveUsageStartedAtMs,
     appActiveUsageLastUpdatedAtMs: source.appActiveUsageLastUpdatedAtMs,
     customColors: source.customColors ? { ...source.customColors } : undefined,
+    customColorPresets: (source.customColorPresets ?? []).map((preset) => ({
+      ...preset,
+      colors: { ...preset.colors },
+    })),
     chatsViewMode: source.chatsViewMode ?? "hero",
   };
 }
@@ -183,6 +194,20 @@ export async function getCustomColors(): Promise<CustomColors | undefined> {
 export async function setCustomColors(colors: CustomColors): Promise<void> {
   await withAppState((state) => {
     state.customColors = colors;
+  });
+}
+
+export async function getCustomColorPresets(): Promise<CustomColorPreset[]> {
+  const state = await getAppState();
+  return state.customColorPresets ?? [];
+}
+
+export async function setCustomColorPresets(presets: CustomColorPreset[]): Promise<void> {
+  await withAppState((state) => {
+    state.customColorPresets = presets.map((preset) => ({
+      ...preset,
+      colors: { ...preset.colors },
+    }));
   });
 }
 

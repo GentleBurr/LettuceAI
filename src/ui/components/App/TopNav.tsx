@@ -153,7 +153,8 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
     return () => window.removeEventListener("chats:viewModeChanged", sync);
   }, [showLayoutToggle]);
 
-  const LayoutToggleIcon = chatsViewMode === "hero" ? LayoutGrid : chatsViewMode === "gallery" ? Grid3X3 : LayoutList;
+  const LayoutToggleIcon =
+    chatsViewMode === "hero" ? LayoutGrid : chatsViewMode === "gallery" ? Grid3X3 : LayoutList;
 
   const showAddButton = useMemo(() => {
     if (basePath.startsWith("/settings/providers")) return true;
@@ -216,6 +217,10 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
     () => basePath === "/settings/accessibility/chat",
     [basePath],
   );
+  const isColorCustomizationEdit = useMemo(
+    () => basePath === "/settings/accessibility/colors",
+    [basePath],
+  );
   const showSaveButton =
     isCharacterEdit ||
     isPersonaEdit ||
@@ -223,7 +228,8 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
     isModelNew ||
     isPromptEdit ||
     isPromptNew ||
-    isChatAppearanceEdit;
+    isChatAppearanceEdit ||
+    isColorCustomizationEdit;
 
   // Track save button state from window globals
   const [canSave, setCanSave] = useState(false);
@@ -261,6 +267,11 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
         const newIsSaving = !!globalWindow.__saveChatAppearanceSaving;
         setCanSave((prev) => (prev !== newCanSave ? newCanSave : prev));
         setIsSaving((prev) => (prev !== newIsSaving ? newIsSaving : prev));
+      } else if (isColorCustomizationEdit) {
+        const newCanSave = !!globalWindow.__saveColorCustomizationCanSave;
+        const newIsSaving = !!globalWindow.__saveColorCustomizationSaving;
+        setCanSave((prev) => (prev !== newCanSave ? newCanSave : prev));
+        setIsSaving((prev) => (prev !== newIsSaving ? newIsSaving : prev));
       }
     };
 
@@ -278,6 +289,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
     isPromptEdit,
     isPromptNew,
     isChatAppearanceEdit,
+    isColorCustomizationEdit,
   ]);
 
   useEffect(() => {
@@ -534,6 +546,11 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                   typeof globalWindow.__saveChatAppearance === "function"
                 ) {
                   globalWindow.__saveChatAppearance();
+                } else if (
+                  isColorCustomizationEdit &&
+                  typeof globalWindow.__saveColorCustomization === "function"
+                ) {
+                  globalWindow.__saveColorCustomization();
                 }
               }}
               disabled={!canSave || isSaving}
