@@ -82,8 +82,8 @@ function SettingsButton({ icon, title, subtitle, onClick, disabled = false }: Se
         interactive.transition.default,
         interactive.active.scale,
         disabled
-          ? "border-white/5 bg-[#0c0d13]/50 opacity-50 cursor-not-allowed"
-          : "border-white/10 bg-[#0c0d13]/85 text-white hover:border-white/20 hover:bg-white/10",
+          ? "border-fg/6 bg-surface-el/60 opacity-50 cursor-not-allowed"
+          : "border-fg/10 bg-surface-el text-fg hover:border-fg/20 hover:bg-fg/6",
       )}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -91,7 +91,7 @@ function SettingsButton({ icon, title, subtitle, onClick, disabled = false }: Se
           className={cn(
             "flex h-10 w-10 items-center justify-center",
             radius.full,
-            "border border-white/15 bg-white/10 text-white/80",
+            "border border-fg/15 bg-fg/8 text-fg/80",
           )}
         >
           {icon}
@@ -103,15 +103,15 @@ function SettingsButton({ icon, title, subtitle, onClick, disabled = false }: Se
               typography.overline.weight,
               typography.overline.tracking,
               typography.overline.transform,
-              "text-white/50",
+              "text-fg/50",
             )}
           >
             {title}
           </div>
-          <div className={cn(typography.bodySmall.size, "text-white truncate")}>{subtitle}</div>
+          <div className={cn(typography.bodySmall.size, "text-fg truncate")}>{subtitle}</div>
         </div>
       </div>
-      <ChevronRight className="h-4 w-4 text-gray-500 transition-colors group-hover:text-white" />
+      <ChevronRight className="h-4 w-4 text-fg/40 transition-colors group-hover:text-fg/80" />
     </button>
   );
 }
@@ -120,13 +120,11 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   return (
     <div className="flex items-end justify-between gap-3">
       <div className="min-w-0">
-        <h2 className={cn(typography.h2.size, typography.h2.weight, "text-white truncate")}>
+        <h2 className={cn(typography.h2.size, typography.h2.weight, "text-fg truncate")}>
           {title}
         </h2>
         {subtitle ? (
-          <p className={cn(typography.bodySmall.size, "text-white/50 mt-0.5 truncate")}>
-            {subtitle}
-          </p>
+          <p className={cn(typography.bodySmall.size, "text-fg/50 mt-0.5 truncate")}>{subtitle}</p>
         ) : null}
       </div>
     </div>
@@ -157,8 +155,8 @@ function QuickChip({
         interactive.transition.default,
         interactive.active.scale,
         disabled
-          ? "border-white/5 bg-[#0c0d13]/50 opacity-50 cursor-not-allowed"
-          : "border-white/10 bg-[#0c0d13]/85 hover:border-white/20 hover:bg-white/10",
+          ? "border-fg/6 bg-surface-el/60 opacity-50 cursor-not-allowed"
+          : "border-fg/10 bg-surface-el hover:border-fg/20 hover:bg-fg/6",
       )}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -166,7 +164,7 @@ function QuickChip({
           className={cn(
             "flex h-10 w-10 items-center justify-center",
             radius.full,
-            "border border-white/15 bg-white/10 text-white/80",
+            "border border-fg/15 bg-fg/8 text-fg/80",
           )}
         >
           {icon}
@@ -178,15 +176,15 @@ function QuickChip({
               typography.overline.weight,
               typography.overline.tracking,
               typography.overline.transform,
-              "text-white/50",
+              "text-fg/50",
             )}
           >
             {label}
           </div>
-          <div className={cn(typography.bodySmall.size, "text-white truncate")}>{value}</div>
+          <div className={cn(typography.bodySmall.size, "text-fg truncate")}>{value}</div>
         </div>
       </div>
-      <ChevronRight className="h-4 w-4 text-gray-500 transition-colors group-hover:text-white" />
+      <ChevronRight className="h-4 w-4 text-fg/40 transition-colors group-hover:text-fg/80" />
     </button>
   );
 }
@@ -690,7 +688,11 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
   return (
     <div
-      className={cn("relative flex min-h-screen flex-col overflow-hidden", colors.text.primary, !backgroundImageData && "bg-surface")}
+      className={cn(
+        "relative flex min-h-screen flex-col overflow-hidden",
+        colors.text.primary,
+        !backgroundImageData && "bg-surface",
+      )}
     >
       {/* Scrim overlay on top of shared background */}
       {backgroundImageData && (
@@ -699,7 +701,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
       {/* Header */}
       <header
         className={cn(
-          "z-20 shrink-0 border-b border-white/10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] sticky top-0",
+          "z-20 shrink-0 border-b border-fg/10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] sticky top-0",
           !backgroundImageData ? "bg-surface" : "",
         )}
       >
@@ -707,16 +709,14 @@ function ChatSettingsContent({ character }: { character: Character }) {
           <div className="flex flex-1 items-center min-w-0">
             <button
               onClick={handleBack}
-              className="flex shrink-0 px-[0.6em] py-[0.3em] items-center justify-center -ml-2 text-white transition hover:text-white/80"
+              className="flex shrink-0 px-[0.6em] py-[0.3em] items-center justify-center -ml-2 text-fg transition hover:text-fg/80"
               aria-label="Back to chat"
             >
               <ArrowLeft size={14} strokeWidth={2.5} />
             </button>
             <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-xl font-bold text-white/90">Chat Settings</p>
-              <p className="mt-0.5 truncate text-xs text-white/50">
-                Manage conversation preferences
-              </p>
+              <p className="truncate text-xl font-bold text-fg/90">Chat Settings</p>
+              <p className="mt-0.5 truncate text-xs text-fg/50">Manage conversation preferences</p>
             </div>
           </div>
         </div>
@@ -732,16 +732,16 @@ function ChatSettingsContent({ character }: { character: Character }) {
         >
           {/* Session Header */}
           <section
-            className={cn(radius.lg, "border border-white/10 bg-[#0c0d13]/85 p-4 backdrop-blur-sm")}
+            className={cn(radius.lg, "border border-fg/10 bg-surface-el/90 p-4 backdrop-blur-sm")}
           >
             <div className="flex items-center gap-3">
               {avatarDisplay}
               <div className="min-w-0 flex-1">
-                <h3 className={cn(typography.body.size, typography.h3.weight, "text-white")}>
+                <h3 className={cn(typography.body.size, typography.h3.weight, "text-fg")}>
                   {character.name}
                 </h3>
                 {currentSession ? (
-                  <p className={cn(typography.caption.size, "text-gray-400 mt-1 truncate")}>
+                  <p className={cn(typography.caption.size, "text-fg/55 mt-1 truncate")}>
                     Session: {currentSession.title || "Untitled"}
                     <span className="opacity-50 mx-1.5">•</span>
                     {messageCount} messages
@@ -751,7 +751,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
                   <p
                     className={cn(
                       typography.caption.size,
-                      "text-gray-400 leading-relaxed line-clamp-2 mt-1",
+                      "text-fg/55 leading-relaxed line-clamp-2 mt-1",
                     )}
                   >
                     {currentCharacter.description || currentCharacter.definition}
@@ -778,11 +778,8 @@ function ChatSettingsContent({ character }: { character: Character }) {
                 interactive.transition.default,
                 interactive.active.scale,
                 !currentSession
-                  ? "border-white/5 bg-[#0c0d13]/50 opacity-10 cursor-not-allowed"
-                  : cn(
-                      "border-emerald-400/20 bg-[#0c0d13]/70 hover:border-emerald-400/30",
-                      colors.effects.glow,
-                    ),
+                  ? "border-fg/6 bg-surface-el/60 opacity-50 cursor-not-allowed"
+                  : "border-accent/25 bg-surface-el hover:border-accent/40",
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -791,7 +788,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
                     className={cn(
                       "flex h-10 w-10 items-center justify-center",
                       radius.full,
-                      "border border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+                      "border border-accent/30 bg-accent/15 text-accent",
                     )}
                   >
                     <Sparkles className="h-4 w-4" />
@@ -803,22 +800,22 @@ function ChatSettingsContent({ character }: { character: Character }) {
                         typography.overline.weight,
                         typography.overline.tracking,
                         typography.overline.transform,
-                        "text-white/50",
+                        "text-fg/50",
                       )}
                     >
                       Memory
                     </div>
-                    <div className={cn(typography.bodySmall.size, "text-white truncate")}>
+                    <div className={cn(typography.bodySmall.size, "text-fg truncate")}>
                       {memoryMetaLine}
                     </div>
                   </div>
                 </div>
-                <ChevronRight className="mt-1 h-4 w-4 text-white/40 transition-colors group-hover:text-white" />
+                <ChevronRight className="mt-1 h-4 w-4 text-fg/40 transition-colors group-hover:text-fg/80" />
               </div>
               <p
                 className={cn(
                   typography.bodySmall.size,
-                  "mt-3 text-white/70 leading-relaxed line-clamp-3",
+                  "mt-3 text-fg/70 leading-relaxed line-clamp-3",
                 )}
               >
                 {memorySummaryPreview}
@@ -947,8 +944,8 @@ function ChatSettingsContent({ character }: { character: Character }) {
                 interactive.transition.default,
                 interactive.active.scale,
                 !currentSession
-                  ? "border-white/5 bg-[#0c0d13]/50 opacity-50 cursor-not-allowed"
-                  : "border-white/10 bg-[#0c0d13]/85 hover:border-white/20 hover:bg-white/10",
+                  ? "border-fg/6 bg-surface-el/60 opacity-50 cursor-not-allowed"
+                  : "border-fg/10 bg-surface-el hover:border-fg/20 hover:bg-fg/6",
               )}
             >
               <div className="flex items-start gap-3 min-w-0">
@@ -956,7 +953,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
                   className={cn(
                     "flex h-10 w-10 items-center justify-center",
                     radius.full,
-                    "border border-white/15 bg-white/10 text-white/80",
+                    "border border-fg/15 bg-fg/8 text-fg/80",
                   )}
                 >
                   <SlidersHorizontal className="h-4 w-4" />
@@ -969,7 +966,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
                         typography.overline.weight,
                         typography.overline.tracking,
                         typography.overline.transform,
-                        "text-white/50 truncate",
+                        "text-fg/50 truncate",
                       )}
                     >
                       Advanced Settings
@@ -984,7 +981,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
                           typography.overline.transform,
                           sessionAdvancedSettings
                             ? colors.accent.emerald.subtle
-                            : "border-white/10 bg-white/5 text-white/60",
+                            : "border-fg/10 bg-fg/6 text-fg/60",
                         )}
                       >
                         {sessionAdvancedSettings
@@ -993,12 +990,12 @@ function ChatSettingsContent({ character }: { character: Character }) {
                       </span>
                     ) : null}
                   </div>
-                  <div className={cn(typography.bodySmall.size, "text-white mt-1 truncate")}>
+                  <div className={cn(typography.bodySmall.size, "text-fg mt-1 truncate")}>
                     {sessionAdvancedSummary}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-500 transition-colors group-hover:text-white" />
+              <ChevronRight className="h-4 w-4 text-fg/40 transition-colors group-hover:text-fg/80" />
             </button>
           </section>
 
