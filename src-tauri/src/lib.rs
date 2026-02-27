@@ -106,10 +106,12 @@ pub fn run() {
     #[cfg(any(target_os = "android", target_os = "ios"))]
     let builder = builder.plugin(tauri_plugin_haptics::init());
 
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     let builder = builder
-        .plugin(tauri_plugin_android_fs::init())
         .plugin(tauri_plugin_barcode_scanner::init());
+
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_android_fs::init());
 
     builder
         .setup(move |app| {

@@ -5,7 +5,7 @@
   
   **Official application repository for LettuceAI**
   
-  [Overview](#overview) • [Install](#install) • [Development](#development) • [Android](#android) • [Contributing](#contributing)
+  [Overview](#overview) • [Install](#install) • [Development](#development) • [Android](#android) • [iOS](#ios) • [Contributing](#contributing)
 </div>
 
 ## Overview
@@ -19,6 +19,7 @@ This repository contains the LettuceAI application. LettuceAI is a privacy-first
 - Bun 1.1+ (includes Node.js compatibility): https://bun.sh/
 - Rust 1.70+ and Cargo
 - Android SDK (optional, for Android builds)
+- Xcode + iOS SDK (optional, for iOS builds, macOS only)
 
 ### Quick Start
 
@@ -65,6 +66,29 @@ bun run tauri android dev
 
 # Build Android APK
 bun run tauri android build
+```
+
+## iOS
+
+### Setup (macOS only)
+
+- Install Xcode from the App Store
+- Install Xcode command-line tools: `xcode-select --install`
+- Install CocoaPods: `sudo gem install cocoapods` (or Homebrew)
+- Initialize iOS project files:
+
+```bash
+bun run tauri ios init
+```
+
+### Build and Run
+
+```bash
+# Run on iOS simulator/device (from macOS)
+bun run tauri ios dev
+
+# Build iOS app
+bun run tauri ios build
 ```
 
 ## Contributing

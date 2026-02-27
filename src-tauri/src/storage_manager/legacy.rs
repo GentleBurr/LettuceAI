@@ -1,6 +1,6 @@
 use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use machine_uid::get as get_machine_uid;
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -47,7 +47,7 @@ pub fn sessions_index_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 fn derive_key() -> Result<[u8; 32], String> {
     let machine_id = {
-        #[cfg(not(target_os = "android"))]
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
             get_machine_uid().unwrap_or_else(|_| {
                 format!(
@@ -58,7 +58,7 @@ fn derive_key() -> Result<[u8; 32], String> {
                 )
             })
         }
-        #[cfg(target_os = "android")]
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         {
             format!(
                 "{}|{}|{}",

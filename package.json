@@ -9,6 +9,12 @@
     "preview": "vite preview",
     "sync-version": "node scripts/sync-version.mjs",
     "tauri": "tauri",
+    "tauri:android:init": "tauri android init",
+    "tauri:android:dev": "tauri android dev",
+    "tauri:android:build": "tauri android build",
+    "tauri:ios:init": "tauri ios init",
+    "tauri:ios:dev": "tauri ios dev",
+    "tauri:ios:build": "tauri ios build",
     "check": "(tsc --noEmit && cd src-tauri && cargo check) && echo 'All checks successful.' || echo 'Check failed.'"
   },
   "dependencies": {
