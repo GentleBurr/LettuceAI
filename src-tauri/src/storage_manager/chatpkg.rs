@@ -32,6 +32,11 @@ struct ChatpkgInspectParticipant {
     resolved: bool,
 }
 
+struct ChatpkgSource {
+    chat_json: JsonValue,
+    attachments: HashMap<String, Vec<u8>>,
+}
+
 fn get_downloads_dir() -> Result<PathBuf, String> {
     #[cfg(target_os = "android")]
     {
@@ -165,7 +170,217 @@ fn write_chatpkg(
     Ok(())
 }
 
-fn read_chat_json_from_pkg(path: &str) -> Result<JsonValue, String> {
+fn file_stem_or_default(path: &str, default_value: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(default_value)
+        .to_string()
+}
+
+fn normalize_chat_role(raw: &str) -> Option<&'static str> {
+    let role = raw.trim().to_lowercase();
+    match role.as_str() {
+        "user" | "human" => Some("user"),
+        "assistant" | "ai" | "bot" | "model" | "character" | "char" => Some("assistant"),
+        "system" => Some("system"),
+        _ => None,
+    }
+}
+
+fn extract_message_text(value: &JsonValue) -> Option<String> {
+    if let Some(text) = value.as_str() {
+        let trimmed = text.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+
+    let Some(obj) = value.as_object() else {
+        return None;
+    };
+
+    for key in ["content", "text", "message", "value", "body"] {
+        let Some(candidate) = obj.get(key) else {
+            continue;
+        };
+
+        if let Some(text) = candidate.as_str() {
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        }
+
+        if let Some(items) = candidate.as_array() {
+            let joined = items
+                .iter()
+                .filter_map(|item| {
+                    item.as_str().map(|s| s.to_string()).or_else(|| {
+                        item.get("text")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                    })
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            if !joined.trim().is_empty() {
+                return Some(joined);
+            }
+        }
+    }
+
+    None
+}
+
+fn normalize_message_object(value: &JsonValue) -> Option<JsonValue> {
+    let role_value = ["role", "sender", "author", "speaker", "from"]
+        .iter()
+        .find_map(|key| value.get(*key).and_then(|v| v.as_str()))?;
+    let role = normalize_chat_role(role_value)?;
+    let content = extract_message_text(value)?;
+    let created_at = ["createdAt", "timestamp", "time"]
+        .iter()
+        .find_map(|key| value.get(*key).and_then(|v| v.as_i64()))
+        .unwrap_or_else(|| now_ms() as i64);
+
+    Some(json!({
+        "id": Uuid::new_v4().to_string(),
+        "role": role,
+        "content": content,
+        "createdAt": created_at,
+        "attachments": value.get("attachments").cloned().unwrap_or_else(|| JsonValue::Array(vec![])),
+    }))
+}
+
+fn build_single_chat_envelope_from_messages(
+    messages: Vec<JsonValue>,
+    source_path: &str,
+) -> JsonValue {
+    let now = now_ms() as i64;
+    json!({
+        "type": "single_chat",
+        "version": CHATPKG_VERSION,
+        "exportedAt": now,
+        "source": {
+            "app": "external",
+            "format": "jsonl",
+        },
+        "payload": {
+            "session": {
+                "id": Uuid::new_v4().to_string(),
+                "title": file_stem_or_default(source_path, "Imported Chat"),
+                "personaId": JsonValue::Null,
+                "archived": false,
+                "createdAt": now,
+                "updatedAt": now,
+                "messages": messages,
+            }
+        }
+    })
+}
+
+fn parse_chat_json_lines(raw: &str, source_path: &str) -> Result<JsonValue, String> {
+    if let Ok(parsed) = serde_json::from_str::<JsonValue>(raw) {
+        if parsed.get("type").is_some() && parsed.get("payload").is_some() {
+            return Ok(parsed);
+        }
+
+        if let Some(items) = parsed.as_array() {
+            let normalized = items
+                .iter()
+                .filter_map(normalize_message_object)
+                .collect::<Vec<_>>();
+            if !normalized.is_empty() {
+                return Ok(build_single_chat_envelope_from_messages(
+                    normalized,
+                    source_path,
+                ));
+            }
+        }
+
+        if let Some(messages) = parsed.get("messages").and_then(|v| v.as_array()) {
+            let normalized = messages
+                .iter()
+                .filter_map(normalize_message_object)
+                .collect::<Vec<_>>();
+            if !normalized.is_empty() {
+                return Ok(build_single_chat_envelope_from_messages(
+                    normalized,
+                    source_path,
+                ));
+            }
+        }
+    }
+
+    let lines = raw
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    if lines.is_empty() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "CHATPKG_INVALID_JSON",
+        ));
+    }
+
+    let mut parsed_lines = Vec::new();
+    for line in lines {
+        let value = serde_json::from_str::<JsonValue>(line)
+            .map_err(|_| crate::utils::err_msg(module_path!(), line!(), "CHATPKG_INVALID_JSONL"))?;
+        parsed_lines.push(value);
+    }
+
+    if parsed_lines.len() == 1 {
+        let single = parsed_lines.remove(0);
+        if single.get("type").is_some() && single.get("payload").is_some() {
+            return Ok(single);
+        }
+        if let Some(messages) = single.get("messages").and_then(|v| v.as_array()) {
+            let normalized = messages
+                .iter()
+                .filter_map(normalize_message_object)
+                .collect::<Vec<_>>();
+            if !normalized.is_empty() {
+                return Ok(build_single_chat_envelope_from_messages(
+                    normalized,
+                    source_path,
+                ));
+            }
+        }
+        parsed_lines.push(single);
+    }
+
+    let mut messages = Vec::new();
+    for entry in parsed_lines {
+        if let Some(items) = entry.get("messages").and_then(|v| v.as_array()) {
+            messages.extend(items.iter().filter_map(normalize_message_object));
+            continue;
+        }
+
+        if let Some(message) = normalize_message_object(&entry) {
+            messages.push(message);
+        }
+    }
+
+    if messages.is_empty() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "CHATPKG_INVALID_JSONL",
+        ));
+    }
+
+    Ok(build_single_chat_envelope_from_messages(
+        messages,
+        source_path,
+    ))
+}
+
+fn read_chatpkg_source(path: &str) -> Result<ChatpkgSource, String> {
     let file = File::open(path).map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
@@ -174,20 +389,108 @@ fn read_chat_json_from_pkg(path: &str) -> Result<JsonValue, String> {
         )
     })?;
 
-    let mut archive = ZipArchive::new(file)
+    if let Ok(mut archive) = ZipArchive::new(file) {
+        let mut content = String::new();
+        {
+            let mut entry = archive.by_name("chat.json").map_err(|_| {
+                crate::utils::err_msg(module_path!(), line!(), "CHATPKG_MISSING_CHAT_JSON")
+            })?;
+            entry
+                .read_to_string(&mut content)
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        }
+
+        let chat_json = serde_json::from_str::<JsonValue>(&content)
+            .map_err(|_| crate::utils::err_msg(module_path!(), line!(), "CHATPKG_INVALID_JSON"))?;
+
+        let mut attachments = HashMap::new();
+        for index in 0..archive.len() {
+            let mut entry = archive
+                .by_index(index)
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            let name = entry.name().to_string();
+            if !name.starts_with("attachments/") || name.ends_with('/') {
+                continue;
+            }
+
+            let mut bytes = Vec::new();
+            entry
+                .read_to_end(&mut bytes)
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            attachments.insert(name, bytes);
+        }
+
+        return Ok(ChatpkgSource {
+            chat_json,
+            attachments,
+        });
+    }
+
+    let raw = fs::read_to_string(path)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let chat_json = parse_chat_json_lines(&raw, path)?;
+    Ok(ChatpkgSource {
+        chat_json,
+        attachments: HashMap::new(),
+    })
+}
 
-    let mut entry = archive
-        .by_name("chat.json")
-        .map_err(|_| crate::utils::err_msg(module_path!(), line!(), "CHATPKG_MISSING_CHAT_JSON"))?;
+fn restore_attachment_paths(
+    messages: &mut [JsonValue],
+    attachments: &HashMap<String, Vec<u8>>,
+    app: &tauri::AppHandle,
+) -> Result<(), String> {
+    if attachments.is_empty() {
+        return Ok(());
+    }
 
-    let mut content = String::new();
-    entry
-        .read_to_string(&mut content)
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let root = storage_root(app)?;
+    for message in messages {
+        let Some(items) = message
+            .get_mut("attachments")
+            .and_then(|v| v.as_array_mut())
+        else {
+            continue;
+        };
 
-    serde_json::from_str::<JsonValue>(&content)
-        .map_err(|_| crate::utils::err_msg(module_path!(), line!(), "CHATPKG_INVALID_JSON"))
+        for attachment in items {
+            let Some(obj) = attachment.as_object_mut() else {
+                continue;
+            };
+
+            let current_path = obj
+                .get("storagePath")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
+            let normalized = current_path.replace('\\', "/");
+            let zip_rel = if let Some(rest) = normalized.strip_prefix("attachments/") {
+                format!("attachments/{}", rest)
+            } else {
+                let Some(filename) = Path::new(&normalized)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                else {
+                    continue;
+                };
+                format!("attachments/{}", filename)
+            };
+
+            let Some(bytes) = attachments.get(&zip_rel) else {
+                continue;
+            };
+
+            let output_path = root.join(&zip_rel);
+            if let Some(parent) = output_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            }
+            fs::write(&output_path, bytes)
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            obj.insert("storagePath".to_string(), JsonValue::String(zip_rel));
+        }
+    }
+
+    Ok(())
 }
 
 fn read_group_session_payload(
@@ -196,7 +499,7 @@ fn read_group_session_payload(
 ) -> Result<Option<JsonValue>, String> {
     let row = conn
         .query_row(
-            "SELECT id, name, character_ids, persona_id, created_at, updated_at, archived,
+            "SELECT id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived,
                     chat_type, starting_scene, background_image_path,
                     memories, memory_embeddings, memory_summary, memory_summary_token_count,
                     memory_tool_events, speaker_selection_method
@@ -207,19 +510,20 @@ fn read_group_session_payload(
                     r.get::<_, String>(0)?,
                     r.get::<_, String>(1)?,
                     r.get::<_, String>(2)?,
-                    r.get::<_, Option<String>>(3)?,
-                    r.get::<_, i64>(4)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, Option<String>>(4)?,
                     r.get::<_, i64>(5)?,
                     r.get::<_, i64>(6)?,
-                    r.get::<_, String>(7)?,
-                    r.get::<_, Option<String>>(8)?,
+                    r.get::<_, i64>(7)?,
+                    r.get::<_, String>(8)?,
                     r.get::<_, Option<String>>(9)?,
                     r.get::<_, Option<String>>(10)?,
                     r.get::<_, Option<String>>(11)?,
                     r.get::<_, Option<String>>(12)?,
-                    r.get::<_, Option<i64>>(13)?,
-                    r.get::<_, Option<String>>(14)?,
+                    r.get::<_, Option<String>>(13)?,
+                    r.get::<_, Option<i64>>(14)?,
                     r.get::<_, Option<String>>(15)?,
+                    r.get::<_, Option<String>>(16)?,
                 ))
             },
         )
@@ -230,6 +534,7 @@ fn read_group_session_payload(
         id,
         name,
         character_ids_json,
+        muted_character_ids_json,
         persona_id,
         created_at,
         updated_at,
@@ -250,6 +555,8 @@ fn read_group_session_payload(
 
     let character_ids: JsonValue =
         serde_json::from_str(&character_ids_json).unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let muted_character_ids: JsonValue = serde_json::from_str(&muted_character_ids_json)
+        .unwrap_or_else(|_| JsonValue::Array(vec![]));
     let memories: JsonValue = memories_json
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok())
@@ -271,6 +578,7 @@ fn read_group_session_payload(
         "id": id,
         "name": name,
         "characterIds": character_ids,
+        "mutedCharacterIds": muted_character_ids,
         "personaId": persona_id,
         "createdAt": created_at,
         "updatedAt": updated_at,
@@ -639,7 +947,7 @@ pub fn chatpkg_export_single_chat(
         "source": {
             "app": "lettuce",
             "format": "chatpkg",
-            "appVersion": app.package_info().version.to_string(),
+            "appVersion": crate::utils::app_version(&app),
         },
         "payload": {
             "session": session,
@@ -720,7 +1028,7 @@ pub fn chatpkg_export_group_chat(
         "source": {
             "app": "lettuce",
             "format": "chatpkg",
-            "appVersion": app.package_info().version.to_string(),
+            "appVersion": crate::utils::app_version(&app),
         },
         "payload": payload,
     });
@@ -739,7 +1047,7 @@ pub fn chatpkg_export_group_chat(
 
 #[tauri::command]
 pub fn chatpkg_inspect(app: tauri::AppHandle, package_path: String) -> Result<String, String> {
-    let chat_json = read_chat_json_from_pkg(&package_path)?;
+    let ChatpkgSource { chat_json, .. } = read_chatpkg_source(&package_path)?;
 
     let pkg_type = chat_json
         .get("type")
@@ -895,7 +1203,10 @@ pub fn chatpkg_import(
     options_json: Option<String>,
     pool: State<'_, SwappablePool>,
 ) -> Result<String, String> {
-    let chat_json = read_chat_json_from_pkg(&package_path)?;
+    let ChatpkgSource {
+        chat_json,
+        attachments,
+    } = read_chatpkg_source(&package_path)?;
     let pkg_type = chat_json
         .get("type")
         .and_then(|v| v.as_str())
@@ -966,6 +1277,7 @@ pub fn chatpkg_import(
                 .and_then(|v| v.as_array())
                 .cloned()
                 .unwrap_or_default();
+            restore_attachment_paths(&mut messages, &attachments, &app)?;
             remap_single_chat_messages(&mut messages);
             session["messages"] = JsonValue::Array(vec![]);
 
@@ -998,11 +1310,12 @@ pub fn chatpkg_import(
             let mut group_session = payload.get("groupSession").cloned().ok_or_else(|| {
                 crate::utils::err_msg(module_path!(), line!(), "CHATPKG_PAYLOAD_MISSING")
             })?;
-            let messages = payload
+            let mut messages = payload
                 .get("messages")
                 .and_then(|v| v.as_array())
                 .cloned()
                 .unwrap_or_default();
+            restore_attachment_paths(&mut messages, &attachments, &app)?;
             let participation = payload
                 .get("participation")
                 .and_then(|v| v.as_array())
@@ -1168,16 +1481,29 @@ pub fn chatpkg_import(
                 .get("speakerSelectionMethod")
                 .and_then(|v| v.as_str())
                 .unwrap_or("llm");
+            let muted_character_ids: Vec<String> = group_session
+                .get("mutedCharacterIds")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|value| value.as_str())
+                        .filter_map(|old_id| source_to_target_char.get(old_id).cloned())
+                        .filter(|id| unique_character_ids.contains(id))
+                        .collect()
+                })
+                .unwrap_or_default();
 
             conn.execute(
-                "INSERT INTO group_sessions (id, name, character_ids, persona_id, created_at, updated_at, archived,
+                "INSERT INTO group_sessions (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived,
                  chat_type, starting_scene, background_image_path, memories, memory_embeddings, memory_summary,
                  memory_summary_token_count, memory_tool_events, speaker_selection_method)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
                 params![
                     &new_session_id,
                     name,
                     serde_json::to_string(&unique_character_ids)
+                        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
+                    serde_json::to_string(&muted_character_ids)
                         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
                     persona_id,
                     created_at,

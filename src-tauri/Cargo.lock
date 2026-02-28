@@ -2886,6 +2886,7 @@ dependencies = [
  "keyring",
  "lazy_static",
  "llama-cpp-2",
+ "llama-cpp-sys-2",
  "local-ip-address",
  "machine-uid",
  "ndarray",

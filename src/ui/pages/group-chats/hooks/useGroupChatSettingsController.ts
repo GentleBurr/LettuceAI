@@ -82,6 +82,11 @@ export function useGroupChatSettingsController(
     return characters.filter((c) => !session.characterIds.includes(c.id));
   }, [session, characters]);
 
+  const mutedCharacterIds = useMemo(
+    () => new Set(session?.mutedCharacterIds ?? []),
+    [session?.mutedCharacterIds],
+  );
+
   const currentPersona = useMemo(() => {
     if (!session?.personaId) return null;
     return personas.find((p) => p.id === session.personaId) || null;
@@ -196,6 +201,37 @@ export function useGroupChatSettingsController(
     [session, setUi],
   );
 
+  const handleSetCharacterMuted = useCallback(
+    async (characterId: string, muted: boolean) => {
+      if (!session) return;
+      const nextMuted = new Set(session.mutedCharacterIds ?? []);
+      const activeCount = session.characterIds.length - nextMuted.size;
+      if (muted && activeCount <= 1 && !nextMuted.has(characterId)) {
+        setUi({ error: "At least one participant must remain active" });
+        return;
+      }
+      if (muted) {
+        nextMuted.add(characterId);
+      } else {
+        nextMuted.delete(characterId);
+      }
+
+      try {
+        setUi({ saving: true });
+        const updated = await storageBridge.groupSessionUpdateMutedCharacterIds(
+          session.id,
+          Array.from(nextMuted),
+        );
+        setSession(updated);
+      } catch (err) {
+        console.error("Failed to update muted characters:", err);
+      } finally {
+        setUi({ saving: false });
+      }
+    },
+    [session, setUi],
+  );
+
   const getParticipationPercent = useCallback(
     (characterId: string) => {
       if (!participationStats.length) return 0;
@@ -243,6 +279,8 @@ export function useGroupChatSettingsController(
     handleAddCharacter,
     handleRemoveCharacter,
     handleChangeSpeakerSelectionMethod,
+    handleSetCharacterMuted,
+    mutedCharacterIds,
     getParticipationPercent,
   } as const;
 }

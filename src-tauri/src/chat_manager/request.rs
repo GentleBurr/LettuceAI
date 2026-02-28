@@ -330,6 +330,16 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
         }
         None
     }
+    fn take_first_f64(map: &Map<String, Value>, keys: &[&str]) -> Option<f64> {
+        for key in keys {
+            if let Some(value) = map.get(*key) {
+                if let Some(parsed) = parse_float_value(value) {
+                    return Some(parsed);
+                }
+            }
+        }
+        None
+    }
 
     let prompt_tokens = take_first(
         map,
@@ -385,6 +395,20 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
             _ => None,
         }
     });
+    let first_token_ms = take_first(
+        map,
+        &["first_token_ms", "firstTokenMs", "ttft_ms", "ttftMs"],
+    );
+    let tokens_per_second = take_first_f64(
+        map,
+        &[
+            "tokens_per_second",
+            "tokensPerSecond",
+            "token_speed",
+            "tokenSpeed",
+            "tps",
+        ],
+    );
 
     let finish_reason = map
         .get("finish_reason")
@@ -401,6 +425,8 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
             total_tokens,
             reasoning_tokens,
             image_tokens,
+            first_token_ms,
+            tokens_per_second,
             finish_reason,
         })
     }
@@ -410,6 +436,14 @@ fn parse_token_value(value: &Value) -> Option<u64> {
     match value {
         Value::Number(num) => num.as_u64(),
         Value::String(text) => text.trim().parse::<u64>().ok(),
+        _ => None,
+    }
+}
+
+fn parse_float_value(value: &Value) -> Option<f64> {
+    match value {
+        Value::Number(num) => num.as_f64(),
+        Value::String(text) => text.trim().parse::<f64>().ok(),
         _ => None,
     }
 }

@@ -41,6 +41,18 @@ bun install
 bun run tauri dev
 bun run tauri build
 
+# Desktop with NVIDIA CUDA llama.cpp acceleration
+bun run tauri dev --features llama-gpu-cuda
+bun run tauri build --features llama-gpu-cuda
+
+# Desktop with NVIDIA CUDA llama.cpp acceleration (auto-detect local GPU arch)
+bun run tauri:dev:cuda:auto
+bun run tauri:build:cuda:auto
+
+# Desktop with Vulkan llama.cpp acceleration (AMD/Intel/NVIDIA, driver-dependent)
+bun run tauri dev --features llama-gpu-vulkan
+bun run tauri build --features llama-gpu-vulkan
+
 # Android
 bun run tauri android dev
 bun run tauri android build
@@ -94,6 +106,8 @@ bun run tauri ios dev
 # Build iOS app
 bun run tauri ios build
 ```
+
+For `llama-gpu-cuda`, install the NVIDIA CUDA toolkit and driver on the build machine.
 
 ## Contributing
 

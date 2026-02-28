@@ -108,28 +108,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        storageBridge.dbCheckpoint().catch((err) => {
-          console.warn("Failed to checkpoint database on background:", err);
-        });
-      }
-    };
-
-    const handleBeforeUnload = () => {
-      storageBridge.dbCheckpoint().catch(() => {});
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     (async () => {
       try {
@@ -247,7 +225,8 @@ function AppContent() {
   // Group chat detail: /group-chats/:id, /group-chats/:id/settings, /group-chats/new (NOT /group-chats list)
   const isGroupChatDetailRoute = location.pathname.startsWith("/group-chats/");
   const isEngineChatRoute = location.pathname.startsWith("/engine-chat/");
-  const isChatDetailRoute = location.pathname.startsWith("/chat/") || isGroupChatDetailRoute || isEngineChatRoute;
+  const isChatDetailRoute =
+    location.pathname.startsWith("/chat/") || isGroupChatDetailRoute || isEngineChatRoute;
   const isSearchRoute = location.pathname === "/search";
   const isOnboardingRoute = useMemo(
     () =>
@@ -653,9 +632,18 @@ function AppContent() {
               <Route path="/settings/sync" element={<SyncPage />} />
               <Route path="/settings/engine/:credentialId" element={<EngineHomePage />} />
               <Route path="/settings/engine/:credentialId/setup" element={<EngineSetupWizard />} />
-              <Route path="/settings/engine/:credentialId/providers" element={<EngineProvidersConfigPage />} />
-              <Route path="/settings/engine/:credentialId/settings" element={<EngineSettingsConfigPage />} />
-              <Route path="/settings/engine/:credentialId/character/new" element={<EngineCharacterCreate />} />
+              <Route
+                path="/settings/engine/:credentialId/providers"
+                element={<EngineProvidersConfigPage />}
+              />
+              <Route
+                path="/settings/engine/:credentialId/settings"
+                element={<EngineSettingsConfigPage />}
+              />
+              <Route
+                path="/settings/engine/:credentialId/character/new"
+                element={<EngineCharacterCreate />}
+              />
               <Route path="/engine-chat/:credentialId/:slug" element={<EngineChatPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/chat/:characterId" element={<ChatLayout />}>

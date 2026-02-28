@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { StoredMessage, UsageSummary, ImageAttachment } from "../storage/schemas";
+import { beginAsyncAction, endAsyncAction } from "../asyncTracker";
 
 export interface ChatTurnResult {
   sessionId: string;
@@ -48,18 +49,23 @@ export async function sendChatTurn(params: {
     throw new Error("Message cannot be empty");
   }
 
-  return invoke<ChatTurnResult>("chat_completion", {
-    args: {
-      sessionId,
-      characterId,
-      userMessage: message,
-      personaId: personaId ?? null,
-      swapPlaces,
-      stream,
-      requestId: requestId ?? null,
-      attachments,
-    },
-  });
+  if (requestId) beginAsyncAction(requestId, "chat_completion");
+  try {
+    return await invoke<ChatTurnResult>("chat_completion", {
+      args: {
+        sessionId,
+        characterId,
+        userMessage: message,
+        personaId: personaId ?? null,
+        swapPlaces,
+        stream,
+        requestId: requestId ?? null,
+        attachments,
+      },
+    });
+  } finally {
+    if (requestId) endAsyncAction(requestId);
+  }
 }
 
 export async function continueConversation(params: {
@@ -79,16 +85,21 @@ export async function continueConversation(params: {
     requestId,
   } = params;
 
-  return invoke<ChatContinueResult>("chat_continue", {
-    args: {
-      sessionId,
-      characterId,
-      personaId: personaId ?? null,
-      swapPlaces,
-      stream,
-      requestId: requestId ?? null,
-    },
-  });
+  if (requestId) beginAsyncAction(requestId, "chat_continue");
+  try {
+    return await invoke<ChatContinueResult>("chat_continue", {
+      args: {
+        sessionId,
+        characterId,
+        personaId: personaId ?? null,
+        swapPlaces,
+        stream,
+        requestId: requestId ?? null,
+      },
+    });
+  } finally {
+    if (requestId) endAsyncAction(requestId);
+  }
 }
 
 export async function regenerateAssistantMessage(params: {
@@ -99,18 +110,24 @@ export async function regenerateAssistantMessage(params: {
   requestId?: string;
 }): Promise<ChatRegenerateResult> {
   const { sessionId, messageId, swapPlaces = false, stream = true, requestId } = params;
-  return invoke<ChatRegenerateResult>("chat_regenerate", {
-    args: {
-      sessionId,
-      messageId,
-      swapPlaces,
-      stream,
-      requestId: requestId ?? null,
-    },
-  });
+  if (requestId) beginAsyncAction(requestId, "chat_regenerate");
+  try {
+    return await invoke<ChatRegenerateResult>("chat_regenerate", {
+      args: {
+        sessionId,
+        messageId,
+        swapPlaces,
+        stream,
+        requestId: requestId ?? null,
+      },
+    });
+  } finally {
+    if (requestId) endAsyncAction(requestId);
+  }
 }
 
 export async function abortMessage(requestId: string): Promise<void> {
+  endAsyncAction(requestId);
   return invoke<void>("abort_request", {
     requestId,
   });

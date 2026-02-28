@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { getName, getVersion } from "@tauri-apps/api/app";
+import { getName } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import {
   FileText,
@@ -53,7 +53,10 @@ export function LogsPage() {
         getEmbeddingModelInfo(),
       ]);
       const platform = getPlatform();
-      const [appName, appVersion] = await Promise.all([getName(), getVersion()]);
+      const [appName, appVersion] = await Promise.all([
+        getName(),
+        invoke<string>("get_app_version"),
+      ]);
 
       let storageRoot: string | null = null;
       let dbSize: number | null = null;
@@ -111,7 +114,9 @@ export function LogsPage() {
       lines.push(`- Database size: ${formatBytes(dbSize)}`);
       lines.push("");
       lines.push("App State");
-      lines.push(`- Pure Mode: ${settings.appState.pureModeLevel ?? (settings.appState.pureModeEnabled ? "standard" : "off")}`);
+      lines.push(
+        `- Pure Mode: ${settings.appState.pureModeLevel ?? (settings.appState.pureModeEnabled ? "standard" : "off")}`,
+      );
       lines.push(`- Analytics: ${settings.appState.analyticsEnabled ? "enabled" : "disabled"}`);
       lines.push("");
       lines.push("Providers");
@@ -345,10 +350,7 @@ export function LogsPage() {
             ) : (
               <div className="relative">
                 <div
-                  className={cn(
-                    "overflow-y-auto",
-                    diagnosticsExpanded ? "max-h-130" : "max-h-56",
-                  )}
+                  className={cn("overflow-y-auto", diagnosticsExpanded ? "max-h-130" : "max-h-56")}
                 >
                   <pre
                     className={cn(
@@ -425,9 +427,7 @@ export function LogsPage() {
           {logFiles.length === 0 ? (
             <div className="rounded-xl border border-fg/10 bg-fg/5 p-8 text-center">
               <FileCode className="mx-auto h-10 w-10 text-fg/20" />
-              <p className={cn("mt-3", typography.body.size, "text-fg/40")}>
-                No log files found
-              </p>
+              <p className={cn("mt-3", typography.body.size, "text-fg/40")}>No log files found</p>
               <p className={cn("mt-1", typography.caption.size, "text-fg/30")}>
                 Logs will appear here as you use the app
               </p>

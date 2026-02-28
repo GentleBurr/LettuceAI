@@ -122,6 +122,7 @@ export function MessageActionsBottomSheet({
   const navigate = useNavigate();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
+  const [modelProviderId, setModelProviderId] = useState<string | null>(null);
 
   const canEdit =
     messageAction?.message.role === "assistant" ||
@@ -145,14 +146,19 @@ export function MessageActionsBottomSheet({
     if (resolvedModelId && settings) {
       const model = settings.models.find((m: Model) => m.id === resolvedModelId);
       setModelName(model ? model.displayName : resolvedModelId);
+      setModelProviderId(model?.providerId ?? null);
     } else {
       setModelName(null);
+      setModelProviderId(null);
     }
   }, [messageAction, settings, characterDefaultModelId]);
 
   const modelLabel = modelName ?? (settings ? "Unknown model" : "Loading model...");
   const usedFallback = Boolean(messageAction?.message.fallbackFromModelId);
   const usedLorebookEntries = messageAction?.message.usedLorebookEntries ?? [];
+  const isLlamaMessage = modelProviderId === "llamacpp";
+  const firstTokenMs = messageAction?.message.usage?.firstTokenMs;
+  const tokensPerSecond = messageAction?.message.usage?.tokensPerSecond;
 
   const handleCopy = async () => {
     if (!messageAction) return;
@@ -176,27 +182,42 @@ export function MessageActionsBottomSheet({
         <div className="text-white">
           {/* Token usage */}
           {messageAction.message.usage && (
-            <div className="flex items-center gap-x-3 text-xs text-white/40 mb-4">
-              <div className="flex items-center gap-2 border-r border-white/10 pr-3">
-                <span title="Prompt Tokens">↓{messageAction.message.usage.promptTokens ?? 0}</span>
-                <span title="Completion Tokens">
-                  ↑{messageAction.message.usage.completionTokens ?? 0}
-                </span>
+            <div className="mb-4 space-y-2">
+              <div className="flex items-center gap-x-3 text-xs text-white/40">
+                <div className="flex items-center gap-2 border-r border-white/10 pr-3">
+                  <span title="Prompt Tokens">
+                    ↓{messageAction.message.usage.promptTokens ?? 0}
+                  </span>
+                  <span title="Completion Tokens">
+                    ↑{messageAction.message.usage.completionTokens ?? 0}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <span className="inline-flex items-center gap-1 text-white/60">
+                    {usedFallback && (
+                      <span title="Fallback model used" aria-label="Fallback model used">
+                        <TriangleAlert size={12} className="text-amber-300" />
+                      </span>
+                    )}
+                    <span>{modelLabel}</span>
+                  </span>
+                </div>
+                <div className="tabular-nums">
+                  {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
+                  <span className="text-[12px] uppercase opacity-50">total</span>
+                </div>
               </div>
-              <div className="flex-1">
-                <span className="inline-flex items-center gap-1 text-white/60">
-                  {usedFallback && (
-                    <span title="Fallback model used" aria-label="Fallback model used">
-                      <TriangleAlert size={12} className="text-amber-300" />
-                    </span>
-                  )}
-                  <span>{modelLabel}</span>
-                </span>
-              </div>
-              <div className="tabular-nums">
-                {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
-                <span className="text-[12px] uppercase opacity-50">total</span>
-              </div>
+              {isLlamaMessage &&
+                (typeof firstTokenMs === "number" || typeof tokensPerSecond === "number") && (
+                  <div className="flex items-center gap-3 text-[11px] text-white/45 tabular-nums">
+                    {typeof firstTokenMs === "number" && (
+                      <span title="Time to first token">TTFT {firstTokenMs}ms</span>
+                    )}
+                    {typeof tokensPerSecond === "number" && (
+                      <span title="Completion token speed">{tokensPerSecond.toFixed(1)} tok/s</span>
+                    )}
+                  </div>
+                )}
             </div>
           )}
 

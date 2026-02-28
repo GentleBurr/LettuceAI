@@ -555,6 +555,17 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
                 .and_then(|r| r.as_str())
                 .map(|s| s.to_string())
         });
+    let first_token_ms = take_first(v, &["first_token_ms", "firstTokenMs", "ttft_ms", "ttftMs"]);
+    let tokens_per_second = take_first_f64(
+        v,
+        &[
+            "tokens_per_second",
+            "tokensPerSecond",
+            "token_speed",
+            "tokenSpeed",
+            "tps",
+        ],
+    );
 
     crate::utils::log_debug_global(
         "sse_usage",
@@ -573,6 +584,8 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
             total_tokens,
             reasoning_tokens,
             image_tokens,
+            first_token_ms,
+            tokens_per_second,
             finish_reason,
         })
     }
@@ -586,6 +599,22 @@ fn take_first(map: &Value, keys: &[&str]) -> Option<u64> {
             }
             if let Some(s) = val.as_str() {
                 if let Ok(n) = s.trim().parse::<u64>() {
+                    return Some(n);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn take_first_f64(map: &Value, keys: &[&str]) -> Option<f64> {
+    for k in keys {
+        if let Some(val) = map.get(*k) {
+            if let Some(n) = val.as_f64() {
+                return Some(n);
+            }
+            if let Some(s) = val.as_str() {
+                if let Ok(n) = s.trim().parse::<f64>() {
                     return Some(n);
                 }
             }

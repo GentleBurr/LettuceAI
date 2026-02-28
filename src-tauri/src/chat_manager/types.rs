@@ -276,6 +276,8 @@ pub struct AdvancedModelSettings {
     pub llama_rope_freq_base: Option<f64>,
     pub llama_rope_freq_scale: Option<f64>,
     pub llama_offload_kqv: Option<bool>,
+    pub llama_batch_size: Option<u32>,
+    pub llama_kv_type: Option<String>,
     pub ollama_num_ctx: Option<u32>,
     pub ollama_num_predict: Option<u32>,
     pub ollama_num_keep: Option<u32>,
@@ -317,6 +319,8 @@ impl Default for AdvancedModelSettings {
             llama_rope_freq_base: None,
             llama_rope_freq_scale: None,
             llama_offload_kqv: None,
+            llama_batch_size: None,
+            llama_kv_type: None,
             ollama_num_ctx: None,
             ollama_num_predict: None,
             ollama_num_keep: None,
@@ -569,6 +573,10 @@ pub struct UsageSummary {
     pub reasoning_tokens: Option<u64>,
     #[serde(default)]
     pub image_tokens: Option<u64>,
+    #[serde(default)]
+    pub first_token_ms: Option<u64>,
+    #[serde(default)]
+    pub tokens_per_second: Option<f64>,
     #[serde(default)]
     pub finish_reason: Option<String>,
 }

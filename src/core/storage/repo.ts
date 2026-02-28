@@ -39,6 +39,35 @@ export type SessionPreview = z.infer<typeof SessionPreviewSchema>;
 
 export const SETTINGS_UPDATED_EVENT = "lettuceai:settings-updated";
 export const SESSION_UPDATED_EVENT = "lettuceai:session-updated";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeProviderCredentialIds(input: unknown): { next: unknown; changed: boolean } {
+  if (!input || typeof input !== "object") {
+    return { next: input, changed: false };
+  }
+
+  const root = JSON.parse(JSON.stringify(input)) as any;
+  const models = Array.isArray(root?.models) ? root.models : null;
+  if (!models) {
+    return { next: input, changed: false };
+  }
+
+  let changed = false;
+  for (const model of models) {
+    if (!model || typeof model !== "object") continue;
+    const providerCredentialId = model.providerCredentialId;
+    if (
+      typeof providerCredentialId === "string" &&
+      providerCredentialId.length > 0 &&
+      !UUID_RE.test(providerCredentialId)
+    ) {
+      model.providerCredentialId = null;
+      changed = true;
+    }
+  }
+
+  return { next: root, changed };
+}
 
 function broadcastSettingsUpdated() {
   if (typeof window !== "undefined") {
@@ -125,6 +154,13 @@ export async function readSettings(): Promise<Settings> {
     }
 
     return settings;
+  }
+
+  const repaired = normalizeProviderCredentialIds(data);
+  const repairedParsed = SettingsSchema.safeParse(repaired.next);
+  if (repaired.changed && repairedParsed.success) {
+    await writeSettings(repairedParsed.data, true);
+    return repairedParsed.data;
   }
 
   await storageBridge.settingsSetDefaults(null, null);

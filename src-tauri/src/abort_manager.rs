@@ -68,6 +68,14 @@ impl AbortRegistry {
         }
     }
 
+    pub fn abort_all(&self) {
+        if let Ok(mut map) = self.inner.lock() {
+            for (_, mut handle) in map.drain() {
+                handle.abort();
+            }
+        }
+    }
+
     #[allow(dead_code)]
     pub fn is_registered(&self, request_id: &str) -> bool {
         if let Ok(map) = self.inner.lock() {

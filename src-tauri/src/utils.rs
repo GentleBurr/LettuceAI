@@ -542,7 +542,13 @@ pub fn emit_toast(
 }
 
 pub(crate) fn app_version(app: &AppHandle) -> String {
-    app.package_info().version.to_string()
+    let mut version = app.package_info().version.to_string();
+    if cfg!(feature = "llama-gpu-cuda") || cfg!(feature = "llama-gpu-cuda-no-vmm") {
+        version.push_str("-cuda");
+    } else if cfg!(feature = "llama-gpu-vulkan") {
+        version.push_str("-vulkan");
+    }
+    version
 }
 
 pub fn get_local_ip() -> Result<String, String> {
