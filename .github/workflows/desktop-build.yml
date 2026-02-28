@@ -79,7 +79,6 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libspeechd-dev \
             patchelf \
-            rpm \
             zip
 
       - name: Install dependencies
@@ -125,7 +124,7 @@ jobs:
             },
             "bundle": {
               "active": true,
-              "targets": ["deb", "rpm"],
+              "targets": ["deb"],
               "icon": [
                 "icons/32x32.png",
                 "icons/128x128.png",
@@ -152,12 +151,6 @@ jobs:
         env:
           RUSTFLAGS: "--cfg DEV_BUILD"
         run: bun run tauri bundle --config dev-config.json --bundles deb
-
-      - name: Bundle Linux CPU rpm
-        timeout-minutes: 20
-        env:
-          RUSTFLAGS: "--cfg DEV_BUILD"
-        run: bun run tauri bundle --config dev-config.json --bundles rpm
 
       - name: Package Linux CPU bundle zip
         run: |
@@ -211,7 +204,6 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libspeechd-dev \
             patchelf \
-            rpm \
             zip
 
       - name: Setup CUDA Toolkit
@@ -271,7 +263,7 @@ jobs:
             },
             "bundle": {
               "active": true,
-              "targets": ["deb", "rpm"],
+              "targets": ["deb"],
               "icon": [
                 "icons/32x32.png",
                 "icons/128x128.png",
@@ -308,17 +300,6 @@ jobs:
           CMAKE_CXX_FLAGS: "-fPIC"
           CMAKE_CUDA_FLAGS: "--compiler-options=-fPIC"
         run: bun run tauri bundle --config dev-config.json --features llama-gpu-cuda --bundles deb
-
-      - name: Bundle Linux CUDA rpm
-        timeout-minutes: 20
-        env:
-          RUSTFLAGS: "--cfg DEV_BUILD"
-          CARGO_TARGET_DIR: target-cuda
-          CMAKE_POSITION_INDEPENDENT_CODE: "ON"
-          CMAKE_C_FLAGS: "-fPIC"
-          CMAKE_CXX_FLAGS: "-fPIC"
-          CMAKE_CUDA_FLAGS: "--compiler-options=-fPIC"
-        run: bun run tauri bundle --config dev-config.json --features llama-gpu-cuda --bundles rpm
 
       - name: Package Linux CUDA bundle zip
         run: |
@@ -377,7 +358,6 @@ jobs:
             libshaderc-dev \
             glslc \
             glslang-tools \
-            rpm \
             zip
 
       - name: Verify Vulkan shader toolchain
@@ -431,7 +411,7 @@ jobs:
             },
             "bundle": {
               "active": true,
-              "targets": ["deb", "rpm"],
+              "targets": ["deb"],
               "icon": [
                 "icons/32x32.png",
                 "icons/128x128.png",
@@ -460,13 +440,6 @@ jobs:
           RUSTFLAGS: "--cfg DEV_BUILD"
           CARGO_TARGET_DIR: target-vulkan
         run: bun run tauri bundle --config dev-config.json --features llama-gpu-vulkan --bundles deb
-
-      - name: Bundle Linux Vulkan rpm
-        timeout-minutes: 20
-        env:
-          RUSTFLAGS: "--cfg DEV_BUILD"
-          CARGO_TARGET_DIR: target-vulkan
-        run: bun run tauri bundle --config dev-config.json --features llama-gpu-vulkan --bundles rpm
 
       - name: Package Linux Vulkan bundle zip
         run: |
