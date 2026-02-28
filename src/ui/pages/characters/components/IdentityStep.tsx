@@ -3,6 +3,7 @@ import { X, Camera, Image, Upload, Sparkles, Loader2, AlertCircle } from "lucide
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../design-tokens";
 import { AvatarPicker } from "../../../components/AvatarPicker";
 import type { AvatarCrop } from "../../../../core/storage/schemas";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface IdentityStepProps {
   name: string;
@@ -45,6 +46,8 @@ export function IdentityStep({
   avatarImportError = null,
   onImport,
 }: IdentityStepProps) {
+  const { t } = useI18n();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -56,10 +59,10 @@ export function IdentityStep({
       {/* Title */}
       <div className={spacing.tight}>
         <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-          Create Character
+          {t("characters.identity.title")}
         </h2>
         <p className={cn(typography.body.size, "text-fg/50")}>
-          Give your AI character an identity
+          {t("characters.identity.subtitle")}
         </p>
       </div>
 
@@ -102,8 +105,8 @@ export function IdentityStep({
               </button>
             )}
           </div>
-          <p className="mt-3 text-xs text-fg/40">Tap camera to add or generate avatar</p>
-          {importingAvatar && <p className="mt-1 text-xs text-accent/80">Importing avatar...</p>}
+          <p className="mt-3 text-xs text-fg/40">{t("characters.identity.tapCameraToAdd")}</p>
+          {importingAvatar && <p className="mt-1 text-xs text-accent/80">{t("characters.identity.importingAvatar")}</p>}
           {avatarImportError && (
             <div className="mt-2 flex items-start gap-1.5 text-xs text-danger">
               <AlertCircle size={12} className="mt-0.5 shrink-0" />
@@ -126,13 +129,13 @@ export function IdentityStep({
                 "uppercase text-fg/70",
               )}
             >
-              Character Name *
+              {t("characters.identity.characterName")}
             </label>
             <div className="relative">
               <input
                 value={name}
                 onChange={(e) => onNameChange(e.target.value)}
-                placeholder="Enter character name..."
+                placeholder={t("characters.identity.characterNamePlaceholder")}
                 inputMode="text"
                 className={cn(
                   "w-full border bg-surface-el/20 px-4 py-3.5 text-fg placeholder-fg/40 backdrop-blur-xl",
@@ -162,7 +165,7 @@ export function IdentityStep({
               )}
             </div>
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              This name will appear in chat conversations
+              {t("characters.identity.characterNameDesc")}
             </p>
           </div>
 
@@ -187,11 +190,11 @@ export function IdentityStep({
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-accent" />
                       <span className={cn(typography.body.size, "font-medium text-fg")}>
-                        Avatar Gradient
+                        {t("characters.identity.avatarGradient")}
                       </span>
                     </div>
                     <p className={cn(typography.bodySmall.size, "mt-1 text-fg/40")}>
-                      Generate dynamic gradients from avatar colors
+                      {t("characters.identity.avatarGradientDesc")}
                     </p>
                   </div>
                   <div className="relative ml-3">

@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { cn, typography, radius, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import {
   listPromptTemplates,
   deletePromptTemplate,
@@ -48,11 +49,11 @@ type TemplateUsage = {
 
 type FilterTag = "all" | "system" | "internal" | "custom";
 
-const FILTER_TAGS: { key: FilterTag; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "system", label: "System" },
-  { key: "internal", label: "Internal" },
-  { key: "custom", label: "Custom" },
+const FILTER_TAGS: { key: FilterTag; labelKey: string }[] = [
+  { key: "all", labelKey: "systemPrompts.filters.all" },
+  { key: "system", labelKey: "systemPrompts.filters.system" },
+  { key: "internal", labelKey: "systemPrompts.filters.internal" },
+  { key: "custom", labelKey: "systemPrompts.filters.custom" },
 ];
 
 type ExternalPromptEntry = {
@@ -291,16 +292,17 @@ function PromptCardSkeleton() {
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6">
       <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-fg/10 bg-fg/5 mb-4">
         <FileText className="h-7 w-7 text-fg/30" />
       </div>
       <h3 className={cn(typography.h2.size, typography.h2.weight, "text-fg mb-2")}>
-        No custom prompts yet
+        {t("systemPrompts.empty.title")}
       </h3>
       <p className={cn(typography.body.size, "text-fg/50 text-center max-w-xs mb-6")}>
-        Create custom system prompts to personalize your AI conversations
+        {t("systemPrompts.empty.description")}
       </p>
       <button
         onClick={onCreate}
@@ -315,7 +317,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         )}
       >
         <Plus className="h-4 w-4" />
-        Create Prompt
+        {t("systemPrompts.empty.createButton")}
       </button>
     </div>
   );
@@ -475,6 +477,7 @@ function PromptCard({
 }
 
 export function SystemPromptsPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<SystemPromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -824,7 +827,7 @@ export function SystemPromptsPage() {
                         : "border border-fg/10 bg-fg/5 text-fg/50 hover:bg-fg/10 hover:text-fg/70",
                     )}
                   >
-                    {tag.label}
+                    {t(tag.labelKey as any)}
                   </button>
                 );
               })}

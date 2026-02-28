@@ -25,6 +25,7 @@ import { cn, typography, spacing, interactive, colors } from "../../design-token
 import { EmbeddingDownloadPrompt } from "../../components/EmbeddingDownloadPrompt";
 import { BottomMenu } from "../../components/BottomMenu";
 import { openDocs, DOCS } from "../../../core/utils/docs";
+import { useI18n } from "../../../core/i18n/context";
 
 type DocsKey = keyof typeof DOCS;
 
@@ -312,6 +313,7 @@ function SettingsSection({ title, children, icon }: SettingsSectionProps) {
 
 export function AdvancedPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
 
@@ -499,10 +501,10 @@ export function AdvancedPage() {
     <div className="flex h-full flex-col pb-16">
       <section className={cn("flex-1 overflow-y-auto px-3 pt-3", spacing.section)}>
         {/* AI Features Section */}
-        <SettingsSection title="AI Features" icon={<Zap size={12} />}>
+        <SettingsSection title={t("advanced.sectionTitles.aiFeatures")} icon={<Zap size={12} />}>
           <FeatureCard
-            title="Creation Helper"
-            description="AI-guided character creation wizard"
+            title={t("advanced.creationHelper.title")}
+            description={t("advanced.creationHelper.description")}
             detailText="Get intelligent suggestions for personality traits, backstory, and dialogue style"
             icon={<Sparkles className="h-4 w-4" />}
             enabled={creationHelperEnabled}
@@ -513,8 +515,8 @@ export function AdvancedPage() {
           />
 
           <FeatureCard
-            title="Help Me Reply"
-            description="AI-assisted reply suggestions"
+            title={t("advanced.helpMeReply.title")}
+            description={t("advanced.helpMeReply.description")}
             detailText="Generate contextual response options based on conversation history"
             icon={<PenLine className="h-4 w-4" />}
             enabled={helpMeReplyEnabled}
@@ -525,9 +527,9 @@ export function AdvancedPage() {
         </SettingsSection>
 
         {/* Memory System Section */}
-        <SettingsSection title="Memory System" icon={<Brain size={12} />}>
+        <SettingsSection title={t("advanced.sectionTitles.memorySystem")} icon={<Brain size={12} />}>
           <FeatureCard
-            title="Dynamic Memory"
+            title={t("advanced.dynamicMemory.title")}
             description={
               dynamicMemoryEnabled
                 ? "AI automatically manages conversation context"
@@ -557,10 +559,10 @@ export function AdvancedPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className={cn(typography.body.size, "font-medium text-fg")}>
-                      Context Window
+                      {t("advanced.dynamicMemory.contextWindow")}
                     </span>
                     <p className="mt-0.5 text-[11px] text-fg/45">
-                      Number of recent messages to include (1-1000)
+                      {t("advanced.dynamicMemory.contextWindowDesc")}
                     </p>
                   </div>
                   <input
@@ -586,7 +588,7 @@ export function AdvancedPage() {
         </SettingsSection>
 
         {/* Usage Analytics Section */}
-        <SettingsSection title="Usage Analytics" icon={<DollarSign size={12} />}>
+        <SettingsSection title={t("advanced.sectionTitles.usageAnalytics")} icon={<DollarSign size={12} />}>
           <div className={cn("rounded-xl border px-4 py-4", "border-fg/10 bg-fg/5")}>
             <div className="flex items-start gap-3">
               <div
@@ -602,10 +604,10 @@ export function AdvancedPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <span className={cn(typography.body.size, "font-medium text-fg")}>
-                      Recalculate Usage Costs
+                      {t("advanced.usageAnalytics.recalculateTitle")}
                     </span>
                     <p className="mt-0.5 text-[11px] text-fg/45">
-                      Update all historical usage records with correct pricing
+                      {t("advanced.usageAnalytics.recalculateDesc")}
                     </p>
                   </div>
                 </div>
@@ -624,10 +626,10 @@ export function AdvancedPage() {
                   {recalculating ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Recalculating...
+                      {t("advanced.usageAnalytics.recalculating")}
                     </span>
                   ) : (
-                    "Recalculate All Costs"
+                    t("advanced.usageAnalytics.recalculateButton")
                   )}
                 </button>
 
@@ -703,23 +705,23 @@ export function AdvancedPage() {
           </div>
 
           <div className={cn("rounded-xl border border-fg/10 bg-fg/5 p-3")}>
-            <p className="text-xs font-medium text-fg/70 mb-2">Important:</p>
+            <p className="text-xs font-medium text-fg/70 mb-2">{t("advanced.usageAnalytics.importantLabel")}</p>
             <ul className="space-y-1.5 text-xs text-fg/60">
               <li className="flex items-start gap-2">
                 <span className="text-warning mt-0.5">•</span>
-                <span>This operation cannot be undone</span>
+                <span>{t("advanced.usageAnalytics.warningCannotUndo")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-warning mt-0.5">•</span>
-                <span>It may take time if you have many records</span>
+                <span>{t("advanced.usageAnalytics.warningMayTakeTime")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-warning mt-0.5">•</span>
-                <span>Only OpenRouter records with tokens will be updated</span>
+                <span>{t("advanced.usageAnalytics.warningOnlyOpenRouter")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-warning mt-0.5">•</span>
-                <span>Existing cost values will be overwritten</span>
+                <span>{t("advanced.usageAnalytics.warningExistingValues")}</span>
               </li>
             </ul>
           </div>
@@ -736,7 +738,7 @@ export function AdvancedPage() {
                 "hover:bg-fg/10 hover:text-fg transition-all",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={() => {
@@ -749,7 +751,7 @@ export function AdvancedPage() {
                 "hover:bg-warning/30 hover:border-warning/40 transition-all",
               )}
             >
-              Proceed
+              {t("common.buttons.proceed")}
             </button>
           </div>
         </div>

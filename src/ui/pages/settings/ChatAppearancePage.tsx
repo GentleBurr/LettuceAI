@@ -17,6 +17,7 @@ import {
   mergeChatAppearance,
 } from "../../../core/storage/schemas";
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { useAvatar } from "../../hooks/useAvatar";
 import { useImageData } from "../../hooks/useImageData";
 import { AvatarImage } from "../../components/AvatarImage";
@@ -516,6 +517,7 @@ function LivePreview({
 
 export function ChatAppearancePage() {
   const [searchParams] = useSearchParams();
+  const { t } = useI18n();
   const characterId = searchParams.get("characterId") ?? undefined;
   const mode = characterId ? "character" : "global";
 
@@ -777,29 +779,29 @@ export function ChatAppearancePage() {
       {/* Typography */}
       <div>
         <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-          Typography
+          {t("chatAppearance.typography")}
         </h2>
         <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
           <OptionGrid
-            label="Font Size"
+            label={t("chatAppearance.fontSize.label")}
             value={effectiveSettings.fontSize}
             options={[
-              { value: "small", label: "Small" },
-              { value: "medium", label: "Medium" },
-              { value: "large", label: "Large" },
-              { value: "xlarge", label: "X-Large" },
+              { value: "small", label: t("chatAppearance.fontSize.small") },
+              { value: "medium", label: t("chatAppearance.fontSize.medium") },
+              { value: "large", label: t("chatAppearance.fontSize.large") },
+              { value: "xlarge", label: t("chatAppearance.fontSize.xLarge") },
             ]}
             onChange={(v) => updateField("fontSize", v)}
             overridden={isOverridden("fontSize")}
             onReset={mode === "character" ? () => resetField("fontSize") : undefined}
           />
           <OptionGrid
-            label="Line Spacing"
+            label={t("chatAppearance.lineSpacing.label")}
             value={effectiveSettings.lineSpacing}
             options={[
-              { value: "tight", label: "Tight" },
-              { value: "normal", label: "Normal" },
-              { value: "relaxed", label: "Relaxed" },
+              { value: "tight", label: t("chatAppearance.lineSpacing.tight") },
+              { value: "normal", label: t("chatAppearance.lineSpacing.normal") },
+              { value: "relaxed", label: t("chatAppearance.lineSpacing.relaxed") },
             ]}
             onChange={(v) => updateField("lineSpacing", v)}
             overridden={isOverridden("lineSpacing")}
@@ -811,52 +813,52 @@ export function ChatAppearancePage() {
       {/* Message Bubbles */}
       <div>
         <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-          Message Bubbles
+          {t("chatAppearance.messageBubbles.label")}
         </h2>
         <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
           <OptionGrid
-            label="Style"
+            label={t("chatAppearance.messageBubbles.style.label")}
             value={effectiveSettings.bubbleStyle}
             options={[
-              { value: "bordered", label: "Bordered" },
-              { value: "filled", label: "Filled" },
-              { value: "minimal", label: "Minimal" },
+              { value: "bordered", label: t("chatAppearance.messageBubbles.style.bordered") },
+              { value: "filled", label: t("chatAppearance.messageBubbles.style.filled") },
+              { value: "minimal", label: t("chatAppearance.messageBubbles.style.minimal") },
             ]}
             onChange={(v) => updateField("bubbleStyle", v)}
             overridden={isOverridden("bubbleStyle")}
             onReset={mode === "character" ? () => resetField("bubbleStyle") : undefined}
           />
           <OptionGrid
-            label="Corner Radius"
+            label={t("chatAppearance.messageBubbles.cornerRadius.label")}
             value={effectiveSettings.bubbleRadius}
             options={[
-              { value: "sharp", label: "Sharp" },
-              { value: "rounded", label: "Rounded" },
-              { value: "pill", label: "Pill" },
+              { value: "sharp", label: t("chatAppearance.messageBubbles.cornerRadius.sharp") },
+              { value: "rounded", label: t("chatAppearance.messageBubbles.cornerRadius.rounded") },
+              { value: "pill", label: t("chatAppearance.messageBubbles.cornerRadius.pill") },
             ]}
             onChange={(v) => updateField("bubbleRadius", v)}
             overridden={isOverridden("bubbleRadius")}
             onReset={mode === "character" ? () => resetField("bubbleRadius") : undefined}
           />
           <OptionGrid
-            label="Max Width"
+            label={t("chatAppearance.messageBubbles.maxWidth.label")}
             value={effectiveSettings.bubbleMaxWidth}
             options={[
-              { value: "compact", label: "Compact" },
-              { value: "normal", label: "Normal" },
-              { value: "wide", label: "Wide" },
+              { value: "compact", label: t("chatAppearance.messageBubbles.maxWidth.compact") },
+              { value: "normal", label: t("chatAppearance.messageBubbles.maxWidth.normal") },
+              { value: "wide", label: t("chatAppearance.messageBubbles.maxWidth.wide") },
             ]}
             onChange={(v) => updateField("bubbleMaxWidth", v)}
             overridden={isOverridden("bubbleMaxWidth")}
             onReset={mode === "character" ? () => resetField("bubbleMaxWidth") : undefined}
           />
           <OptionGrid
-            label="Padding"
+            label={t("chatAppearance.messageBubbles.padding.label")}
             value={effectiveSettings.bubblePadding}
             options={[
-              { value: "compact", label: "Compact" },
-              { value: "normal", label: "Normal" },
-              { value: "spacious", label: "Spacious" },
+              { value: "compact", label: t("chatAppearance.messageBubbles.padding.compact") },
+              { value: "normal", label: t("chatAppearance.messageBubbles.padding.normal") },
+              { value: "spacious", label: t("chatAppearance.messageBubbles.padding.spacious") },
             ]}
             onChange={(v) => updateField("bubblePadding", v)}
             overridden={isOverridden("bubblePadding")}
@@ -868,40 +870,40 @@ export function ChatAppearancePage() {
       {/* Layout */}
       <div>
         <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-          Layout
+          {t("chatAppearance.layout.label")}
         </h2>
         <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
           <OptionGrid
-            label="Message Spacing"
+            label={t("chatAppearance.layout.messageSpacing")}
             value={effectiveSettings.messageGap}
             options={[
-              { value: "tight", label: "Tight" },
-              { value: "normal", label: "Normal" },
-              { value: "relaxed", label: "Relaxed" },
+              { value: "tight", label: t("chatAppearance.layout.tight") },
+              { value: "normal", label: t("chatAppearance.layout.normal") },
+              { value: "relaxed", label: t("chatAppearance.layout.relaxed") },
             ]}
             onChange={(v) => updateField("messageGap", v)}
             overridden={isOverridden("messageGap")}
             onReset={mode === "character" ? () => resetField("messageGap") : undefined}
           />
           <OptionGrid
-            label="Avatar Shape"
+            label={t("chatAppearance.avatar.shape.label")}
             value={effectiveSettings.avatarShape}
             options={[
-              { value: "circle", label: "Circle" },
-              { value: "rounded", label: "Rounded" },
-              { value: "hidden", label: "Hidden" },
+              { value: "circle", label: t("chatAppearance.avatar.shape.circle") },
+              { value: "rounded", label: t("chatAppearance.avatar.shape.rounded") },
+              { value: "hidden", label: t("chatAppearance.avatar.shape.hidden") },
             ]}
             onChange={(v) => updateField("avatarShape", v)}
             overridden={isOverridden("avatarShape")}
             onReset={mode === "character" ? () => resetField("avatarShape") : undefined}
           />
           <OptionGrid
-            label="Avatar Size"
+            label={t("chatAppearance.avatar.size.label")}
             value={effectiveSettings.avatarSize}
             options={[
-              { value: "small", label: "Small" },
-              { value: "medium", label: "Medium" },
-              { value: "large", label: "Large" },
+              { value: "small", label: t("chatAppearance.avatar.size.small") },
+              { value: "medium", label: t("chatAppearance.avatar.size.medium") },
+              { value: "large", label: t("chatAppearance.avatar.size.large") },
             ]}
             onChange={(v) => updateField("avatarSize", v)}
             overridden={isOverridden("avatarSize")}
@@ -913,44 +915,44 @@ export function ChatAppearancePage() {
       {/* Colors */}
       <div>
         <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-          Colors
+          {t("chatAppearance.colors.label")}
         </h2>
         <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
           <OptionGrid
-            label="User Bubble Color"
+            label={t("chatAppearance.colors.userBubble")}
             value={effectiveSettings.userBubbleColor}
             options={[
-              { value: "accent", label: "Accent" },
-              { value: "info", label: "Info" },
-              { value: "secondary", label: "Secondary" },
-              { value: "warning", label: "Warning" },
+              { value: "accent", label: t("chatAppearance.colors.accent") },
+              { value: "info", label: t("chatAppearance.colors.info") },
+              { value: "secondary", label: t("chatAppearance.colors.secondary") },
+              { value: "warning", label: t("chatAppearance.colors.warning") },
             ]}
             onChange={(v) => updateField("userBubbleColor", v)}
             overridden={isOverridden("userBubbleColor")}
             onReset={mode === "character" ? () => resetField("userBubbleColor") : undefined}
           />
           <OptionGrid
-            label="Assistant Bubble Color"
+            label={t("chatAppearance.colors.assistantBubble")}
             value={effectiveSettings.assistantBubbleColor}
             options={[
-              { value: "neutral", label: "Neutral" },
-              { value: "accent", label: "Accent" },
-              { value: "info", label: "Info" },
-              { value: "secondary", label: "Secondary" },
+              { value: "neutral", label: t("chatAppearance.colors.neutral") },
+              { value: "accent", label: t("chatAppearance.colors.accent") },
+              { value: "info", label: t("chatAppearance.colors.info") },
+              { value: "secondary", label: t("chatAppearance.colors.secondary") },
             ]}
             onChange={(v) => updateField("assistantBubbleColor", v)}
             overridden={isOverridden("assistantBubbleColor")}
             onReset={mode === "character" ? () => resetField("assistantBubbleColor") : undefined}
           />
           <HexColorControl
-            label="User Bubble Hex Override"
+            label={t("chatAppearance.colors.userBubbleHex")}
             value={effectiveSettings.userBubbleColorHex}
             onChange={(v) => updateField("userBubbleColorHex", v)}
             overridden={isOverridden("userBubbleColorHex")}
             onReset={mode === "character" ? () => resetField("userBubbleColorHex") : undefined}
           />
           <HexColorControl
-            label="Assistant Bubble Hex Override"
+            label={t("chatAppearance.colors.assistantBubbleHex")}
             value={effectiveSettings.assistantBubbleColorHex}
             onChange={(v) => updateField("assistantBubbleColorHex", v)}
             overridden={isOverridden("assistantBubbleColorHex")}
@@ -962,11 +964,11 @@ export function ChatAppearancePage() {
       {/* Background */}
       <div>
         <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-          Background & Transparency
+          {t("chatAppearance.backgroundTransparency.label")}
         </h2>
         <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
           <SliderControl
-            label="Background Dim"
+            label={t("chatAppearance.backgroundTransparency.backgroundDim")}
             value={effectiveSettings.backgroundDim}
             min={0}
             max={80}
@@ -977,7 +979,7 @@ export function ChatAppearancePage() {
             onReset={mode === "character" ? () => resetField("backgroundDim") : undefined}
           />
           <SliderControl
-            label="Background Blur"
+            label={t("chatAppearance.backgroundTransparency.backgroundBlur")}
             value={effectiveSettings.backgroundBlur}
             min={0}
             max={20}
@@ -988,20 +990,20 @@ export function ChatAppearancePage() {
             onReset={mode === "character" ? () => resetField("backgroundBlur") : undefined}
           />
           <OptionGrid
-            label="Bubble Blur"
+            label={t("chatAppearance.backgroundTransparency.bubbleBlur")}
             value={effectiveSettings.bubbleBlur}
             options={[
-              { value: "none", label: "None" },
-              { value: "light", label: "Light" },
-              { value: "medium", label: "Medium" },
-              { value: "heavy", label: "Heavy" },
+              { value: "none", label: t("chatAppearance.backgroundTransparency.none") },
+              { value: "light", label: t("chatAppearance.backgroundTransparency.light") },
+              { value: "medium", label: t("chatAppearance.backgroundTransparency.medium") },
+              { value: "heavy", label: t("chatAppearance.backgroundTransparency.heavy") },
             ]}
             onChange={(v) => updateField("bubbleBlur", v)}
             overridden={isOverridden("bubbleBlur")}
             onReset={mode === "character" ? () => resetField("bubbleBlur") : undefined}
           />
           <SliderControl
-            label="Bubble Opacity"
+            label={t("chatAppearance.backgroundTransparency.bubbleOpacity")}
             value={effectiveSettings.bubbleOpacity}
             min={20}
             max={100}
@@ -1012,12 +1014,12 @@ export function ChatAppearancePage() {
             onReset={mode === "character" ? () => resetField("bubbleOpacity") : undefined}
           />
           <OptionGrid
-            label="Text Color Mode"
+            label={t("chatAppearance.textColorMode.label")}
             value={effectiveSettings.textMode}
             options={[
-              { value: "auto", label: "Auto" },
-              { value: "light", label: "Light" },
-              { value: "dark", label: "Dark" },
+              { value: "auto", label: t("chatAppearance.textColorMode.auto") },
+              { value: "light", label: t("chatAppearance.textColorMode.light") },
+              { value: "dark", label: t("chatAppearance.textColorMode.dark") },
             ]}
             onChange={(v) => updateField("textMode", v)}
             overridden={isOverridden("textMode")}
@@ -1054,7 +1056,7 @@ export function ChatAppearancePage() {
               className="flex items-center gap-1.5 lg:pointer-events-none"
             >
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Preview
+                {t("chatAppearance.preview.label")}
               </h2>
               <ChevronDown
                 size={12}
@@ -1077,7 +1079,7 @@ export function ChatAppearancePage() {
                   )}
                 >
                   <Eye size={11} />
-                  {livePreview ? "Live" : "Generic"}
+                  {livePreview ? t("chatAppearance.preview.live") : t("chatAppearance.preview.generic")}
                 </button>
               )}
             </div>

@@ -1,6 +1,8 @@
 import { X } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 
+import { useI18n } from "../../../../core/i18n/context";
+
 type Props = {
   label: string;
   value: string[];
@@ -9,6 +11,8 @@ type Props = {
 };
 
 export function TagInput({ label, value, onChange, placeholder }: Props) {
+  const { scope } = useI18n();
+  const t = scope("engine.tagInput");
   const [input, setInput] = useState("");
 
   const addTag = () => {
@@ -60,7 +64,11 @@ export function TagInput({ label, value, onChange, placeholder }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={addTag}
-          placeholder={value.length === 0 ? (placeholder || "Type and press Enter") : "Add more..."}
+          placeholder={
+            value.length === 0
+              ? (placeholder || t("typeAndPressEnter"))
+              : t("addMore")
+          }
           className="w-full bg-transparent text-sm text-white placeholder-white/40 focus:outline-none"
         />
       </div>

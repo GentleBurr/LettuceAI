@@ -28,6 +28,7 @@ import { EmbeddingUpgradePrompt } from "../../components/EmbeddingUpgradePrompt"
 import { BottomMenu } from "../../components/BottomMenu";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
+import { useI18n } from "../../../core/i18n/context";
 
 const DEFAULT_DYNAMIC_MEMORY_SETTINGS: DynamicMemorySettings = {
   enabled: false,
@@ -151,6 +152,7 @@ function detectPreset(settings: DynamicMemorySettings): MemoryPreset {
 type TabType = "direct" | "group";
 
 export function DynamicMemoryPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("direct");
@@ -537,7 +539,7 @@ export function DynamicMemoryPage() {
                         >
                           <Icon className="h-5 w-5" />
                         </div>
-                        <span className="text-xs font-semibold">{info.title}</span>
+                        <span className="text-xs font-semibold">{t(`dynamicMemory.presets.${key}` as const)}</span>
                       </button>
                     );
                   })}

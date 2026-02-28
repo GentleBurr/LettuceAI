@@ -11,6 +11,7 @@ import {
 } from "../../../core/image-generation";
 import { readSettings } from "../../../core/storage/repo";
 import type { Model, ProviderCredential } from "../../../core/storage/schemas";
+import { useI18n } from "../../../core/i18n/context";
 
 interface ImageGenerationState {
   loading: boolean;
@@ -24,6 +25,7 @@ interface ImageGenerationState {
 }
 
 export function ImageGenerationPage() {
+  const { t } = useI18n();
   const [state, setState] = useState<ImageGenerationState>({
     loading: true,
     generating: false,
@@ -162,9 +164,9 @@ export function ImageGenerationPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5 mb-4">
           <Image className="h-8 w-8 text-fg/40" />
         </div>
-        <h2 className="text-lg font-semibold text-fg mb-2">No Image Models</h2>
+        <h2 className="text-lg font-semibold text-fg mb-2">{t("imageGeneration.empty.title")}</h2>
         <p className="text-center text-sm text-fg/50 mb-4">
-          Add an image generation model from the Models page to start generating images.
+          {t("imageGeneration.empty.description")}
         </p>
         <p className="text-center text-xs text-fg/40">
           Supported providers: OpenAI (DALL-E), Google (Imagen), OpenRouter
@@ -203,7 +205,7 @@ export function ImageGenerationPage() {
 
         {/* Model Selection */}
         <div className="space-y-2">
-          <label className="text-[11px] font-medium text-fg/70">MODEL</label>
+          <label className="text-[11px] font-medium text-fg/70">{t("imageGeneration.labels.model")}</label>
           <select
             value={state.selectedModel?.id ?? ""}
             onChange={(e) => handleModelChange(e.target.value)}
@@ -219,11 +221,11 @@ export function ImageGenerationPage() {
 
         {/* Prompt Input */}
         <div className="space-y-2">
-          <label className="text-[11px] font-medium text-fg/70">PROMPT</label>
+          <label className="text-[11px] font-medium text-fg/70">{t("imageGeneration.labels.prompt")}</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the image you want to generate..."
+            placeholder={t("imageGeneration.promptPlaceholder")}
             rows={4}
             className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2.5 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none resize-none"
           />
@@ -253,7 +255,7 @@ export function ImageGenerationPage() {
             >
               {/* Size */}
               <div className="space-y-2">
-                <label className="text-[11px] font-medium text-fg/70">SIZE</label>
+                <label className="text-[11px] font-medium text-fg/70">{t("imageGeneration.labels.size")}</label>
                 <div className="flex flex-wrap gap-2">
                   {availableSizes.map((s) => (
                     <button
@@ -276,7 +278,7 @@ export function ImageGenerationPage() {
                 <>
                   {/* Quality */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-medium text-fg/70">QUALITY</label>
+                    <label className="text-[11px] font-medium text-fg/70">{t("imageGeneration.labels.quality")}</label>
                     <div className="flex gap-2">
                       {["standard", "hd"].map((q) => (
                         <button
@@ -296,7 +298,7 @@ export function ImageGenerationPage() {
 
                   {/* Style */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-medium text-fg/70">STYLE</label>
+                    <label className="text-[11px] font-medium text-fg/70">{t("imageGeneration.labels.style")}</label>
                     <div className="flex gap-2">
                       {["vivid", "natural"].map((s) => (
                         <button

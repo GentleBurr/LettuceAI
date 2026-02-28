@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ZoomIn, ZoomOut, Check, RotateCcw } from "lucide-react";
 import { cn, typography, radius, interactive, shadows } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 
 interface Position {
   x: number;
@@ -21,6 +22,7 @@ export function AvatarPositionModal({
   imageSrc,
   onConfirm,
 }: AvatarPositionModalProps) {
+  const { t } = useI18n();
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -334,7 +336,7 @@ export function AvatarPositionModal({
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
               <h3 className={cn(typography.h3.size, typography.h3.weight, "text-white")}>
-                Position Avatar
+                {t("components.avatarPosition.title")}
               </h3>
               <button
                 onClick={onClose}
@@ -352,7 +354,7 @@ export function AvatarPositionModal({
             {/* Image Area with Circular Guide */}
             <div className="relative px-5 py-6">
               <p className={cn(typography.bodySmall.size, "mb-4 text-center text-white/50")}>
-                Drag to position • Pinch or scroll to zoom
+                {t("components.avatarPosition.instructions")}
               </p>
 
               {/* Full image container (rectangular) */}
@@ -381,7 +383,7 @@ export function AvatarPositionModal({
                 <img
                   ref={imageRef}
                   src={imageSrc}
-                  alt="Avatar to position"
+                  alt={t("components.avatarPosition.alt")}
                   className="absolute pointer-events-none"
                   style={{
                     top: 0,
@@ -526,7 +528,7 @@ export function AvatarPositionModal({
                   "hover:bg-white/10 hover:text-white active:scale-[0.98]",
                 )}
               >
-                Cancel
+                {t("common.buttons.cancel")}
               </button>
               <button
                 onClick={handleConfirm}
@@ -542,7 +544,7 @@ export function AvatarPositionModal({
                 )}
               >
                 <Check size={18} />
-                Confirm
+                {t("common.buttons.confirm")}
               </button>
             </div>
           </motion.div>

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { components, colors, interactive, radius, cn } from "../../design-tokens";
 import { storageBridge } from "../../../core/storage/files";
 import { Routes, useNavigationManager } from "../../navigation";
+import { useI18n } from "../../../core/i18n/context";
 
 interface SearchResult {
     messageId: string;
@@ -16,6 +17,7 @@ export function SearchMessagesPage() {
     const navigate = useNavigate();
     const { characterId } = useParams<{ characterId: string }>();
     const { backOrReplace } = useNavigationManager();
+    const { t } = useI18n();
     const [searchParams] = useSearchParams();
     const sessionId = searchParams.get("sessionId");
 
@@ -39,7 +41,7 @@ export function SearchMessagesPage() {
             setResults(data);
         } catch (err) {
             console.error("Search failed:", err);
-            setError("Failed to search messages");
+            setError(t("chats.search.failed"));
         } finally {
             setLoading(false);
         }
@@ -104,7 +106,7 @@ export function SearchMessagesPage() {
                         autoFocus
                         value={query}
                         onChange={onQueryChange}
-                        placeholder="Search conversation..."
+                        placeholder={t("chats.search.placeholder")}
                         className={cn(
                             "w-full pl-10 pr-10 py-2.5 placeholder:text-white/30",
                             components.input.base,
@@ -135,7 +137,7 @@ export function SearchMessagesPage() {
                 ) : error ? (
                     <div className="text-center text-danger py-10">{error}</div>
                 ) : results.length === 0 && query.trim() ? (
-                    <div className="text-center text-white/30 py-10">No messages found</div>
+                    <div className="text-center text-white/30 py-10">{t("chats.search.noMessagesFound")}</div>
                 ) : (
                     <div className="space-y-4">
                         {results.map((result) => (
@@ -151,7 +153,7 @@ export function SearchMessagesPage() {
                                 )}
                             >
                                 <div className="flex justify-between items-center text-xs text-white/40 uppercase font-medium tracking-wider">
-                                    <span>{result.role === 'user' ? 'You' : 'Character'}</span>
+                                    <span>{result.role === 'user' ? t("chats.search.you") : t("chats.search.character")}</span>
                                     <span>{new Date(result.createdAt).toLocaleDateString()}</span>
                                 </div>
                                 <p className="text-sm text-white/80 line-clamp-3 leading-relaxed">

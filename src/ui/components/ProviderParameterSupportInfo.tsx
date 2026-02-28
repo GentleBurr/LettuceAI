@@ -3,6 +3,7 @@ import {
   type AdvancedModelSettings,
   getProviderReasoningCapability,
 } from "../../core/storage/schemas";
+import { useI18n } from "../../core/i18n/context";
 
 interface ProviderParameterSupportInfoProps {
   providerId: string;
@@ -91,13 +92,14 @@ export function ProviderParameterSupportInfo({
   providerId,
   compact = false,
 }: ProviderParameterSupportInfoProps) {
+  const { t } = useI18n();
   const provider =
     PROVIDER_PARAMETER_SUPPORT[providerId as keyof typeof PROVIDER_PARAMETER_SUPPORT];
 
   if (!provider) {
     return (
       <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-        <p className="text-xs text-white/50">Unknown provider: {providerId}</p>
+        <p className="text-xs text-white/50">{t("components.providerParameterSupport.unknownProvider", { providerId })}</p>
       </div>
     );
   }
@@ -170,11 +172,11 @@ export function ProviderParameterSupportInfo({
                 <div className="text-sm font-medium text-white">{PARAMETER_LABELS[param]}</div>
                 <div className="text-xs text-white/50 truncate">
                   {param === "reasoningEffort" && reasoningCapability.type === "none"
-                    ? "Not supported - this provider doesn't use effort levels"
+                    ? t("components.providerParameterSupport.reasoningNotSupportedEffort")
                     : param === "reasoningEffort" && reasoningCapability.type === "budget-only"
-                      ? "Not supported - this provider uses budget-only approach"
+                      ? t("components.providerParameterSupport.reasoningNotSupportedBudgetOnly")
                       : param === "reasoningBudgetTokens" && reasoningCapability.type === "none"
-                        ? "Not supported - this provider doesn't support reasoning"
+                        ? t("components.providerParameterSupport.reasoningNotSupported")
                         : PARAMETER_DESCRIPTIONS[param]}
                 </div>
               </div>
@@ -199,20 +201,19 @@ export function ProviderParameterSupportInfo({
             />
           </svg>
           <div className="text-xs text-blue-200/80 leading-relaxed space-y-1">
-            <p>Unsupported parameters will be ignored by {provider.displayName}.</p>
+            <p>{t("components.providerParameterSupport.unsupportedParametersIgnored", { providerName: provider.displayName })}</p>
             {reasoningCapability.type === "effort" && (
               <p className="font-medium text-amber-200">
-                ⚡ Reasoning effort is supported for thinking models (o1, DeepSeek-R1, etc.)
+                ⚡ {t("components.providerParameterSupport.reasoningEffortSupported")}
               </p>
             )}
             {reasoningCapability.type === "budget-only" && (
               <p className="font-medium text-amber-200">
-                💭 This provider uses budget-based thinking (no effort levels). Set reasoning budget
-                tokens instead.
+                💭 {t("components.providerParameterSupport.reasoningBudgetSupported")}
               </p>
             )}
             {reasoningCapability.type === "none" && (
-              <p className="text-white/50">This provider doesn't support reasoning parameters.</p>
+              <p className="text-white/50">{t("components.providerParameterSupport.reasoningNotSupportedProvider")}</p>
             )}
           </div>
         </div>
@@ -225,6 +226,7 @@ export function ProviderParameterSupportInfo({
  * Show a summary of all providers and their parameter support
  */
 export function AllProvidersParameterSupport() {
+  const { t } = useI18n();
   const allProviders = Object.values(PROVIDER_PARAMETER_SUPPORT);
   const allParams = Object.keys(
     PROVIDER_PARAMETER_SUPPORT.openai.supportedParameters,
@@ -232,13 +234,13 @@ export function AllProvidersParameterSupport() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-white">Provider Parameter Support Matrix</h3>
+      <h3 className="text-sm font-semibold text-white">{t("components.providerParameterSupport.matrixTitle")}</h3>
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-white/10">
-              <th className="pb-2 pr-4 text-left font-medium text-white/60">Provider</th>
+              <th className="pb-2 pr-4 text-left font-medium text-white/60">{t("components.providerParameterSupport.providerColumn")}</th>
               {allParams.map((param) => (
                 <th key={param} className="pb-2 px-2 text-center font-medium text-white/60">
                   {PARAMETER_LABELS[param]}
@@ -293,8 +295,8 @@ export function AllProvidersParameterSupport() {
       </div>
 
       <div className="text-[10px] text-white/40 space-y-1">
-        <p>✓ = Supported by provider API</p>
-        <p>✗ = Not supported (parameter will be ignored)</p>
+        <p>✓ = {t("components.providerParameterSupport.supportedIndicator")}</p>
+        <p>✗ = {t("components.providerParameterSupport.notSupportedIndicator")}</p>
       </div>
     </div>
   );

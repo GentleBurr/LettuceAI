@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ChevronsRight, Plus, SendHorizonal, Square, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "../../../../core/i18n/context";
 import type { Character, ImageAttachment, Persona } from "../../../../core/storage/schemas";
 import { radius, typography, interactive, shadows, cn } from "../../../design-tokens";
 import { getPlatform } from "../../../../core/utils/platform";
@@ -47,6 +48,7 @@ export function GroupChatFooter({
   triggerFileInput,
   onFileInputTriggered,
 }: GroupChatFooterProps) {
+  const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
   const hasAttachments = pendingAttachments.length > 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -288,7 +290,7 @@ export function GroupChatFooter({
                 "text-danger/70 hover:text-danger hover:bg-danger/20",
                 interactive.transition.fast,
               )}
-              aria-label="Dismiss error"
+              aria-label={t("groupChats.footer.dismissError")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -317,7 +319,7 @@ export function GroupChatFooter({
                     interactive.transition.fast,
                     interactive.active.scale,
                   )}
-                  aria-label="Remove attachment"
+                  aria-label={t("groupChats.footer.removeAttachment")}
                 >
                   <X className="h-5 w-5 text-surface drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
                 </button>
@@ -344,7 +346,7 @@ export function GroupChatFooter({
           >
             <div className="p-1.5">
               <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-fg/40 font-medium">
-                Mention a character
+                {t("groupChats.footer.mentionCharacter")}
               </div>
               {filteredCharacters.map((character) => (
                 <MentionPickerItem
@@ -355,7 +357,7 @@ export function GroupChatFooter({
                 />
               ))}
               {filteredCharacters.length === 0 && (
-                <div className="px-3 py-4 text-center text-sm text-fg/40">No characters found</div>
+                <div className="px-3 py-4 text-center text-sm text-fg/40">{t("groupChats.footer.noCharactersFound")}</div>
               )}
             </div>
           </motion.div>
@@ -394,8 +396,8 @@ export function GroupChatFooter({
               "hover:border-fg/25 hover:bg-fg/15",
               "disabled:cursor-not-allowed disabled:opacity-40",
             )}
-            title={onOpenPlusMenu ? "More options" : "Add image"}
-            aria-label={onOpenPlusMenu ? "More options" : "Add image attachment"}
+            title={onOpenPlusMenu ? t("groupChats.footer.moreOptions") : t("groupChats.footer.addImage")}
+            aria-label={onOpenPlusMenu ? t("groupChats.footer.moreOptions") : t("groupChats.footer.addImage")}
           >
             <Plus size={20} />
           </button>
@@ -429,7 +431,7 @@ export function GroupChatFooter({
               "peer-focus:opacity-70",
             )}
           >
-            Message... (@ to mention)
+            {t("groupChats.footer.messagePlaceholder")}
           </span>
         )}
 
@@ -459,21 +461,21 @@ export function GroupChatFooter({
           )}
           title={
             sending && onAbort
-              ? "Stop generation"
+              ? t("groupChats.footer.stopGeneration")
               : hasDraft || hasAttachments
-                ? "Send message"
+                ? t("groupChats.footer.sendMessage")
                 : onContinue
-                  ? "Continue conversation"
-                  : "Send message"
+                  ? t("groupChats.footer.continueConversation")
+                  : t("groupChats.footer.sendMessage")
           }
           aria-label={
             sending && onAbort
-              ? "Stop generation"
+              ? t("groupChats.footer.stopGeneration")
               : hasDraft || hasAttachments
-                ? "Send message"
+                ? t("groupChats.footer.sendMessage")
                 : onContinue
-                  ? "Continue conversation"
-                  : "Send message"
+                  ? t("groupChats.footer.continueConversation")
+                  : t("groupChats.footer.sendMessage")
           }
         >
           {sending && onAbort ? (
@@ -502,7 +504,8 @@ function MentionPickerItem({
   character: Character;
   onClick: () => void;
   query: string;
-}) {
+  }) {
+  const { t } = useI18n();
   const avatarUrl = useAvatar("character", character.id, character.avatarPath, "round");
 
   // Highlight matching text
@@ -558,7 +561,7 @@ function MentionPickerItem({
           </p>
         )}
       </div>
-      <div className="text-[10px] text-fg/30 shrink-0">Tab to select</div>
+      <div className="text-[10px] text-fg/30 shrink-0">{t("groupChats.footer.tabToSelect")}</div>
     </button>
   );
 }

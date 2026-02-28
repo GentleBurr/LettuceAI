@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { Archive, ArchiveRestore, Edit3, Plus, Trash2 } from "lucide-react";
 
+import { useI18n } from "../../../../../core/i18n/context";
 import type { GroupSessionPreview, Character } from "../../../../../core/storage/schemas";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { useAvatar } from "../../../../hooks/useAvatar";
@@ -49,6 +50,7 @@ export function SessionCard({
   isBusy: boolean;
   isArchived?: boolean;
 }) {
+  const { t } = useI18n();
   const [isRenaming, setIsRenaming] = useState(false);
   const [editTitle, setEditTitle] = useState(session.name);
 
@@ -141,8 +143,7 @@ export function SessionCard({
             </p>
 
             <p className={cn(typography.bodySmall.size, "text-fg/50 mb-2")}>
-              {formatTimeAgo(session.updatedAt)} • {session.messageCount}{" "}
-              {session.messageCount === 1 ? "message" : "messages"}
+              {formatTimeAgo(session.updatedAt)} • {t("groupChats.session.messageCount", { count: session.messageCount })}
             </p>
 
             {session.lastMessage && (
@@ -176,7 +177,7 @@ export function SessionCard({
               typography.body.size,
               "focus:outline-none focus:border-info/60",
             )}
-            placeholder="Chat title..."
+            placeholder={t("groupChats.session.chatTitlePlaceholder")}
           />
           <div className="flex gap-2">
             <button
@@ -189,7 +190,7 @@ export function SessionCard({
                 "active:scale-95 disabled:opacity-50 transition-all",
               )}
             >
-              Save
+              {t("common.buttons.save")}
             </button>
             <button
               onClick={handleCancel}
@@ -200,7 +201,7 @@ export function SessionCard({
                 "active:scale-95 transition-all",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
           </div>
         </div>
@@ -219,7 +220,7 @@ export function SessionCard({
             )}
           >
             <Plus size={14} />
-            New Chat
+            {t("groupChats.session.newChat")}
           </button>
           <button
             onClick={() => setIsRenaming(true)}
@@ -232,7 +233,7 @@ export function SessionCard({
             )}
           >
             <Edit3 size={14} />
-            Rename
+            {t("groupChats.session.rename")}
           </button>
           {isArchived ? (
             <button
@@ -246,7 +247,7 @@ export function SessionCard({
               )}
             >
               <ArchiveRestore size={14} />
-              Unarchive
+              {t("groupChats.session.unarchive")}
             </button>
           ) : (
             <button
@@ -260,7 +261,7 @@ export function SessionCard({
               )}
             >
               <Archive size={14} />
-              Archive
+              {t("groupChats.session.archive")}
             </button>
           )}
           <button
@@ -274,7 +275,7 @@ export function SessionCard({
             )}
           >
             <Trash2 size={14} />
-            Delete
+            {t("common.buttons.delete")}
           </button>
         </div>
       )}

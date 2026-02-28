@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { Routes, useNavigationManager } from "../../navigation";
 import { DiscoveryCard, DiscoverySection, DiscoverySectionSkeleton } from "./components";
 import {
@@ -28,16 +29,17 @@ interface TabItem {
   icon: typeof TrendingUp;
 }
 
-const TABS: TabItem[] = [
-  { id: "all", label: "For You", icon: Sparkles },
-  { id: "trending", label: "Trending", icon: TrendingUp },
-  { id: "popular", label: "Popular", icon: Flame },
-  { id: "newest", label: "New", icon: Clock },
-];
-
 export function DiscoveryPage() {
   const navigate = useNavigate();
   const { backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
+
+  const TABS: TabItem[] = [
+    { id: "all", label: t("discovery.tabs.forYou"), icon: Sparkles },
+    { id: "trending", label: t("discovery.tabs.trending"), icon: TrendingUp },
+    { id: "popular", label: t("discovery.tabs.popular"), icon: Flame },
+    { id: "newest", label: t("discovery.tabs.new"), icon: Clock },
+  ];
 
   const [sections, setSections] = useState<DiscoverySections | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,12 +138,12 @@ export function DiscoveryPage() {
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Go back"
+              aria-label={t("common.buttons.goBack")}
             >
               <ArrowLeft size={20} strokeWidth={2.5} />
             </button>
             <h1 className={cn(typography.h1.size, "font-bold tracking-tight text-fg")}>
-              Discover
+              {t("common.bottomNav.discover")}
             </h1>
           </div>
 
@@ -156,7 +158,7 @@ export function DiscoveryPage() {
                 interactive.active.scale,
                 refreshing && "animate-spin",
               )}
-              aria-label="Refresh"
+              aria-label={t("common.buttons.refresh")}
             >
               <RefreshCw size={20} strokeWidth={2.5} />
             </button>
@@ -169,7 +171,7 @@ export function DiscoveryPage() {
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Search"
+              aria-label={t("common.buttons.search")}
             >
               <Search size={20} strokeWidth={2.5} />
             </button>
@@ -182,7 +184,7 @@ export function DiscoveryPage() {
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Settings"
+              aria-label={t("common.nav.settings")}
             >
               <Settings size={20} strokeWidth={2.5} />
             </button>
@@ -204,7 +206,7 @@ export function DiscoveryPage() {
             className="flex w-full items-center gap-3 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3 text-left transition-all hover:border-fg/15 hover:bg-fg/[0.07] active:scale-[0.99]"
           >
             <Search className="h-4 w-4 text-fg/40" />
-            <span className="text-sm text-fg/40">Search characters...</span>
+            <span className="text-sm text-fg/40">{t("discovery.searchPlaceholder")}</span>
           </button>
         </div>
 
@@ -238,14 +240,14 @@ export function DiscoveryPage() {
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-danger/30 bg-danger/10">
               <AlertCircle className="h-8 w-8 text-danger" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-fg">Something went wrong</h3>
+            <h3 className="mb-2 text-lg font-semibold text-fg">{t("discovery.errorTitle")}</h3>
             <p className="mb-6 text-center text-sm text-fg/50">{error}</p>
             <button
               onClick={() => loadSections()}
               className="flex items-center gap-2 rounded-xl border border-fg/20 bg-fg/10 px-5 py-2.5 text-sm font-medium text-fg transition-all hover:bg-fg/15 active:scale-95"
             >
               <RefreshCw className="h-4 w-4" />
-              Try Again
+              {t("common.buttons.retry")}
             </button>
           </div>
         )}
@@ -277,8 +279,8 @@ export function DiscoveryPage() {
 
                 {/* Trending Section */}
                 <DiscoverySection
-                  title="Trending Now"
-                  subtitle="Hot this week"
+                  title={t("discovery.sections.trendingNow")}
+                  subtitle={t("discovery.sections.trendingSubtitle")}
                   cards={sections.trending.slice(1, 12)}
                   onCardClick={handleCardClick}
                   onViewAll={() => handleViewAll("trending")}
@@ -288,8 +290,8 @@ export function DiscoveryPage() {
 
                 {/* Popular Section */}
                 <DiscoverySection
-                  title="Most Popular"
-                  subtitle="Community favorites"
+                  title={t("discovery.sections.mostPopular")}
+                  subtitle={t("discovery.sections.popularSubtitle")}
                   cards={sections.popular.slice(0, 12)}
                   onCardClick={handleCardClick}
                   onViewAll={() => handleViewAll("popular")}
@@ -299,8 +301,8 @@ export function DiscoveryPage() {
 
                 {/* Newest Section */}
                 <DiscoverySection
-                  title="Fresh Arrivals"
-                  subtitle="Just added"
+                  title={t("discovery.sections.freshArrivals")}
+                  subtitle={t("discovery.sections.freshSubtitle")}
                   cards={sections.newest.slice(0, 12)}
                   onCardClick={handleCardClick}
                   onViewAll={() => handleViewAll("newest")}
@@ -324,7 +326,7 @@ export function DiscoveryPage() {
 
                 {getDisplayCards().length === 0 && (
                   <div className="flex flex-col items-center justify-center py-20">
-                    <p className="text-sm text-fg/50">No cards found</p>
+                    <p className="text-sm text-fg/50">{t("discovery.noCardsFound")}</p>
                   </div>
                 )}
               </div>

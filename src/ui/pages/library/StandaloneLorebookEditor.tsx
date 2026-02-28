@@ -34,6 +34,7 @@ import {
 import { BottomMenu, MenuButton } from "../../components";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { TopNav } from "../../components/App";
+import { useI18n } from "../../../core/i18n/context";
 
 const DRAG_HOLD_MS = 450;
 
@@ -48,6 +49,7 @@ function KeywordTagInput({
   caseSensitive: boolean;
   onCaseSensitiveChange: (caseSensitive: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
 
   const addKeyword = () => {
@@ -65,9 +67,9 @@ function KeywordTagInput({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-medium text-fg/70">KEYWORDS</label>
+        <label className="text-[11px] font-medium text-fg/70">{t("characters.lorebook.keywords")}</label>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-fg/50">Case sensitive</span>
+          <span className="text-xs text-fg/50">{t("characters.lorebook.caseSensitive")}</span>
           <label
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 ${
               caseSensitive ? "bg-accent" : "bg-fg/20"
@@ -92,7 +94,7 @@ function KeywordTagInput({
         <input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Type a keyword..."
+          placeholder={t("characters.lorebook.typeKeyword")}
           className="flex-1 rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2.5 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
         />
         <button
@@ -101,7 +103,7 @@ function KeywordTagInput({
           disabled={!inputValue.trim()}
           className="rounded-xl border border-accent/40 bg-accent/20 px-4 py-2.5 text-sm font-medium text-accent/70 transition hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Add
+          {t("common.buttons.add")}
         </button>
       </div>
 
@@ -137,6 +139,7 @@ function EntryEditorMenu({
   onClose: () => void;
   onSave: (entry: LorebookEntry) => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<LorebookEntry | null>(null);
 
   useEffect(() => {
@@ -153,15 +156,15 @@ function EntryEditorMenu({
   };
 
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title="Edit Entry">
+    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("characters.lorebook.editEntry")}>
       <div className="space-y-4">
         {/* Title */}
         <div className="space-y-2">
-          <label className="text-[11px] font-medium text-fg/70">TITLE</label>
+          <label className="text-[11px] font-medium text-fg/70">{t("characters.lorebook.titleLabel")}</label>
           <input
             value={draft.title || ""}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            placeholder="Name this entry..."
+            placeholder={t("characters.lorebook.titlePlaceholder")}
             className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
           />
         </div>
@@ -170,8 +173,8 @@ function EntryEditorMenu({
         <div className="flex gap-3">
           <div className="flex items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3 flex-1">
             <div>
-              <label className="block text-sm font-semibold text-fg">Enabled</label>
-              <p className="mt-0.5 text-xs text-fg/50">Include in prompts</p>
+              <label className="block text-sm font-semibold text-fg">{t("characters.lorebook.enabled")}</label>
+              <p className="mt-0.5 text-xs text-fg/50">{t("characters.lorebook.includeInPrompts")}</p>
             </div>
             <label
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 ${
@@ -194,8 +197,8 @@ function EntryEditorMenu({
 
           <div className="flex items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3 flex-1">
             <div>
-              <label className="block text-sm font-semibold text-fg">Always On</label>
-              <p className="mt-0.5 text-xs text-fg/50">No keywords needed</p>
+              <label className="block text-sm font-semibold text-fg">{t("characters.lorebook.alwaysOn")}</label>
+              <p className="mt-0.5 text-xs text-fg/50">{t("characters.lorebook.noKeywordsNeeded")}</p>
             </div>
             <label
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 ${
@@ -229,11 +232,11 @@ function EntryEditorMenu({
 
         {/* Content */}
         <div className="space-y-2">
-          <label className="text-[11px] font-medium text-fg/70">CONTENT</label>
+          <label className="text-[11px] font-medium text-fg/70">{t("characters.lorebook.contentLabel")}</label>
           <textarea
             value={draft.content}
             onChange={(e) => setDraft({ ...draft, content: e.target.value })}
-            placeholder="Write the lore context here..."
+            placeholder={t("characters.lorebook.contentPlaceholder")}
             rows={8}
             className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
           />
@@ -249,7 +252,7 @@ function EntryEditorMenu({
           }
           className="w-full rounded-xl border border-accent/40 bg-accent/20 px-4 py-3.5 text-sm font-semibold text-accent/70 transition hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Save Entry
+          {t("characters.lorebook.saveEntry")}
         </button>
       </div>
     </BottomMenu>
@@ -335,12 +338,13 @@ function EntryListItem({
     scrollLockRef.current = null;
   };
 
-  const displayTitle = entry.title?.trim() || entry.keywords[0] || "Untitled Entry";
+  const { t } = useI18n();
+  const displayTitle = entry.title?.trim() || entry.keywords[0] || t("characters.lorebook.untitledEntry");
   const displaySubtitle = entry.alwaysActive
-    ? "Always active"
+    ? t("characters.lorebook.alwaysActive")
     : entry.keywords.length > 0
       ? entry.keywords.slice(0, 3).join(", ") + (entry.keywords.length > 3 ? "..." : "")
-      : "No keywords";
+      : t("characters.lorebook.noKeywords");
 
   return (
     <motion.div
@@ -436,7 +440,7 @@ function EntryListItem({
           <div className="flex items-center gap-2">
             <h3 className="truncate text-sm font-semibold text-fg">{displayTitle}</h3>
             {!entry.enabled && (
-              <span className="text-[10px] uppercase tracking-wide text-fg/40">Disabled</span>
+              <span className="text-[10px] uppercase tracking-wide text-fg/40">{t("characters.lorebook.disabled")}</span>
             )}
           </div>
           <p className="line-clamp-1 text-xs text-fg/50">{displaySubtitle}</p>
@@ -451,6 +455,7 @@ function EntryListItem({
 }
 
 export function StandaloneLorebookEditor() {
+  const { t } = useI18n();
   const { lorebookId } = useParams<{ lorebookId: string }>();
   const navigate = useNavigate();
 
@@ -671,12 +676,12 @@ export function StandaloneLorebookEditor() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface px-4">
         <div className="text-center">
-          <p className="text-lg text-fg">Lorebook not found</p>
+          <p className="text-lg text-fg">{t("characters.lorebookPreview.untitledLorebook")}</p>
           <button
             onClick={() => navigate("/library")}
             className="mt-4 text-sm text-fg/60 hover:text-fg"
           >
-            Back to Library
+            {t("common.buttons.back")}
           </button>
         </div>
       </div>
@@ -739,7 +744,7 @@ export function StandaloneLorebookEditor() {
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search entries..."
+                placeholder={t("characters.lorebook.searchEntries")}
                 className="w-full rounded-xl border border-fg/10 bg-surface-el/20 pl-9 pr-4 py-2 text-sm text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
               />
             </div>
@@ -751,20 +756,20 @@ export function StandaloneLorebookEditor() {
           {entries.length === 0 ? (
             <div className="flex h-64 flex-col items-center justify-center">
               <BookOpen className="mb-3 h-12 w-12 text-fg/20" />
-              <h3 className="mb-1 text-lg font-medium text-fg">No entries yet</h3>
+              <h3 className="mb-1 text-lg font-medium text-fg">{t("characters.lorebook.noEntriesYet")}</h3>
               <p className="mb-4 text-center text-sm text-fg/50">
-                Add entries to inject lore into your chats
+                {t("characters.lorebook.addEntriesToInject")}
               </p>
               <button
                 onClick={handleCreateEntry}
                 className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/70 transition hover:bg-accent/30"
               >
-                Create Entry
+                {t("characters.lorebook.createEntry")}
               </button>
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center text-fg/50">
-              <p>No matching entries found</p>
+              <p>{t("characters.lorebook.noMatchingEntries")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -792,14 +797,14 @@ export function StandaloneLorebookEditor() {
         <BottomMenu
           isOpen={Boolean(selectedEntry)}
           onClose={() => setSelectedEntry(null)}
-          title={selectedEntry?.title || selectedEntry?.keywords[0] || "Entry"}
+          title={selectedEntry?.title || selectedEntry?.keywords[0] || t("characters.lorebook.entryDefaultName")}
         >
           {selectedEntry && (
             <div className="space-y-2">
               <MenuButton
                 icon={Edit2}
-                title="Edit Entry"
-                description="Modify title, keywords, and content"
+                title={t("characters.lorebook.editEntry")}
+                description={t("characters.lorebook.editEntryDesc")}
                 color="from-info to-info/80"
                 onClick={() => {
                   setEditingEntry(selectedEntry);
@@ -809,11 +814,11 @@ export function StandaloneLorebookEditor() {
 
               <MenuButton
                 icon={Star}
-                title={selectedEntry.enabled ? "Disable Entry" : "Enable Entry"}
+                title={selectedEntry.enabled ? t("characters.lorebook.disableEntry") : t("characters.lorebook.enableEntry")}
                 description={
                   selectedEntry.enabled
-                    ? "Entry won't be injected into prompts"
-                    : "Entry will be injected when keywords match"
+                    ? t("characters.lorebook.entryDisabledDesc")
+                    : t("characters.lorebook.entryEnabledDesc")
                 }
                 color="from-accent to-accent/80"
                 onClick={() => {
@@ -825,9 +830,9 @@ export function StandaloneLorebookEditor() {
               <button
                 onClick={async () => {
                   const confirmed = await confirmBottomMenu({
-                    title: "Delete entry?",
-                    message: "Are you sure you want to delete this entry?",
-                    confirmLabel: "Delete",
+                    title: t("characters.lorebook.deleteEntry") + "?",
+                    message: t("characters.lorebook.deleteConfirmMessage"),
+                    confirmLabel: t("common.buttons.delete"),
                     destructive: true,
                   });
                   if (!confirmed) return;
@@ -839,7 +844,7 @@ export function StandaloneLorebookEditor() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-danger/30 bg-danger/20">
                   <Trash2 className="h-4 w-4 text-danger" />
                 </div>
-                <span className="text-sm font-medium text-danger">Delete Entry</span>
+                <span className="text-sm font-medium text-danger">{t("characters.lorebook.deleteEntry")}</span>
               </button>
             </div>
           )}
@@ -863,16 +868,16 @@ export function StandaloneLorebookEditor() {
             setShowRenameMenu(false);
             setNewName("");
           }}
-          title="Rename Lorebook"
+          title={t("library.actions.renameLorebook")}
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[11px] font-medium text-fg/70">NAME</label>
+              <label className="text-[11px] font-medium text-fg/70">{t("characters.lorebook.nameLabel")}</label>
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleRename()}
-                placeholder="Enter lorebook name..."
+                placeholder={t("characters.lorebook.enterNamePlaceholder")}
                 autoFocus
                 className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
               />
@@ -883,7 +888,7 @@ export function StandaloneLorebookEditor() {
               disabled={!newName.trim() || newName.trim() === lorebook.name}
               className="w-full rounded-xl border border-accent/40 bg-accent/20 px-4 py-3.5 text-sm font-semibold text-accent/70 transition hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save
+              {t("common.buttons.save")}
             </button>
           </div>
         </BottomMenu>

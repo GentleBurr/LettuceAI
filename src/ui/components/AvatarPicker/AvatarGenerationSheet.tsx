@@ -5,6 +5,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 
 import { BottomMenu } from "../BottomMenu";
 import { cn, typography, radius, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import {
   generateImage,
   type ImageGenerationRequest,
@@ -25,6 +26,7 @@ export function AvatarGenerationSheet({
   onClose,
   onImageGenerated,
 }: AvatarGenerationSheetProps) {
+  const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function AvatarGenerationSheet({
         setSelectedProvider(provider);
       } catch (err) {
         console.error("Failed to load models:", err);
-        setError("Failed to load image generation models");
+        setError(t("components.avatarGeneration.modelsLoadError"));
       } finally {
         setLoading(false);
       }
@@ -158,7 +160,7 @@ export function AvatarGenerationSheet({
 
   if (loading && isOpen) {
     return (
-      <BottomMenu isOpen={isOpen} onClose={onClose} title="Generate Avatar">
+      <BottomMenu isOpen={isOpen} onClose={onClose} title={t("components.avatarGeneration.title")}>
         <div className="flex h-32 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-white/60" />
         </div>
@@ -170,13 +172,13 @@ export function AvatarGenerationSheet({
     <BottomMenu
       isOpen={isOpen}
       onClose={onClose}
-      title="Generate Avatar"
+      title={t("components.avatarGeneration.title")}
       rightAction={
         <button
           type="button"
           onClick={() => openDocs("imagegen", "avatar-generation")}
           className="text-white/40 hover:text-white/60 transition"
-          aria-label="Help with avatar generation"
+          aria-label={t("components.avatarGeneration.help")}
         >
           <HelpCircle size={18} />
         </button>
@@ -186,7 +188,7 @@ export function AvatarGenerationSheet({
         {/* Model Selector */}
         <div className="space-y-2">
           <label className={cn(typography.label.size, typography.label.weight, "text-white/60")}>
-            Model
+            {t("components.avatarGeneration.model")}
           </label>
           <div className="relative">
             <button
@@ -199,7 +201,7 @@ export function AvatarGenerationSheet({
               )}
             >
               <span className={cn(typography.body.size, "text-white truncate")}>
-                {selectedModel?.displayName || selectedModel?.name || "Select a model"}
+                {selectedModel?.displayName || selectedModel?.name || t("components.avatarGeneration.selectModel")}
               </span>
               <ChevronDown
                 size={18}
@@ -250,12 +252,12 @@ export function AvatarGenerationSheet({
         {/* Prompt Input */}
         <div className="space-y-2">
           <label className={cn(typography.label.size, typography.label.weight, "text-white/60")}>
-            Describe your avatar
+            {t("components.avatarGeneration.describe")}
           </label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="A friendly anime girl with colorful hair, smiling warmly..."
+            placeholder={t("components.avatarGeneration.describePlaceholder")}
             rows={3}
             className={cn(
               "w-full resize-none border border-white/10 bg-black/20 px-4 py-3 text-white placeholder-white/30",
@@ -298,7 +300,7 @@ export function AvatarGenerationSheet({
               )}
             >
               <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
-              <p className={cn(typography.body.size, "text-white/50")}>Generating avatar...</p>
+              <p className={cn(typography.body.size, "text-white/50")}>{t("components.avatarGeneration.inProgress")}</p>
             </motion.div>
           ) : generatedImage ? (
             <motion.div
@@ -315,7 +317,7 @@ export function AvatarGenerationSheet({
               >
                 <img
                   src={getImageSrc() || ""}
-                  alt="Generated avatar"
+                  alt={t("components.avatarGeneration.alt")}
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -332,7 +334,7 @@ export function AvatarGenerationSheet({
                   )}
                 >
                   <RefreshCw size={16} className="text-white/70" />
-                  <span className="text-sm font-medium text-white">Regenerate</span>
+                  <span className="text-sm font-medium text-white">{t("components.avatarGeneration.regenerate")}</span>
                 </button>
                 <button
                   onClick={handleUseImage}
@@ -344,7 +346,7 @@ export function AvatarGenerationSheet({
                   )}
                 >
                   <Check size={16} className="text-white" />
-                  <span className="text-sm font-semibold text-white">Use This</span>
+                  <span className="text-sm font-semibold text-white">{t("components.avatarGeneration.useThis")}</span>
                 </button>
               </div>
             </motion.div>
@@ -366,7 +368,7 @@ export function AvatarGenerationSheet({
             )}
           >
             <Sparkles size={18} />
-            <span className="font-semibold">Generate Avatar</span>
+            <span className="font-semibold">{t("components.avatarGeneration.title")}</span>
           </button>
         )}
       </div>

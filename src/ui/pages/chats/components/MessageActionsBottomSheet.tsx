@@ -19,6 +19,7 @@ import { BottomMenu } from "../../../components/BottomMenu";
 import type { StoredMessage, Settings, Model } from "../../../../core/storage/schemas";
 import { cn, radius } from "../../../design-tokens";
 import { readSettings } from "../../../../core/storage/repo";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface MessageActionState {
   message: StoredMessage;
@@ -120,6 +121,7 @@ export function MessageActionsBottomSheet({
   characterId,
 }: MessageActionsBottomSheetProps) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
   const [modelProviderId, setModelProviderId] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export function MessageActionsBottomSheet({
     }
   }, [messageAction, settings, characterDefaultModelId]);
 
-  const modelLabel = modelName ?? (settings ? "Unknown model" : "Loading model...");
+  const modelLabel = modelName ?? (settings ? t("chats.actions.unknownModel") : t("chats.actions.loadingModel"));
   const usedFallback = Boolean(messageAction?.message.fallbackFromModelId);
   const usedLorebookEntries = messageAction?.message.usedLorebookEntries ?? [];
   const isLlamaMessage = modelProviderId === "llamacpp";
@@ -176,7 +178,7 @@ export function MessageActionsBottomSheet({
       isOpen={Boolean(messageAction)}
       includeExitIcon={false}
       onClose={() => closeMessageActions(true)}
-      title={messageAction?.message.role === "assistant" ? "Assistant Message" : "User Message"}
+      title={messageAction?.message.role === "assistant" ? t("chats.actions.assistantMessage") : t("chats.actions.userMessage")}
     >
       {messageAction && (
         <div className="text-white">
@@ -185,17 +187,17 @@ export function MessageActionsBottomSheet({
             <div className="mb-4 space-y-2">
               <div className="flex items-center gap-x-3 text-xs text-white/40">
                 <div className="flex items-center gap-2 border-r border-white/10 pr-3">
-                  <span title="Prompt Tokens">
+                  <span title={t("chats.actions.promptTokens")}>
                     ↓{messageAction.message.usage.promptTokens ?? 0}
                   </span>
-                  <span title="Completion Tokens">
+                  <span title={t("chats.actions.completionTokens")}>
                     ↑{messageAction.message.usage.completionTokens ?? 0}
                   </span>
                 </div>
                 <div className="flex-1">
                   <span className="inline-flex items-center gap-1 text-white/60">
                     {usedFallback && (
-                      <span title="Fallback model used" aria-label="Fallback model used">
+                      <span title={t("chats.actions.fallbackModelUsed")} aria-label={t("chats.actions.fallbackModelUsed")}>
                         <TriangleAlert size={12} className="text-amber-300" />
                       </span>
                     )}
@@ -204,17 +206,17 @@ export function MessageActionsBottomSheet({
                 </div>
                 <div className="tabular-nums">
                   {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
-                  <span className="text-[12px] uppercase opacity-50">total</span>
+                  <span className="text-[12px] uppercase opacity-50">{t("chats.actions.total")}</span>
                 </div>
               </div>
               {isLlamaMessage &&
                 (typeof firstTokenMs === "number" || typeof tokensPerSecond === "number") && (
                   <div className="flex items-center gap-3 text-[11px] text-white/45 tabular-nums">
                     {typeof firstTokenMs === "number" && (
-                      <span title="Time to first token">TTFT {firstTokenMs}ms</span>
+                      <span title={t("chats.actions.timeToFirstToken")}>TTFT {firstTokenMs}ms</span>
                     )}
                     {typeof tokensPerSecond === "number" && (
-                      <span title="Completion token speed">{tokensPerSecond.toFixed(1)} tok/s</span>
+                      <span title={t("chats.actions.completionTokenSpeed")}>{tokensPerSecond.toFixed(1)} tok/s</span>
                     )}
                   </div>
                 )}
@@ -242,7 +244,7 @@ export function MessageActionsBottomSheet({
                     <div className="flex items-center gap-2 mb-2">
                       <Brain size={14} className="text-emerald-400" />
                       <span className="text-xs font-medium text-emerald-300">
-                        {messageAction.message.memoryRefs?.length} memories used
+                        {t("chats.actions.memoriesUsed", { count: messageAction.message.memoryRefs?.length ?? 0 })}
                       </span>
                     </div>
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -257,7 +259,7 @@ export function MessageActionsBottomSheet({
                           >
                             {score !== null && (
                               <div className="text-[10px] font-bold text-emerald-400 mb-1">
-                                Match: {(score * 100).toFixed(0)}%
+                                {t("chats.actions.matchScore", { score: (score * 100).toFixed(0) })}
                               </div>
                             )}
                             <div className="text-emerald-100/90 leading-relaxed whitespace-pre-wrap">
@@ -274,10 +276,10 @@ export function MessageActionsBottomSheet({
                 <div className="mb-3 p-3 rounded-lg border border-sky-500/20 bg-sky-500/10">
                   <div className="flex items-center gap-2 mb-2">
                     <BookOpen size={14} className="text-sky-300" />
-                    <span className="text-xs font-medium text-sky-200">Lorebook usage</span>
+                    <span className="text-xs font-medium text-sky-200">{t("chats.actions.lorebookUsage")}</span>
                   </div>
                   <p className="text-xs text-sky-100/90 mb-2">
-                    This response used the following lorebook entries.
+                    {t("chats.actions.lorebookUsageDesc")}
                   </p>
                   <div className="space-y-1">
                     {usedLorebookEntries.map((entry, idx) => (
@@ -296,7 +298,7 @@ export function MessageActionsBottomSheet({
               {canEdit && (
                 <ActionRow
                   icon={Edit3}
-                  label="Edit"
+                  label={t("chats.actions.edit")}
                   iconBg="bg-blue-500/20"
                   onClick={() => {
                     setActionError(null);
@@ -309,14 +311,14 @@ export function MessageActionsBottomSheet({
 
               <ActionRow
                 icon={Copy}
-                label="Copy"
+                label={t("chats.actions.copy")}
                 iconBg="bg-violet-500/20"
                 onClick={() => void handleCopy()}
               />
 
               <ActionRow
                 icon={messageAction.message.isPinned ? PinOff : Pin}
-                label={messageAction.message.isPinned ? "Unpin" : "Pin"}
+                label={messageAction.message.isPinned ? t("chats.actions.unpin") : t("chats.actions.pin")}
                 iconBg="bg-amber-500/20"
                 onClick={() => void handleTogglePin(messageAction.message)}
                 disabled={actionBusy}
@@ -330,7 +332,7 @@ export function MessageActionsBottomSheet({
                 messageAction.message.role === "user") && (
                 <ActionRow
                   icon={RotateCcw}
-                  label="Rewind to here"
+                  label={t("chats.actions.rewindToHere")}
                   iconBg="bg-cyan-500/20"
                   onClick={() => void handleRewindToMessage(messageAction.message)}
                   disabled={actionBusy}
@@ -339,7 +341,7 @@ export function MessageActionsBottomSheet({
 
               <ActionRow
                 icon={GitBranch}
-                label="Branch from here"
+                label={t("chats.actions.branchFromHere")}
                 iconBg="bg-emerald-500/20"
                 onClick={() => void handleBranchFromMessage(messageAction.message)}
                 disabled={actionBusy}
@@ -347,7 +349,7 @@ export function MessageActionsBottomSheet({
 
               <ActionRow
                 icon={Users}
-                label="Branch to group chat"
+                label={t("chats.actions.branchToGroupChat")}
                 iconBg="bg-rose-500/20"
                 onClick={() => onBranchToGroupChat(messageAction.message)}
                 disabled={actionBusy}
@@ -355,7 +357,7 @@ export function MessageActionsBottomSheet({
 
               <ActionRow
                 icon={Users}
-                label="Branch to character"
+                label={t("chats.actions.branchToCharacter")}
                 iconBg="bg-pink-500/20"
                 onClick={() => onBranchToCharacter(messageAction.message)}
                 disabled={actionBusy}
@@ -367,7 +369,7 @@ export function MessageActionsBottomSheet({
               {characterId && (
                 <ActionRow
                   icon={Paintbrush}
-                  label="Chat Appearance"
+                  label={t("chats.actions.chatAppearance")}
                   iconBg="bg-purple-500/20"
                   onClick={() => {
                     closeMessageActions(true);
@@ -378,7 +380,7 @@ export function MessageActionsBottomSheet({
 
               <ActionRow
                 icon={Trash2}
-                label={messageAction.message.isPinned ? "Unpin to delete" : "Delete"}
+                label={messageAction.message.isPinned ? t("chats.actions.unpinToDelete") : t("chats.actions.delete")}
                 onClick={() => void handleDeleteMessage(messageAction.message)}
                 disabled={actionBusy || messageAction.message.isPinned}
                 variant="danger"
@@ -396,7 +398,7 @@ export function MessageActionsBottomSheet({
                   "focus:border-white/20 focus:outline-none resize-none",
                   radius.lg,
                 )}
-                placeholder="Edit your message..."
+                placeholder={t("chats.actions.editPlaceholder")}
                 disabled={actionBusy}
                 autoFocus
               />
@@ -416,7 +418,7 @@ export function MessageActionsBottomSheet({
                     radius.lg,
                   )}
                 >
-                  Cancel
+                  {t("common.buttons.cancel")}
                 </button>
                 <button
                   onClick={() => void handleSaveEdit()}
@@ -430,7 +432,7 @@ export function MessageActionsBottomSheet({
                     radius.lg,
                   )}
                 >
-                  {actionBusy ? "Saving..." : "Save"}
+                  {actionBusy ? t("common.buttons.saving") : t("common.buttons.save")}
                 </button>
               </div>
             </div>

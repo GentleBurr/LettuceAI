@@ -6,8 +6,10 @@ import { exit } from "@tauri-apps/plugin-process";
 
 import { ResetManager } from "../../../core/storage/reset";
 import { typography, radius, interactive, shadows, cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 
 export function ResetPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [isResetting, setIsResetting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -64,11 +66,10 @@ export function ResetPage() {
           className="mb-10 space-y-3"
         >
           <h2 className={cn(typography.display.size, typography.display.weight, "text-fg")}>
-            Reset Everything
+            {t("reset.title")}
           </h2>
           <p className={cn(typography.body.size, typography.body.lineHeight, "text-fg/50")}>
-            This will permanently delete all providers, models, characters, chat sessions, and
-            preferences from this device.
+            {t("reset.description")}
           </p>
         </motion.div>
 
@@ -82,7 +83,7 @@ export function ResetPage() {
           <div className="flex items-center justify-center gap-2">
             <AlertTriangle size={16} className="text-danger/80" strokeWidth={2.5} />
             <p className={cn(typography.bodySmall.size, typography.h3.weight, "text-danger/80")}>
-              This action cannot be undone
+              {t("reset.warning")}
             </p>
           </div>
         </motion.div>
@@ -111,7 +112,7 @@ export function ResetPage() {
           >
             <div className="flex items-center justify-center gap-2">
               <Trash2 size={18} />
-              <span>Reset All Data</span>
+              <span>{t("reset.resetButton")}</span>
             </div>
           </button>
 
@@ -128,7 +129,7 @@ export function ResetPage() {
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
-            Cancel
+            {t("common.buttons.cancel")}
           </button>
         </motion.div>
       </motion.div>
@@ -166,11 +167,10 @@ export function ResetPage() {
                   <AlertTriangle size={28} strokeWidth={2.5} />
                 </div>
                 <h3 className={cn(typography.h2.size, typography.h2.weight, "mb-2 text-fg")}>
-                  Are You Sure?
+                  {t("reset.confirmTitle")}
                 </h3>
                 <p className={cn(typography.body.size, "text-fg/50")}>
-                  All your data will be permanently deleted. The app will return to first-time
-                  setup.
+                  {t("reset.confirmDescription")}
                 </p>
               </div>
 
@@ -196,7 +196,7 @@ export function ResetPage() {
                       <span>Resetting...</span>
                     </div>
                   ) : (
-                    "Yes, Reset Everything"
+                    t("reset.confirmButton")
                   )}
                 </button>
                 <button
@@ -212,7 +212,7 @@ export function ResetPage() {
                     "disabled:cursor-not-allowed disabled:opacity-50",
                   )}
                 >
-                  Cancel
+                  {t("common.buttons.cancel")}
                 </button>
               </div>
             </motion.div>

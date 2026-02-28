@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getEmbeddingModelInfo } from "../../core/storage/repo";
+import { useI18n } from "../../core/i18n/context";
 
 /**
  * A toast that appears once on app launch if legacy v2 embedding model is detected.
  * Prompts user to upgrade to v3.
  */
 export function V2UpgradeToast() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -63,11 +65,11 @@ export function V2UpgradeToast() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-baseline gap-2">
-                      <h3 className="text-[15px] font-medium text-white">Memory Model v3</h3>
-                      <span className="text-xs font-medium text-white/40">Available</span>
+                      <h3 className="text-[15px] font-medium text-white">{t("components.v2UpgradeToast.title")}</h3>
+                      <span className="text-xs font-medium text-white/40">{t("components.v2UpgradeToast.badge")}</span>
                     </div>
                     <p className="mt-1 text-[13px] leading-relaxed text-white/60">
-                      Improved embedding quality over v2
+                      {t("components.v2UpgradeToast.message")}
                     </p>
                   </div>
 
@@ -85,7 +87,7 @@ export function V2UpgradeToast() {
                     onClick={handleUpgrade}
                     className="group inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-medium text-black transition-all hover:bg-white/90 active:scale-[0.98]"
                   >
-                    Upgrade
+                    {t("components.v2UpgradeToast.upgrade")}
                     <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </button>
 
@@ -93,7 +95,7 @@ export function V2UpgradeToast() {
                     onClick={handleDismiss}
                     className="rounded-lg px-3.5 py-2 text-[13px] font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white/80 active:scale-[0.98]"
                   >
-                    Later
+                    {t("components.v2UpgradeToast.dismiss")}
                   </button>
                 </div>
               </div>

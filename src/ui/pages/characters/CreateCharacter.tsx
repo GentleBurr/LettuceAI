@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import React from "react";
+import { useI18n } from "../../../core/i18n/context";
 
 import { useCharacterForm, Step } from "./hooks/useCharacterForm";
 //import { ProgressIndicator } from "./components/ProgressIndicator";
@@ -22,6 +23,7 @@ import {
 export function CreateCharacterPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
   const { state, actions, computed } = useCharacterForm(location.state?.draftCharacter);
 
   const [audioProviders, setAudioProviders] = React.useState<AudioProvider[]>([]);
@@ -164,7 +166,7 @@ export function CreateCharacterPage() {
               canSave={computed.canSaveDescription}
               saving={false}
               error={state.error}
-              submitLabel="Continue to Starting Scenes"
+              submitLabel={t("characters.scenes.continueToScenes")}
             />
           ) : state.step === Step.StartingScene ? (
             <StartingSceneStep

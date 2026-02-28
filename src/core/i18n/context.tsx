@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import { localeRegistry, SUPPORTED_LOCALES, type Locale, type LocaleMessages } from "./locales";
-import type { DotPath, MessageTree, TranslateParams } from "./types";
+import type { DotPath, TranslateParams } from "./types";
 
 const STORAGE_KEY = "app-locale";
 
@@ -18,16 +18,16 @@ export type { TranslateParams, Locale };
 export { SUPPORTED_LOCALES };
 
 function isSupportedLocale(value: string | null): value is Locale {
-  return value === "en" || value === "zh-Hant";
+  return !!value && (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
 
-function getByPath(tree: MessageTree, key: string): string | undefined {
+function getByPath(tree: unknown, key: string): string | undefined {
   const segments = key.split(".");
-  let current: string | MessageTree = tree;
+  let current: unknown = tree;
 
   for (const segment of segments) {
-    if (!current || typeof current === "string") return undefined;
-    current = current[segment];
+    if (!current || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[segment];
   }
 
   return typeof current === "string" ? current : undefined;
@@ -50,8 +50,15 @@ function detectInitialLocale(): Locale {
   const saved = window.localStorage.getItem(STORAGE_KEY);
   if (isSupportedLocale(saved)) return saved;
 
-  const browserLang = window.navigator.language.toLowerCase();
-  if (browserLang.startsWith("zh")) return "zh-Hant";
+  const browserLang = window.navigator.language;
+  if (isSupportedLocale(browserLang)) return browserLang;
+
+  const browserLangLower = browserLang.toLowerCase();
+  if (browserLangLower.startsWith("zh")) return "zh-Hant";
+
+  const base = browserLangLower.split("-")[0];
+  const baseMatch = SUPPORTED_LOCALES.find((locale) => locale.toLowerCase() === base);
+  if (baseMatch) return baseMatch;
 
   return "en";
 }

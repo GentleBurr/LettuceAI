@@ -6,6 +6,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 import { storageBridge } from "../../../core/storage/files";
 import { generateGroupChatUserReply } from "../../../core/storage/repo";
+import { useI18n } from "../../../core/i18n/context";
 import type {
   Character,
   GroupMessage,
@@ -45,6 +46,7 @@ const isAbortMessage = (message: string) => {
 };
 
 export function GroupChatPage() {
+  const { t } = useI18n();
   const { groupSessionId } = useParams<{ groupSessionId: string }>();
   const navigate = useNavigate();
 
@@ -124,7 +126,7 @@ export function GroupChatPage() {
       setMessages(msgs);
       setParticipationStats(stats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load messages");
+      setError(err instanceof Error ? err.message : t("common.labels.loading"));
     } finally {
       setLoading(false);
     }
@@ -370,7 +372,7 @@ export function GroupChatPage() {
         return;
       }
       console.error("Failed to send message:", err);
-      setError(errMsg || "Failed to send message");
+      setError(errMsg || t("common.buttons.retry"));
       // Remove optimistic messages on error
       setMessages((prev) =>
         prev.filter((m) => m.id !== userPlaceholderId && m.id !== assistantPlaceholderId),
@@ -455,7 +457,7 @@ export function GroupChatPage() {
         console.error("Failed to regenerate:", err);
         const errMsg = err instanceof Error ? err.message : String(err);
         if (!isAbortMessage(errMsg)) {
-          setError(errMsg || "Failed to regenerate");
+          setError(errMsg || t("common.buttons.retry"));
         } else {
           setError(null);
         }
@@ -578,7 +580,7 @@ export function GroupChatPage() {
           return;
         }
         console.error("Failed to continue:", err);
-        setError(errMsg || "Failed to continue");
+        setError(errMsg || t("common.buttons.retry"));
         // Remove placeholder on error
         setMessages((prev) => prev.filter((m) => m.id !== assistantPlaceholderId));
       } finally {

@@ -4,6 +4,7 @@ import { Plus, X, BookOpen, Edit2, ChevronDown, EyeOff } from "lucide-react";
 import type { Scene } from "../../../../core/storage/schemas";
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../design-tokens";
 import { BottomMenu } from "../../../components/BottomMenu";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface StartingSceneStepProps {
   scenes: Scene[];
@@ -22,6 +23,7 @@ export function StartingSceneStep({
   onContinue,
   canContinue,
 }: StartingSceneStepProps) {
+  const { t } = useI18n();
   const [newSceneContent, setNewSceneContent] = React.useState("");
   const [newSceneDirection, setNewSceneDirection] = React.useState("");
   const [showNewDirectionInput, setShowNewDirectionInput] = React.useState(false);
@@ -110,7 +112,7 @@ export function StartingSceneStep({
             <BookOpen className="h-4 w-4 text-info" />
           </div>
           <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-            Starting Scenes
+            {t("characters.scenes.title")}
           </h2>
           {scenes.length > 0 && (
             <span className="ml-auto rounded-full border border-fg/10 bg-fg/5 px-2 py-0.5 text-xs text-fg/70">
@@ -119,7 +121,7 @@ export function StartingSceneStep({
           )}
         </div>
         <p className={cn(typography.body.size, "mt-2 text-fg/50")}>
-          Create opening scenarios for your conversations
+          {t("characters.scenes.subtitle")}
         </p>
       </div>
 
@@ -173,7 +175,7 @@ export function StartingSceneStep({
                     {isDefault && (
                       <div className="flex items-center gap-1 rounded-full border border-accent/40 bg-accent/20 px-2 py-0.5">
                         <div className="h-1.5 w-1.5 rounded-full bg-accent" />
-                        <span className="text-[10px] font-medium text-accent/80">Default</span>
+                        <span className="text-[10px] font-medium text-accent/80">{t("characters.scenes.default")}</span>
                       </div>
                     )}
 
@@ -181,7 +183,7 @@ export function StartingSceneStep({
                     {scene.direction && (
                       <div
                         className="flex items-center gap-1 rounded-full border border-fg/10 bg-fg/5 px-1.5 py-0.5"
-                        title="Has scene direction"
+                        title={t("characters.scenes.hasSceneDirection")}
                       >
                         <EyeOff className="h-3 w-3 text-fg/40" />
                       </div>
@@ -384,7 +386,7 @@ export function StartingSceneStep({
               : "cursor-not-allowed border border-fg/5 bg-fg/5 text-fg/30",
           )}
         >
-          Continue to Extras
+          {t("characters.scenes.continueToScenes")}
         </button>
       </div>
 

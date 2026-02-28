@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Users } from "lucide-react";
+import { useI18n } from "../../../../../core/i18n/context";
 import type { Character } from "../../../../../core/storage/schemas";
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../../design-tokens";
 import { CharacterSelectItem } from "./CharacterSelectItem";
@@ -21,6 +22,7 @@ export function CharacterSelectStep({
   onContinue,
   canContinue,
 }: CharacterSelectStepProps) {
+  const { t } = useI18n();
   const selectedCount = selectedIds.size;
 
   return (
@@ -38,11 +40,11 @@ export function CharacterSelectStep({
             <Users className="h-4 w-4 text-accent" />
           </div>
           <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-            Create Group Chat
+            {t("groupChats.create.characterSelect.title")}
           </h2>
         </div>
         <p className={cn(typography.body.size, "mt-2 text-fg/50")}>
-          Select characters for your group conversation
+          {t("groupChats.create.characterSelect.subtitle")}
         </p>
       </div>
 
@@ -50,7 +52,7 @@ export function CharacterSelectStep({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className={cn(typography.label.size, typography.label.weight, "text-fg/70")}>
-            {selectedCount} selected
+            {selectedCount} {t("groupChats.create.characterSelect.selected")}
           </span>
           {selectedCount > 0 && (
             <div
@@ -61,7 +63,7 @@ export function CharacterSelectStep({
                   : "bg-warning/20 text-warning border border-warning/30",
               )}
             >
-              {selectedCount >= 2 ? "Ready" : "Min. 2 required"}
+              {selectedCount >= 2 ? t("groupChats.create.characterSelect.ready") : t("groupChats.create.characterSelect.minRequired")}
             </div>
           )}
         </div>
@@ -91,9 +93,9 @@ export function CharacterSelectStep({
             )}
           >
             <Users className="mx-auto h-10 w-10 text-fg/20 mb-3" />
-            <p className={cn(typography.body.size, "text-fg/50 mb-1")}>No characters yet</p>
+            <p className={cn(typography.body.size, "text-fg/50 mb-1")}>{t("groupChats.create.characterSelect.noCharactersYet")}</p>
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Create some characters first to start a group chat
+              {t("groupChats.create.characterSelect.noCharactersDesc")}
             </p>
           </div>
         ) : (
@@ -129,7 +131,7 @@ export function CharacterSelectStep({
               : "cursor-not-allowed border border-fg/5 bg-fg/5 text-fg/30",
           )}
         >
-          Continue to Group Setup
+          {t("groupChats.create.characterSelect.continueToSetup")}
         </motion.button>
       </div>
     </motion.div>

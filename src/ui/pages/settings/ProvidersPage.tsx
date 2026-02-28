@@ -12,10 +12,12 @@ import { Routes } from "../../navigation";
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
 import { cn, colors, interactive, radius } from "../../design-tokens";
 import { getPlatform } from "../../../core/utils/platform";
+import { useI18n } from "../../../core/i18n/context";
 
 type ProviderTab = "llm" | "audio";
 
 export function ProvidersPage() {
+  const { t } = useI18n();
   const isMobile = getPlatform().type === "mobile";
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<ProviderTab>(() => {
@@ -105,15 +107,15 @@ export function ProvidersPage() {
   const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
     <div className="flex h-64 flex-col items-center justify-center">
       <EthernetPort className="mb-3 h-12 w-12 text-fg/20" />
-      <h3 className="mb-1 text-lg font-medium text-fg">No Providers yet</h3>
+      <h3 className="mb-1 text-lg font-medium text-fg">{t("providers.empty.title")}</h3>
       <p className="mb-4 text-center text-sm text-fg/50">
-        Add and manage API providers for AI models
+        {t("providers.empty.description")}
       </p>
       <button
         onClick={onCreate}
         className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
       >
-        Add Provider
+        {t("providers.empty.addButton")}
       </button>
     </div>
   );
@@ -200,8 +202,8 @@ export function ProvidersPage() {
                 {selectedProvider.providerId === "lettuce-engine" ? (
                   <MenuButton
                     icon={LayoutDashboard}
-                    title="Open Dashboard"
-                    description="View characters, usage, and settings"
+                    title={t("providers.actions.openDashboard")}
+                    description={t("providers.actions.openDashboardDesc")}
                     onClick={() => {
                       setSelectedProvider(null);
                       navigate(Routes.engineHome(selectedProvider.id));
@@ -211,8 +213,8 @@ export function ProvidersPage() {
                 ) : (
                   <MenuButton
                     icon={Edit3}
-                    title="Edit"
-                    description="Change provider settings"
+                    title={t("providers.actions.edit")}
+                    description={t("providers.actions.editDesc")}
                     onClick={() => openEditor(selectedProvider)}
                     color="from-info to-info/80"
                   />

@@ -9,6 +9,7 @@ import {
   generateExportFilename,
 } from "../../../core/storage/personaTransfer";
 import { AvatarPicker } from "../../components/AvatarPicker";
+import { useI18n } from "../../../core/i18n/context";
 
 const wordCount = (text: string) => {
   const trimmed = text.trim();
@@ -17,6 +18,7 @@ const wordCount = (text: string) => {
 };
 
 export function EditPersonaPage() {
+  const { t } = useI18n();
   const { personaId } = useParams();
   const {
     state: {
@@ -133,44 +135,44 @@ export function EditPersonaPage() {
                 </button>
               )}
             </div>
-            <p className="mt-3 text-xs text-fg/40">Tap to add or generate avatar</p>
+            <p className="mt-3 text-xs text-fg/40">{t("personas.edit.avatarHint")}</p>
           </div>
 
           {/* Title Input */}
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-fg/70">PERSONA NAME</label>
+            <label className="text-[11px] font-medium text-fg/70">{t("personas.edit.nameLabel")}</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Professional, Creative Writer, Student..."
+              placeholder={t("personas.edit.namePlaceholder")}
               className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
-            <p className="text-xs text-fg/50">Give your persona a descriptive name</p>
+            <p className="text-xs text-fg/50">{t("personas.edit.nameHint")}</p>
           </div>
 
           {/* Description Input */}
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-fg/70">DESCRIPTION</label>
+            <label className="text-[11px] font-medium text-fg/70">{t("personas.edit.descriptionLabel")}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={6}
-              placeholder="Describe how the AI should address you, your preferences, background, or communication style..."
+              placeholder={t("personas.edit.descriptionPlaceholder")}
               className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
             <div className="flex justify-end text-[11px] text-fg/40">
-              {wordCount(description)} words
+              {wordCount(description)} {t("personas.edit.wordCount")}
             </div>
-            <p className="text-xs text-fg/50">Be specific about how you want to be addressed</p>
+            <p className="text-xs text-fg/50">{t("personas.edit.descriptionHint")}</p>
           </div>
 
           {/* Default Toggle */}
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-4">
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-fg">Set as Default</label>
+                <label className="block text-sm font-semibold text-fg">{t("personas.edit.setAsDefault")}</label>
                 <p className="mt-1 text-xs text-fg/50">
-                  Use this persona for all new conversations
+                  {t("personas.edit.defaultDescription")}
                 </p>
               </div>
               <div className="flex items-center">
@@ -207,12 +209,12 @@ export function EditPersonaPage() {
             {exporting ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Exporting...
+                {t("common.buttons.exporting")}
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
                 <Download className="h-4 w-4" />
-                Export Persona
+                {t("personas.edit.exportButton")}
               </span>
             )}
           </motion.button>

@@ -21,7 +21,7 @@ type Props = {
   onNext: () => void;
 };
 
-const EMOTION_LABELS: { field: keyof BaselineEmotions; label: string; color: string }[] = [
+const EMOTION_FIELDS: { field: keyof BaselineEmotions; label: string; color: string }[] = [
   { field: "joy", label: "Joy", color: "bg-yellow-400" },
   { field: "trust", label: "Trust", color: "bg-green-400" },
   { field: "fear", label: "Fear", color: "bg-purple-400" },
@@ -32,7 +32,7 @@ const EMOTION_LABELS: { field: keyof BaselineEmotions; label: string; color: str
   { field: "anticipation", label: "Anticipation", color: "bg-orange-400" },
 ];
 
-const TIME_PERIODS: { field: keyof TimeBehaviors; label: string }[] = [
+const TIME_FIELDS: { field: keyof TimeBehaviors; label: string }[] = [
   { field: "early_morning", label: "Early Morning" },
   { field: "morning", label: "Morning" },
   { field: "afternoon", label: "Afternoon" },
@@ -129,7 +129,7 @@ export function CharacterWorldStep({
 
       {/* Time Behaviors */}
       <CollapsibleSection title="Time Behaviors">
-        {TIME_PERIODS.map(({ field, label }) => (
+        {TIME_FIELDS.map(({ field, label }) => (
           <div key={field}>
             <label className="mb-1 block text-[11px] font-medium text-white/70">{label}</label>
             <textarea
@@ -148,7 +148,7 @@ export function CharacterWorldStep({
         <p className="text-[11px] text-white/40 -mt-1">
           Set default emotional baseline (0 = none, 1 = maximum)
         </p>
-        {EMOTION_LABELS.map(({ field, label, color }) => (
+        {EMOTION_FIELDS.map(({ field, label, color }) => (
           <div key={field} className="flex items-center gap-3">
             <div className="flex items-center gap-2 w-28">
               <span className={`h-2 w-2 rounded-full ${color}`} />
@@ -201,7 +201,10 @@ export function CharacterWorldStep({
             max="2"
             value={temperature}
             onChange={(e) =>
-              onFieldChange("temperature", Math.min(2, Math.max(0, parseFloat(e.target.value) || 0.9)))
+              onFieldChange(
+                "temperature",
+                Math.min(2, Math.max(0, parseFloat(e.target.value) || 0.9)),
+              )
             }
             className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
           />

@@ -1,6 +1,7 @@
 import { Trash2, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { useI18n } from "../../../core/i18n/context";
 import { BottomMenu } from "../../components";
 import { Routes } from "../../navigation";
 import { useGroupChatsListController } from "./hooks/useGroupChatsListController";
@@ -11,6 +12,7 @@ import {
 } from "./components/list/GroupSessionList";
 
 export function GroupChatsListPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const {
     groupSessions,
@@ -63,7 +65,7 @@ export function GroupChatsListPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-fg/10 bg-fg/10">
                 <Settings className="h-4 w-4 text-fg/70" />
               </div>
-              <span className="text-sm font-medium text-fg">Edit Group</span>
+              <span className="text-sm font-medium text-fg">{t("groupChats.list.editGroup")}</span>
             </button>
 
             <button
@@ -75,7 +77,7 @@ export function GroupChatsListPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-danger/30 bg-danger/20">
                 <Trash2 className="h-4 w-4 text-danger" />
               </div>
-              <span className="text-sm font-medium text-danger">Delete Group</span>
+              <span className="text-sm font-medium text-danger">{t("groupChats.list.deleteGroup")}</span>
             </button>
           </div>
         )}
@@ -84,12 +86,11 @@ export function GroupChatsListPage() {
       <BottomMenu
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title="Delete Group Chat?"
+        title={t("groupChats.list.deleteConfirmTitle")}
       >
         <div className="space-y-4">
           <p className="text-sm text-fg/70">
-            Are you sure you want to delete "{selectedSession?.name}"? This will also delete all
-            messages in this group chat.
+            {t("groupChats.list.deleteConfirmMessage", { name: selectedSession?.name ?? "" })}
           </p>
           <div className="flex gap-3">
             <button
@@ -97,14 +98,14 @@ export function GroupChatsListPage() {
               disabled={deleting}
               className="flex-1 rounded-xl border border-fg/10 bg-fg/5 py-3 text-sm font-medium text-fg transition hover:border-fg/20 hover:bg-fg/10 disabled:opacity-50"
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={handleDelete}
               disabled={deleting}
               className="flex-1 rounded-xl border border-danger/30 bg-danger/20 py-3 text-sm font-medium text-danger transition hover:bg-danger/30 disabled:opacity-50"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
             </button>
           </div>
         </div>

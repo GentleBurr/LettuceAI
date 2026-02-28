@@ -8,6 +8,7 @@ import { typography, radius, interactive, cn } from "../../design-tokens";
 import { useCharactersController } from "../characters/hooks/useCharactersController";
 import { useAvatar } from "../../hooks/useAvatar";
 import { useMultipleAvatarGradients } from "../../hooks/useAvatarGradient";
+import { useI18n } from "../../../core/i18n/context";
 
 const CharacterSkeleton = () => (
   <div className="space-y-3">
@@ -25,21 +26,24 @@ const CharacterSkeleton = () => (
   </div>
 );
 
-const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
-  <div className="flex h-64 flex-col items-center justify-center">
-    <Sparkles className="mb-3 h-12 w-12 text-fg/20" />
-    <h3 className="mb-1 text-lg font-medium text-fg">No characters yet</h3>
-    <p className="mb-4 text-center text-sm text-fg/50">
-      Create custom AI characters with unique personalities
-    </p>
-    <button
-      onClick={onCreate}
-      className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
-    >
-      Create Character
-    </button>
-  </div>
-);
+const EmptyState = ({ onCreate }: { onCreate: () => void }) => {
+  const { t } = useI18n();
+  return (
+    <div className="flex h-64 flex-col items-center justify-center">
+      <Sparkles className="mb-3 h-12 w-12 text-fg/20" />
+      <h3 className="mb-1 text-lg font-medium text-fg">{t("characters.empty.title")}</h3>
+      <p className="mb-4 text-center text-sm text-fg/50">
+        {t("characters.empty.description")}
+      </p>
+      <button
+        onClick={onCreate}
+        className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
+      >
+        {t("characters.empty.createButton")}
+      </button>
+    </div>
+  );
+};
 
 function isImageLike(s?: string) {
   if (!s) return false;
@@ -69,6 +73,7 @@ function CharacterAvatar({ character }: { character: Character }) {
 
 export function CharactersPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const {
     state: { characters, loading, selectedCharacter, showDeleteConfirm, deleting },
     setSelectedCharacter,
@@ -105,7 +110,7 @@ export function CharactersPage() {
               {characters.map((character) => {
                 const descriptionPreview =
                   (character.description || character.definition || "").trim() ||
-                  "No description yet";
+                  t("common.labels.noDescriptionYet");
                 const gradientCss = getGradientCss(character.id);
                 const hasGrad = hasGradient(character.id);
                 const textColor = getTextColor(character.id);
@@ -225,14 +230,14 @@ export function CharactersPage() {
               disabled={deleting}
               className="flex-1 rounded-xl border border-fg/10 bg-fg/5 py-3 text-sm font-medium text-fg transition hover:border-fg/20 hover:bg-fg/10 disabled:opacity-50"
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={() => void handleDelete()}
               disabled={deleting}
               className="flex-1 rounded-xl border border-danger/30 bg-danger/20 py-3 text-sm font-medium text-danger/80 transition hover:bg-danger/30 disabled:opacity-50"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
             </button>
           </div>
         </div>

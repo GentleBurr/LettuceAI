@@ -1,16 +1,7 @@
 import { useState } from "react";
 import type { ComponentType } from "react";
 import { motion } from "framer-motion";
-import {
-  Plus,
-  Trash2,
-  Pin,
-  Check,
-  Cpu,
-  Clock,
-  ChevronDown,
-  AlertTriangle,
-} from "lucide-react";
+import { Plus, Trash2, Pin, Check, Cpu, Clock, ChevronDown, AlertTriangle } from "lucide-react";
 
 import type { GroupSession } from "../../../../../core/storage/schemas";
 import {
@@ -22,6 +13,7 @@ import {
   cn,
   interactive,
 } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 
 type MemoryToolEvent = NonNullable<GroupSession["memoryToolEvents"]>[number];
 
@@ -87,11 +79,7 @@ const ACTION_STYLES: Record<
   },
 };
 
-function ActionCard({
-  action,
-}: {
-  action: NonNullable<MemoryToolEvent["actions"]>[number];
-}) {
+function ActionCard({ action }: { action: NonNullable<MemoryToolEvent["actions"]>[number] }) {
   const style = ACTION_STYLES[action.name] || {
     icon: Cpu,
     color: "text-zinc-300",
@@ -119,9 +107,7 @@ function ActionCard({
       <Icon size={14} className={cn(style.color, "mt-0.5 shrink-0")} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={cn("text-[11px] font-semibold", style.color)}>
-            {style.label}
-          </span>
+          <span className={cn("text-[11px] font-semibold", style.color)}>{style.label}</span>
           {category && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-fg/5 text-fg/40 border border-fg/8">
               {category.replace(/_/g, " ")}
@@ -141,31 +127,17 @@ function ActionCard({
                   : "bg-danger/20 text-danger border-danger/30",
               )}
             >
-              {confidence < 0.7
-                ? "soft-delete"
-                : `${Math.round(confidence * 100)}%`}
+              {confidence < 0.7 ? "soft-delete" : `${Math.round(confidence * 100)}%`}
             </span>
           )}
         </div>
         {memoryText && (
-          <p
-            className={cn(
-              typography.caption.size,
-              colors.text.secondary,
-              "mt-1 leading-relaxed",
-            )}
-          >
+          <p className={cn(typography.caption.size, colors.text.secondary, "mt-1 leading-relaxed")}>
             {memoryText}
           </p>
         )}
         {id && !memoryText && (
-          <p
-            className={cn(
-              typography.caption.size,
-              colors.text.tertiary,
-              "mt-1 font-mono",
-            )}
-          >
+          <p className={cn(typography.caption.size, colors.text.tertiary, "mt-1 font-mono")}>
             #{id}
           </p>
         )}
@@ -174,9 +146,7 @@ function ActionCard({
   );
 }
 
-function summarizeActions(
-  actions: NonNullable<MemoryToolEvent["actions"]>,
-): string {
+function summarizeActions(actions: NonNullable<MemoryToolEvent["actions"]>): string {
   const counts: Record<string, number> = {};
   for (const a of actions) {
     const label = ACTION_STYLES[a.name]?.label || a.name;
@@ -187,13 +157,7 @@ function summarizeActions(
     .join(", ");
 }
 
-function CycleCard({
-  event,
-  defaultOpen,
-}: {
-  event: MemoryToolEvent;
-  defaultOpen: boolean;
-}) {
+function CycleCard({ event, defaultOpen }: { event: MemoryToolEvent; defaultOpen: boolean }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const hasError = !!event.error;
   const actions = event.actions || [];
@@ -203,13 +167,7 @@ function CycleCard({
   const windowEnd = event.windowEnd ?? 0;
 
   return (
-    <div
-      className={cn(
-        components.card.base,
-        "overflow-hidden",
-        hasError && "border-danger/20",
-      )}
-    >
+    <div className={cn(components.card.base, "overflow-hidden", hasError && "border-danger/20")}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -219,21 +177,12 @@ function CycleCard({
         )}
       >
         <div
-          className={cn(
-            "h-2 w-2 rounded-full shrink-0",
-            hasError ? "bg-danger" : "bg-accent",
-          )}
+          className={cn("h-2 w-2 rounded-full shrink-0", hasError ? "bg-danger" : "bg-accent")}
         />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                typography.caption.size,
-                colors.text.secondary,
-                "font-medium",
-              )}
-            >
+            <span className={cn(typography.caption.size, colors.text.secondary, "font-medium")}>
               {eventTime ? relativeTime(eventTime) : "Memory Cycle"}
             </span>
             {actionSummary && (
@@ -241,9 +190,7 @@ function CycleCard({
                 — {actionSummary}
               </span>
             )}
-            {hasError && (
-              <AlertTriangle size={12} className="text-danger shrink-0" />
-            )}
+            {hasError && <AlertTriangle size={12} className="text-danger shrink-0" />}
           </div>
 
           {event.summary && !isOpen && (
@@ -266,30 +213,16 @@ function CycleCard({
       {isOpen && (
         <div className="px-4 pb-4 space-y-3">
           {event.summary && (
-            <div
-              className={cn(
-                radius.md,
-                "border border-info/20 bg-info/10 px-3 py-2.5",
-              )}
-            >
-              <p className="text-[12px] leading-relaxed text-info/90">
-                {event.summary}
-              </p>
+            <div className={cn(radius.md, "border border-info/20 bg-info/10 px-3 py-2.5")}>
+              <p className="text-[12px] leading-relaxed text-info/90">{event.summary}</p>
             </div>
           )}
 
           {event.error && (
-            <div
-              className={cn(
-                radius.md,
-                "border border-danger/20 bg-danger/10 px-3 py-2.5",
-              )}
-            >
+            <div className={cn(radius.md, "border border-danger/20 bg-danger/10 px-3 py-2.5")}>
               <p className="text-[12px] text-danger/90">{event.error}</p>
               {event.stage && (
-                <p className="text-[11px] mt-1 text-danger/60">
-                  Failed at: {event.stage}
-                </p>
+                <p className="text-[11px] mt-1 text-danger/60">Failed at: {event.stage}</p>
               )}
             </div>
           )}
@@ -323,6 +256,8 @@ function CycleCard({
 }
 
 export function ToolLog({ events }: { events: MemoryToolEvent[] }) {
+  const { t } = useI18n();
+
   if (!events.length) {
     return (
       <motion.div
@@ -334,7 +269,7 @@ export function ToolLog({ events }: { events: MemoryToolEvent[] }) {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5 mb-4">
           <Clock className="h-7 w-7 text-fg/20" />
         </div>
-        <h3 className="mb-1 text-base font-semibold text-fg">No activity yet</h3>
+        <h3 className="mb-1 text-base font-semibold text-fg">{t("common.labels.none")}</h3>
         <p className={cn("text-center text-sm max-w-[240px]", colors.text.tertiary)}>
           Tool calls appear when AI manages memories in dynamic mode
         </p>

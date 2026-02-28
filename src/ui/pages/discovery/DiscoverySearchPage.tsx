@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ArrowLeft, X, Loader2, TrendingUp, Clock, Sparkles } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
 import { resolveBackTarget, Routes, useNavigationManager } from "../../navigation";
 import {
@@ -51,21 +52,22 @@ function clearRecentSearches() {
   }
 }
 
-const TRENDING_SEARCHES = [
-  "anime",
-  "fantasy",
-  "romance",
-  "villain",
-  "adventure",
-  "comedy",
-  "mystery",
-  "sci-fi",
-];
-
 export function DiscoverySearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
+
+  const TRENDING_SEARCHES = [
+    t("discovery.search.trends.anime"),
+    t("discovery.search.trends.fantasy"),
+    t("discovery.search.trends.romance"),
+    t("discovery.search.trends.villain"),
+    t("discovery.search.trends.adventure"),
+    t("discovery.search.trends.comedy"),
+    t("discovery.search.trends.mystery"),
+    t("discovery.search.trends.sciFi"),
+  ];
   const [searchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -258,7 +260,7 @@ export function DiscoverySearchPage() {
               interactive.transition.fast,
               interactive.active.scale,
             )}
-            aria-label="Go back"
+            aria-label={t("common.buttons.goBack")}
           >
             <ArrowLeft size={20} strokeWidth={2.5} />
           </button>
@@ -271,7 +273,7 @@ export function DiscoverySearchPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search characters, tags, authors..."
+              placeholder={t("discovery.search.placeholder")}
               className="w-full rounded-xl border border-fg/10 bg-fg/5 py-2.5 pl-10 pr-10 text-sm text-fg placeholder-fg/40 transition-all focus:border-fg/20 focus:bg-fg/[0.07] focus:outline-none"
             />
             {query && (
@@ -290,10 +292,10 @@ export function DiscoverySearchPage() {
           <div className="mx-auto mt-3 max-w-md px-4 lg:max-w-none lg:px-8">
             <p className="text-xs text-fg/50">
               {results.totalHits !== undefined
-                ? `${results.totalHits.toLocaleString()} results`
-                : `${results.hits.length} results`}
+                ? `${results.totalHits.toLocaleString()} ${t("discovery.search.resultsUnit")}`
+                : `${results.hits.length} ${t("discovery.search.resultsUnit")}`}
               {results.processingTimeMs !== undefined && (
-                <span className="ml-2 text-fg/30">({results.processingTimeMs}ms)</span>
+                <span className="ml-2 text-fg/30">({results.processingTimeMs}{t("discovery.search.timingUnit")})</span>
               )}
             </p>
           </div>
@@ -325,14 +327,14 @@ export function DiscoverySearchPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-fg/50" />
                     <h3 className={cn(typography.body.size, "font-semibold text-fg")}>
-                      Recent Searches
+                      {t("discovery.search.recentSearches")}
                     </h3>
                   </div>
                   <button
                     onClick={handleClearRecent}
                     className="text-xs text-fg/50 hover:text-fg"
                   >
-                    Clear all
+                    {t("discovery.search.clearAll")}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -355,7 +357,7 @@ export function DiscoverySearchPage() {
               <div className="mb-3 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-danger" />
                 <h3 className={cn(typography.body.size, "font-semibold text-fg")}>
-                  Trending Searches
+                  {t("discovery.search.trendingSearches")}
                 </h3>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -375,12 +377,12 @@ export function DiscoverySearchPage() {
             {/* Tips */}
             <section className="rounded-xl border border-fg/10 bg-fg/5 p-4">
               <h3 className={cn(typography.body.size, "mb-2 font-semibold text-fg")}>
-                Search Tips
+                {t("discovery.search.tips.title")}
               </h3>
               <ul className="space-y-1.5 text-xs text-fg/60">
-                <li>• Search by character name, author, or description</li>
-                <li>• Use tags like "anime", "fantasy", or "romance"</li>
-                <li>• Try specific traits like "tsundere" or "villain"</li>
+                <li>• {t("discovery.search.tips.tip1")}</li>
+                <li>• {t("discovery.search.tips.tip2")}</li>
+                <li>• {t("discovery.search.tips.tip3")}</li>
               </ul>
             </section>
           </div>
@@ -418,10 +420,10 @@ export function DiscoverySearchPage() {
                     {loadingMore ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading...
+                        {t("discovery.search.loading")}
                       </>
                     ) : (
-                      "Load More"
+                      t("discovery.search.loadMore")
                     )}
                   </button>
                 </div>
@@ -441,11 +443,11 @@ export function DiscoverySearchPage() {
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5">
                 <Search className="h-8 w-8 text-fg/30" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-fg">No results found</h3>
+              <h3 className="mb-2 text-lg font-semibold text-fg">{t("discovery.search.noResults")}</h3>
               <p className="mb-4 text-center text-sm text-fg/50">
-                No characters found for "{query}"
+                {t("discovery.search.noResultsFor")} "{query}"
               </p>
-              <p className="text-xs text-fg/40">Try different keywords or browse categories</p>
+              <p className="text-xs text-fg/40">{t("discovery.search.noResultsHint")}</p>
             </motion.div>
           )}
 

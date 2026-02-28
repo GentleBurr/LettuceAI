@@ -6,6 +6,7 @@ import type { TestResult } from "../hooks/onboardingReducer";
 import type { ProviderCredential } from "../../../../core/storage/schemas";
 import { BottomMenu, MenuButton, MenuSection } from "../../../components/BottomMenu";
 import { getProviderIcon } from "../../../../core/utils/providerIcons";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ProviderConfigFormProps {
   selectedProviderId: string;
@@ -46,6 +47,7 @@ export function ProviderConfigForm({
   onTestConnection,
   onSave,
 }: ProviderConfigFormProps) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const isCustomProvider = ["custom", "custom-anthropic"].includes(selectedProviderId);
   const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId);
@@ -54,7 +56,7 @@ export function ProviderConfigForm({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-xs font-medium text-white/70">Display Label</label>
+        <label className="text-xs font-medium text-white/70">{t("common.labels.name")}</label>
         <input
           type="text"
           value={label}

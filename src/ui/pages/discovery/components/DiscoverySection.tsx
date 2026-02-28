@@ -1,6 +1,7 @@
 import { memo, useRef } from "react";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 import { DiscoveryCard } from "./DiscoveryCard";
 import type { DiscoveryCard as DiscoveryCardType } from "../../../../core/discovery";
 
@@ -25,6 +26,7 @@ export const DiscoverySection = memo(function DiscoverySection({
   icon,
   accentColor = "from-accent to-info/80",
 }: DiscoverySectionProps) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   if (loading) {
@@ -85,7 +87,7 @@ export const DiscoverySection = memo(function DiscoverySection({
             onClick={onViewAll}
             className="flex items-center gap-1 rounded-full border border-fg/10 bg-fg/5 px-3 py-1.5 text-xs font-medium text-fg/70 transition-all hover:border-fg/20 hover:bg-fg/10 hover:text-fg active:scale-95"
           >
-            View All
+            {t("discovery.viewAll")}
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         )}
@@ -125,7 +127,7 @@ export const DiscoverySection = memo(function DiscoverySection({
             >
               <ChevronRight className="h-6 w-6 text-fg" />
             </div>
-            <span className="text-xs font-medium text-fg/70">View All</span>
+            <span className="text-xs font-medium text-fg/70">{t("discovery.viewAll")}</span>
           </button>
         )}
       </div>
@@ -154,7 +156,7 @@ export const DiscoverySection = memo(function DiscoverySection({
             >
               <ChevronRight className="h-6 w-6 text-fg" />
             </div>
-            <span className="text-xs font-medium text-fg/70">View All</span>
+            <span className="text-xs font-medium text-fg/70">{t("discovery.viewAll")}</span>
           </button>
         )}
       </div>

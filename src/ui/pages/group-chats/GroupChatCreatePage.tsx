@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { Upload } from "lucide-react";
 import { useState } from "react";
 
+import { useI18n } from "../../../core/i18n/context";
 import { Routes } from "../../navigation";
 import { BottomMenu, MenuSection } from "../../components";
 import { TopNav } from "../../components/App";
@@ -13,6 +14,7 @@ import { GroupStartingSceneStep } from "./components/create/GroupStartingSceneSt
 import { storageBridge } from "../../../core/storage/files";
 
 export function GroupChatCreatePage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const [showChatpkgImportMapMenu, setShowChatpkgImportMapMenu] = useState(false);
@@ -33,7 +35,7 @@ export function GroupChatCreatePage() {
       if (!picked) return;
       const info = await storageBridge.chatpkgInspect(picked.path);
       if (info?.type !== "group_chat") {
-        alert("This package is not a group chat package.");
+        alert(t("groupChats.create.invalidPackage"));
         return;
       }
 
@@ -76,7 +78,7 @@ export function GroupChatCreatePage() {
       else setShowChatpkgImportConfirmMenu(true);
     } catch (err) {
       console.error("Failed to inspect group chat package:", err);
-      alert(typeof err === "string" ? err : "Failed to inspect group chat package");
+      alert(typeof err === "string" ? err : t("groupChats.create.inspectPackageError"));
     }
   };
 
@@ -93,7 +95,7 @@ export function GroupChatCreatePage() {
       }
     } catch (err) {
       console.error("Failed to import group chat package:", err);
-      alert(typeof err === "string" ? err : "Failed to import group chat package");
+      alert(typeof err === "string" ? err : t("groupChats.create.importPackageError"));
     } finally {
       setImportingChatpkg(false);
     }
@@ -133,7 +135,7 @@ export function GroupChatCreatePage() {
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20"
             >
               <Upload className="h-3.5 w-3.5" />
-              Import `.chatpkg`
+              {t("groupChats.create.importChatpkg")}
             </button>
           </div>
         ) : null}
@@ -192,7 +194,7 @@ export function GroupChatCreatePage() {
           setPendingChatpkgImport(null);
           setChatpkgParticipantMap({});
         }}
-        title="Map Participants"
+        title={t("groupChats.create.mapParticipantsTitle")}
       >
         <MenuSection>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto">
@@ -215,7 +217,7 @@ export function GroupChatCreatePage() {
                 <div key={participantKey} className="rounded-xl border border-fg/10 bg-fg/5 p-3">
                   <p className="text-sm font-medium text-fg">{displayName}</p>
                   <p className="mt-0.5 text-xs text-fg/50">
-                    Select the local character for this participant.
+                    {t("groupChats.create.selectLocalCharacter")}
                   </p>
                   <select
                     value={currentValue}
@@ -232,7 +234,7 @@ export function GroupChatCreatePage() {
                     }}
                     className="mt-2 w-full rounded-lg border border-fg/10 bg-black/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
                   >
-                    <option value="">Select character...</option>
+                    <option value="">{t("groupChats.create.selectCharacterPlaceholder")}</option>
                     {state.characters.map((character) => (
                       <option key={character.id} value={character.id}>
                         {character.name}
@@ -251,7 +253,7 @@ export function GroupChatCreatePage() {
             }}
             className="mt-4 w-full rounded-xl border border-emerald-500/30 bg-emerald-500/20 py-3 text-sm font-medium text-emerald-200 hover:bg-emerald-500/30"
           >
-            Continue
+            {t("common.buttons.continue")}
           </button>
         </MenuSection>
       </BottomMenu>
@@ -264,12 +266,12 @@ export function GroupChatCreatePage() {
           setPendingChatpkgImport(null);
           setChatpkgParticipantMap({});
         }}
-        title="Import Chat Package"
+        title={t("groupChats.create.importChatPackageTitle")}
       >
         <MenuSection>
           <div className="space-y-4">
             <div className="rounded-xl border border-fg/10 bg-fg/5 p-3 text-sm text-fg/80">
-              This will import the selected `.chatpkg` as a new group session.
+              {t("groupChats.create.importChatPackageDesc")}
             </div>
             <button
               type="button"
@@ -279,7 +281,7 @@ export function GroupChatCreatePage() {
               disabled={importingChatpkg}
               className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/20 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
             >
-              {importingChatpkg ? "Importing..." : "Import"}
+              {importingChatpkg ? t("common.buttons.importing") : t("common.buttons.import")}
             </button>
           </div>
         </MenuSection>

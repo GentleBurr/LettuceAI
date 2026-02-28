@@ -1,6 +1,7 @@
 import { ArrowLeft, Trash2, MessageCircle, AlertCircle, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { useI18n } from "../../../core/i18n/context";
 import { typography, radius, cn, colors, interactive } from "../../design-tokens";
 import { BottomMenu, MenuButton, MenuButtonGroup, MenuDivider } from "../../components";
 import { Routes, useNavigationManager } from "../../navigation";
@@ -9,6 +10,7 @@ import { useGroupChatHistoryController } from "./hooks/useGroupChatHistoryContro
 import { formatTimeAgo } from "./utils/formatTimeAgo";
 
 export function GroupChatHistoryPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { backOrReplace } = useNavigationManager();
   const {
@@ -59,8 +61,8 @@ export function GroupChatHistoryPage() {
               <ArrowLeft size={14} strokeWidth={2.5} />
             </button>
             <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-xl font-bold text-fg/90">Group Chat History</p>
-              <p className="mt-0.5 truncate text-xs text-fg/50">All group conversations</p>
+              <p className="truncate text-xl font-bold text-fg/90">{t("groupChats.history.title")}</p>
+              <p className="mt-0.5 truncate text-xs text-fg/50">{t("groupChats.history.subtitle")}</p>
             </div>
           </div>
         </div>
@@ -82,7 +84,7 @@ export function GroupChatHistoryPage() {
                 "active:scale-95 transition-transform",
               )}
             >
-              Retry
+              {t("common.buttons.retry")}
             </button>
           </div>
         )}
@@ -99,7 +101,7 @@ export function GroupChatHistoryPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search group chats..."
+                placeholder={t("groupChats.history.searchPlaceholder")}
                 className={cn(
                   "w-full pl-10 pr-10 py-2.5",
                   "border bg-fg/5",
@@ -142,20 +144,20 @@ export function GroupChatHistoryPage() {
           <div className="text-center py-20">
             <MessageCircle className="mx-auto mb-4 h-12 w-12 text-fg/30" />
             <h3 className={cn(typography.h3.size, typography.h3.weight, "text-fg/70 mb-2")}>
-              No group chats yet
+              {t("groupChats.history.noChatsYet")}
             </h3>
             <p className={cn(typography.bodySmall.size, "text-fg/40 mb-6")}>
-              Create a group chat to see your history here
+              {t("groupChats.history.noChatsDesc")}
             </p>
           </div>
         ) : filteredSessions.length === 0 ? (
           <div className="text-center py-20">
             <MessageCircle className="mx-auto mb-4 h-12 w-12 text-fg/30" />
             <h3 className={cn(typography.h3.size, typography.h3.weight, "text-fg/70 mb-2")}>
-              No matching chats
+              {t("groupChats.history.noMatchingChats")}
             </h3>
             <p className={cn(typography.bodySmall.size, "text-fg/40 mb-6")}>
-              Try a different search term
+              {t("groupChats.history.noMatchingDesc")}
             </p>
             <button
               type="button"
@@ -170,7 +172,7 @@ export function GroupChatHistoryPage() {
                 interactive.transition.fast,
               )}
             >
-              Clear search
+              {t("common.buttons.clearSearch")}
             </button>
           </div>
         ) : (
@@ -181,7 +183,7 @@ export function GroupChatHistoryPage() {
                 <h3
                   className={cn(typography.bodySmall.size, "font-medium text-fg/50 mb-3 px-1")}
                 >
-                  Active ({activeSessions.length})
+                  {t("groupChats.history.active", { count: activeSessions.length })}
                 </h3>
                 <div className="space-y-3">
                   {activeSessions.map((session) => (
@@ -207,7 +209,7 @@ export function GroupChatHistoryPage() {
                 <h3
                   className={cn(typography.bodySmall.size, "font-medium text-fg/50 mb-3 px-1")}
                 >
-                  Archived ({archivedSessions.length})
+                  {t("groupChats.history.archived", { count: archivedSessions.length })}
                 </h3>
                 <div className="space-y-3">
                   {archivedSessions.map((session) => (
@@ -234,7 +236,7 @@ export function GroupChatHistoryPage() {
       <BottomMenu
         isOpen={deleteTarget != null}
         onClose={() => setDeleteTarget(null)}
-        title="Delete group chat?"
+        title={t("groupChats.history.deleteSessionTitle")}
         includeExitIcon={false}
       >
         <div className="rounded-xl border border-fg/10 bg-fg/4 p-3">
@@ -258,8 +260,8 @@ export function GroupChatHistoryPage() {
         <MenuButtonGroup>
           <MenuButton
             icon={Trash2}
-            title={deleteTarget && busyIds.has(deleteTarget.id) ? "Deleting..." : "Delete chat"}
-            description="Permanently removes it from history"
+            title={deleteTarget && busyIds.has(deleteTarget.id) ? t("common.buttons.deleting") : t("groupChats.history.deleteSessionButton")}
+            description={t("groupChats.history.deleteSessionDesc")}
             color="from-danger to-danger/80"
             disabled={!deleteTarget || busyIds.has(deleteTarget.id)}
             onClick={() => {
@@ -272,8 +274,8 @@ export function GroupChatHistoryPage() {
           />
           <MenuButton
             icon={X}
-            title="Cancel"
-            description="Keep this chat"
+            title={t("common.buttons.cancel")}
+            description={t("groupChats.history.keepChat")}
             color="from-info to-info/80"
             disabled={!!deleteTarget && busyIds.has(deleteTarget.id)}
             onClick={() => setDeleteTarget(null)}

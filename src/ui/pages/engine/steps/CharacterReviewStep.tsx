@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 
+import { useI18n } from "../../../../core/i18n/context";
 import type {
   SpeechPatterns,
   TimeBehaviors,
@@ -37,11 +38,13 @@ type Props = {
 function Section({
   title,
   step,
+  editLabel,
   onEdit,
   children,
 }: {
   title: string;
   step: EngineCharacterStep;
+  editLabel: string;
   onEdit: (step: EngineCharacterStep) => void;
   children: React.ReactNode;
 }) {
@@ -53,7 +56,7 @@ function Section({
           onClick={() => onEdit(step)}
           className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300"
         >
-          Edit
+          {editLabel}
         </button>
       </div>
       <div className="space-y-1">{children}</div>
@@ -61,18 +64,34 @@ function Section({
   );
 }
 
-function Field({ label, value }: { label: string; value: string | undefined }) {
+function Field({
+  label,
+  value,
+  emptyLabel,
+}: {
+  label: string;
+  value: string | undefined;
+  emptyLabel: string;
+}) {
   return (
     <div className="flex gap-2 text-xs">
       <span className="w-28 shrink-0 text-white/40">{label}</span>
       <span className={value ? "text-white/80" : "text-white/20 italic"}>
-        {value || "Not set"}
+        {value || emptyLabel}
       </span>
     </div>
   );
 }
 
-function TagList({ label, value }: { label: string; value: string[] }) {
+function TagList({
+  label,
+  value,
+  emptyLabel,
+}: {
+  label: string;
+  value: string[];
+  emptyLabel: string;
+}) {
   return (
     <div className="flex gap-2 text-xs">
       <span className="w-28 shrink-0 text-white/40">{label}</span>
@@ -88,7 +107,7 @@ function TagList({ label, value }: { label: string; value: string[] }) {
           ))}
         </div>
       ) : (
-        <span className="text-white/20 italic">Not set</span>
+        <span className="text-white/20 italic">{emptyLabel}</span>
       )}
     </div>
   );
@@ -120,6 +139,8 @@ export function CharacterReviewStep({
   onSave,
   onEdit,
 }: Props) {
+  const { scope } = useI18n();
+  const t = scope("engine.characterCreate.steps.review");
   const hasEmotions = Object.values(baselineEmotions).some((v) => v !== undefined && v > 0);
   const hasTimeBehaviors = Object.values(timeBehaviors).some((v) => !!v);
   const hasSpeechPatterns = Object.keys(speechPatterns).length > 0;
@@ -127,48 +148,96 @@ export function CharacterReviewStep({
   return (
     <div className="space-y-4 px-4 py-6">
       <div>
-        <h2 className="text-lg font-semibold text-white">Review</h2>
-        <p className="mt-1 text-sm text-white/50">
-          Review your character before creating.
-        </p>
+        <h2 className="text-lg font-semibold text-white">{t("title")}</h2>
+        <p className="mt-1 text-sm text-white/50">{t("subtitle")}</p>
       </div>
 
-      <Section title="Identity" step="identity" onEdit={onEdit}>
-        <Field label="Name" value={name} />
-        <Field label="Era" value={era} />
-        <Field label="Role" value={role} />
-        <Field label="Setting" value={setting} />
-        <Field label="Core Identity" value={coreIdentity} />
-        <Field label="Backstory" value={backstory} />
+      <Section title={t("identitySection")} step="identity" editLabel={t("edit")} onEdit={onEdit}>
+        <Field label={t("nameLabel")} value={name} emptyLabel={t("notSet")} />
+        <Field label={t("eraLabel")} value={era} emptyLabel={t("notSet")} />
+        <Field label={t("roleLabel")} value={role} emptyLabel={t("notSet")} />
+        <Field label={t("settingLabel")} value={setting} emptyLabel={t("notSet")} />
+        <Field label={t("coreIdentityLabel")} value={coreIdentity} emptyLabel={t("notSet")} />
+        <Field label={t("backstoryLabel")} value={backstory} emptyLabel={t("notSet")} />
       </Section>
 
-      <Section title="Personality" step="personality" onEdit={onEdit}>
-        <TagList label="Traits" value={personalityTraits} />
+      <Section
+        title={t("personalitySection")}
+        step="personality"
+        editLabel={t("edit")}
+        onEdit={onEdit}
+      >
+        <TagList label={t("traitsLabel")} value={personalityTraits} emptyLabel={t("notSet")} />
         {hasSpeechPatterns && (
           <>
-            <Field label="Formality" value={speechPatterns.formality} />
-            <Field label="Verbosity" value={speechPatterns.verbosity} />
-            <Field label="Dialect" value={speechPatterns.dialect} />
-            <TagList label="Catchphrases" value={speechPatterns.catchphrases || []} />
+            <Field
+              label={t("formalityLabel")}
+              value={speechPatterns.formality}
+              emptyLabel={t("notSet")}
+            />
+            <Field
+              label={t("verbosityLabel")}
+              value={speechPatterns.verbosity}
+              emptyLabel={t("notSet")}
+            />
+            <Field
+              label={t("dialectLabel")}
+              value={speechPatterns.dialect}
+              emptyLabel={t("notSet")}
+            />
+            <TagList
+              label={t("catchphrasesLabel")}
+              value={speechPatterns.catchphrases || []}
+              emptyLabel={t("notSet")}
+            />
           </>
         )}
       </Section>
 
-      <Section title="World & Behavior" step="world" onEdit={onEdit}>
-        <TagList label="Domains" value={knowledgeDomains} />
-        <TagList label="Boundaries" value={knowledgeBoundaries} />
-        <TagList label="Research Seeds" value={researchSeeds} />
-        <Field label="Research" value={researchEnabled ? "Enabled" : "Disabled"} />
-        <Field label="Physical" value={physicalDescription} />
-        <TagList label="Habits" value={physicalHabits} />
-        <TagList label="Idle" value={idleBehaviors} />
-        {hasTimeBehaviors && <Field label="Time Behaviors" value="Configured" />}
-        {hasEmotions && <Field label="Emotions" value="Configured" />}
+      <Section
+        title={t("worldSection")}
+        step="world"
+        editLabel={t("edit")}
+        onEdit={onEdit}
+      >
+        <TagList label={t("domainsLabel")} value={knowledgeDomains} emptyLabel={t("notSet")} />
+        <TagList
+          label={t("boundariesLabel")}
+          value={knowledgeBoundaries}
+          emptyLabel={t("notSet")}
+        />
+        <TagList
+          label={t("researchSeedsLabel")}
+          value={researchSeeds}
+          emptyLabel={t("notSet")}
+        />
+        <Field
+          label={t("researchLabel")}
+          value={researchEnabled ? t("enabled") : t("disabled")}
+          emptyLabel={t("notSet")}
+        />
+        <Field label={t("physicalLabel")} value={physicalDescription} emptyLabel={t("notSet")} />
+        <TagList label={t("habitsLabel")} value={physicalHabits} emptyLabel={t("notSet")} />
+        <TagList label={t("idleLabel")} value={idleBehaviors} emptyLabel={t("notSet")} />
+        {hasTimeBehaviors && (
+          <Field
+            label={t("timeBehaviorsLabel")}
+            value={t("configured")}
+            emptyLabel={t("notSet")}
+          />
+        )}
+        {hasEmotions && (
+          <Field label={t("emotionsLabel")} value={t("configured")} emptyLabel={t("notSet")} />
+        )}
         {(backend || model) && (
           <>
-            <Field label="Backend" value={backend} />
-            <Field label="Model" value={model} />
-            <Field label="Temperature" value={String(temperature)} />
+            <Field label={t("backendLabel")} value={backend} emptyLabel={t("notSet")} />
+            <Field label={t("modelLabel")} value={model} emptyLabel={t("notSet")} />
+            <Field
+              label={t("temperatureLabel")}
+              value={String(temperature)}
+              emptyLabel={t("notSet")}
+            />
           </>
         )}
       </Section>
@@ -183,10 +252,10 @@ export function CharacterReviewStep({
         {saving ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Creating...
+            {t("creating")}
           </span>
         ) : (
-          "Create Character"
+          t("createCharacter")
         )}
       </button>
     </div>

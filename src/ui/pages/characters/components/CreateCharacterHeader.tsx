@@ -1,10 +1,13 @@
 import { cn } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface CreateCharacterHeaderProps {
   onBack: () => void;
 }
 
 export function CreateCharacterHeader({ onBack }: CreateCharacterHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <header
       className="border-b border-fg/5 bg-surface"
@@ -31,11 +34,11 @@ export function CreateCharacterHeader({ onBack }: CreateCharacterHeaderProps) {
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          Back
+          {t("common.buttons.back")}
         </button>
         <div className="flex flex-col items-center">
           <span className="text-[11px] uppercase tracking-[0.4em] text-fg/40">LettuceAI</span>
-          <span className="text-sm font-semibold text-fg">Create</span>
+          <span className="text-sm font-semibold text-fg">{t("common.nav.create")}</span>
         </div>
       </div>
     </header>

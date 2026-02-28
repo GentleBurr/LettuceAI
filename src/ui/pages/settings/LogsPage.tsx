@@ -22,10 +22,12 @@ import {
 import { sanitizeAdvancedModelSettings } from "../../components/AdvancedModelSettingsForm";
 import { interactive, typography, cn } from "../../design-tokens";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 const logger = logManager({ component: "LogsPage" });
 
 export function LogsPage() {
+  const { t } = useI18n();
   const [logFiles, setLogFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [logContent, setLogContent] = useState<string>("");
@@ -308,7 +310,7 @@ export function LogsPage() {
                 "text-fg/35",
               )}
             >
-              Diagnostics
+              {t("logs.sectionTitles.diagnostics")}
             </h2>
             <div className="flex items-center gap-2">
               <button
@@ -323,7 +325,7 @@ export function LogsPage() {
                 )}
               >
                 <Sparkles className={cn("h-3.5 w-3.5", generatingDiagnostics && "animate-spin")} />
-                Generate
+                {t("logs.sectionTitles.generate")}
               </button>
               <button
                 onClick={copyDiagnostics}
@@ -337,7 +339,7 @@ export function LogsPage() {
                 )}
               >
                 <Clipboard className="h-3.5 w-3.5" />
-                Copy
+                {t("logs.sectionTitles.copy")}
               </button>
             </div>
           </div>

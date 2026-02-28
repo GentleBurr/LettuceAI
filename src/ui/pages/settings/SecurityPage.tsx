@@ -10,6 +10,7 @@ import type { PureModeLevel } from "../../../core/storage/schemas";
 import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { BottomMenu, MenuButton, MenuButtonGroup } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 interface FilterLogEntry {
   timestamp_ms: number;
@@ -22,40 +23,40 @@ interface FilterLogEntry {
 
 const PURE_MODE_OPTIONS: {
   value: PureModeLevel;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
   color: string;
   activeColor: string;
   activeBg: string;
 }[] = [
   {
     value: "off",
-    label: "Off",
-    description: "All content allowed",
+    labelKey: "security.pureMode.off",
+    descriptionKey: "security.pureMode.offDesc",
     color: "text-fg/60",
     activeColor: "text-warning",
     activeBg: "border-warning/40 bg-warning/20",
   },
   {
     value: "low",
-    label: "Low",
-    description: "Blocks explicit sexual content + slurs",
+    labelKey: "security.pureMode.low",
+    descriptionKey: "security.pureMode.lowDesc",
     color: "text-fg/60",
     activeColor: "text-warning",
     activeBg: "border-warning/40 bg-warning/20",
   },
   {
     value: "standard",
-    label: "Standard",
-    description: "Blocks NSFW + graphic violence",
+    labelKey: "security.pureMode.standard",
+    descriptionKey: "security.pureMode.standardDesc",
     color: "text-fg/60",
     activeColor: "text-accent",
     activeBg: "border-accent/40 bg-accent/20",
   },
   {
     value: "strict",
-    label: "Strict",
-    description: "Maximum filtering + no suggestive tone",
+    labelKey: "security.pureMode.strict",
+    descriptionKey: "security.pureMode.strictDesc",
     color: "text-fg/60",
     activeColor: "text-info",
     activeBg: "border-info/40 bg-info/20",
@@ -64,6 +65,7 @@ const PURE_MODE_OPTIONS: {
 const FILTER_DEBUG_ENABLED = import.meta.env.DEV;
 
 export function SecurityPage() {
+  const { t } = useI18n();
   const [pureModeLevel, setPureModeLevelState] = useState<PureModeLevel>("standard");
   const [isGlitchEnabled, setIsGlitchEnabled] = useState(true);
   const [autoDownloadCharacterCardAvatars, setAutoDownloadCharacterCardAvatarsState] =
@@ -258,10 +260,10 @@ export function SecurityPage() {
                   <span
                     className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none uppercase tracking-[0.25em] transition-all duration-300 ${activeOption.activeBg} ${activeOption.activeColor}`}
                   >
-                    {activeOption.label}
+                    {t(activeOption.labelKey as any)}
                   </span>
                 </div>
-                <div className="mt-0.5 text-[11px] text-fg/50">{activeOption.description}</div>
+                <div className="mt-0.5 text-[11px] text-fg/50">{t(activeOption.descriptionKey as any)}</div>
 
                 {/* Level selector */}
                 <div className="mt-3 flex gap-1.5">
@@ -277,7 +279,7 @@ export function SecurityPage() {
                             : "border-fg/10 bg-fg/5 text-fg/50 hover:bg-fg/10"
                         }`}
                       >
-                        {option.label}
+                        {t(option.labelKey as any)}
                       </button>
                     );
                   })}

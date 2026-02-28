@@ -9,6 +9,7 @@ import {
   BarChart3,
   RefreshCw,
 } from "lucide-react";
+import { useI18n } from "../../../../../core/i18n/context";
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../../design-tokens";
 import { processBackgroundImage } from "../../../../../core/utils/image";
 
@@ -39,6 +40,7 @@ export function GroupSetupStep({
   onContinue,
   canContinue,
 }: GroupSetupStepProps) {
+  const { t } = useI18n();
   const handleBackgroundImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -71,11 +73,11 @@ export function GroupSetupStep({
             <MessageSquare className="h-4 w-4 text-secondary" />
           </div>
           <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-            Group Setup
+            {t("groupChats.create.groupSetup.title")}
           </h2>
         </div>
         <p className={cn(typography.body.size, "mt-2 text-fg/50")}>
-          Configure your group chat settings
+          {t("groupChats.create.groupSetup.subtitle")}
         </p>
       </div>
 
@@ -89,7 +91,7 @@ export function GroupSetupStep({
             "uppercase text-fg/70",
           )}
         >
-          Chat Type
+          {t("groupChats.create.groupSetup.chatType")}
         </label>
 
         <div className="grid grid-cols-2 gap-3">
@@ -129,9 +131,9 @@ export function GroupSetupStep({
                   chatType === "conversation" ? "text-accent" : "text-fg/80",
                 )}
               >
-                Conversation
+                {t("groupChats.create.groupSetup.conversation")}
               </div>
-              <div className="mt-0.5 text-xs text-fg/40">Casual chat</div>
+              <div className="mt-0.5 text-xs text-fg/40">{t("groupChats.create.groupSetup.casualChat")}</div>
             </div>
             {chatType === "conversation" && (
               <motion.div
@@ -179,9 +181,9 @@ export function GroupSetupStep({
                   chatType === "roleplay" ? "text-accent" : "text-fg/80",
                 )}
               >
-                Roleplay
+                {t("groupChats.create.groupSetup.roleplay")}
               </div>
-              <div className="mt-0.5 text-xs text-fg/40">With scenes</div>
+              <div className="mt-0.5 text-xs text-fg/40">{t("groupChats.create.groupSetup.withScenes")}</div>
             </div>
             {chatType === "roleplay" && (
               <motion.div
@@ -196,8 +198,8 @@ export function GroupSetupStep({
 
         <p className={cn(typography.bodySmall.size, "mt-2 text-fg/40")}>
           {chatType === "conversation"
-            ? "Casual group conversation without starting scenes"
-            : "Roleplay scenario with starting scene and immersive prompts"}
+            ? t("groupChats.create.groupSetup.conversationDesc")
+            : t("groupChats.create.groupSetup.roleplayDesc")}
         </p>
       </div>
 
@@ -211,7 +213,7 @@ export function GroupSetupStep({
             "uppercase text-fg/70",
           )}
         >
-          Speaker Selection
+          {t("groupChats.create.groupSetup.speakerSelection")}
         </label>
 
         <div className="grid grid-cols-3 gap-2">
@@ -219,20 +221,20 @@ export function GroupSetupStep({
             [
               {
                 value: "llm" as const,
-                label: "LLM",
-                desc: "AI picks",
+                label: t("groupChats.create.groupSetup.llm"),
+                desc: t("groupChats.create.groupSetup.aiPicks"),
                 icon: Brain,
               },
               {
                 value: "heuristic" as const,
-                label: "Heuristic",
-                desc: "Score-based",
+                label: t("groupChats.create.groupSetup.heuristic"),
+                desc: t("groupChats.create.groupSetup.scoreBased"),
                 icon: BarChart3,
               },
               {
                 value: "round_robin" as const,
-                label: "Round Robin",
-                desc: "Take turns",
+                label: t("groupChats.create.groupSetup.roundRobin"),
+                desc: t("groupChats.create.groupSetup.takeTurns"),
                 icon: RefreshCw,
               },
             ] as const
@@ -279,10 +281,10 @@ export function GroupSetupStep({
 
         <p className={cn(typography.bodySmall.size, "mt-2 text-fg/40")}>
           {speakerSelectionMethod === "llm"
-            ? "Uses your default model to choose who speaks (costs tokens)"
+            ? t("groupChats.create.groupSetup.llmDesc")
             : speakerSelectionMethod === "heuristic"
-              ? "Uses participation balance and context clues (free)"
-              : "Characters take turns in order (free)"}
+              ? t("groupChats.create.groupSetup.heuristicDesc")
+              : t("groupChats.create.groupSetup.roundRobinDesc")}
         </p>
       </div>
 
@@ -296,7 +298,7 @@ export function GroupSetupStep({
             "uppercase text-fg/70",
           )}
         >
-          Chat Background <span className="text-fg/40">(Optional)</span>
+          {t("groupChats.create.groupSetup.chatBackground")} <span className="text-fg/40">{t("groupChats.create.groupSetup.optional")}</span>
         </label>
 
         <div
@@ -324,7 +326,7 @@ export function GroupSetupStep({
                   interactive.transition.fast,
                   "active:scale-95 active:bg-surface-el/70",
                 )}
-                aria-label="Remove background image"
+                aria-label={t("groupChats.create.groupSetup.removeBackground")}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -339,7 +341,7 @@ export function GroupSetupStep({
             >
               <ImageIcon className="h-5 w-5 text-fg/40" />
               <span className={cn(typography.body.size, "text-fg/50")}>
-                Upload background image
+                {t("groupChats.create.groupSetup.uploadBackground")}
               </span>
               <input
                 type="file"
@@ -352,7 +354,7 @@ export function GroupSetupStep({
         </div>
 
         <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-          Set a background image for this group chat
+          {t("groupChats.create.groupSetup.backgroundDesc")}
         </p>
       </div>
 
@@ -366,7 +368,7 @@ export function GroupSetupStep({
             "uppercase text-fg/70",
           )}
         >
-          Group Name <span className="text-fg/40">(Optional)</span>
+          {t("groupChats.create.groupSetup.groupName")} <span className="text-fg/40">{t("groupChats.create.groupSetup.optional")}</span>
         </label>
         <div className="relative">
           <input
@@ -402,7 +404,7 @@ export function GroupSetupStep({
           )}
         </div>
         <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-          Leave empty to auto-generate from character names
+          {t("groupChats.create.groupSetup.groupNameAutoGenerate")}
         </p>
       </div>
 
@@ -425,7 +427,7 @@ export function GroupSetupStep({
               : "cursor-not-allowed border border-fg/5 bg-fg/5 text-fg/30",
           )}
         >
-          {chatType === "roleplay" ? "Continue to Starting Scene" : "Create Group Chat"}
+          {chatType === "roleplay" ? t("groupChats.create.groupSetup.continueToScene") : t("groupChats.create.groupSetup.createGroupChat")}
         </motion.button>
       </div>
     </motion.div>

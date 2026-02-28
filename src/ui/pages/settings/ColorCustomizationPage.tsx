@@ -10,6 +10,7 @@ import {
 import type { CustomColorPreset, CustomColors } from "../../../core/storage/schemas";
 import { cn, interactive, radius } from "../../design-tokens";
 import { toast } from "../../components/toast";
+import { useI18n } from "../../../core/i18n/context";
 
 // ---------------------------------------------------------------------------
 // Token definitions
@@ -439,8 +440,46 @@ function slugify(value: string): string {
 // Component
 // ---------------------------------------------------------------------------
 
+const TOKEN_LABEL_KEYS: Record<ColorKey, { label: string; desc: string }> = {
+  surface: { label: "colorCustomization.tokens.surface", desc: "colorCustomization.tokens.surfaceDesc" },
+  surfaceEl: { label: "colorCustomization.tokens.surfaceEl", desc: "colorCustomization.tokens.surfaceElDesc" },
+  nav: { label: "colorCustomization.tokens.nav", desc: "colorCustomization.tokens.navDesc" },
+  fg: { label: "colorCustomization.tokens.foreground", desc: "colorCustomization.tokens.foregroundDesc" },
+  accent: { label: "colorCustomization.tokens.accent", desc: "colorCustomization.tokens.accentDesc" },
+  info: { label: "colorCustomization.tokens.info", desc: "colorCustomization.tokens.infoDesc" },
+  warning: { label: "colorCustomization.tokens.warning", desc: "colorCustomization.tokens.warningDesc" },
+  danger: { label: "colorCustomization.tokens.danger", desc: "colorCustomization.tokens.dangerDesc" },
+  secondary: { label: "colorCustomization.tokens.secondary", desc: "colorCustomization.tokens.secondaryDesc" },
+};
+
+const GROUP_LABEL_KEYS: Record<string, string> = {
+  backgrounds: "colorCustomization.groups.backgrounds",
+  content: "colorCustomization.groups.content",
+  semantic: "colorCustomization.groups.semantic",
+};
+
+const PRESET_NAME_KEYS: Record<string, string> = {
+  "Default Dark": "colorCustomization.presets.defaultDark",
+  "Midnight Blue": "colorCustomization.presets.midnightBlue",
+  "Warm Earth": "colorCustomization.presets.warmEarth",
+  "Purple Haze": "colorCustomization.presets.purpleHaze",
+  "Rose Pine": "colorCustomization.presets.rosePine",
+  "Tokyo Night": "colorCustomization.presets.tokyoNight",
+  "Catppuccin": "colorCustomization.presets.catppuccin",
+  "Gruvbox": "colorCustomization.presets.gruvbox",
+  "Nord": "colorCustomization.presets.nord",
+  "Dracula": "colorCustomization.presets.dracula",
+  "Solarized": "colorCustomization.presets.solarized",
+  "Ayu Dark": "colorCustomization.presets.ayuDark",
+  "One Dark": "colorCustomization.presets.oneDark",
+  "Vesper": "colorCustomization.presets.vesper",
+  "Cyber Neon": "colorCustomization.presets.cyberNeon",
+  "Monochrome": "colorCustomization.presets.monochrome",
+};
+
 export function ColorCustomizationPage() {
   const { setCustomColors: setThemeCustomColors } = useTheme();
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -746,14 +785,14 @@ export function ColorCustomizationPage() {
     };
   }, [handleSave, isDirty, isSaving]);
 
-  const hasAnyCustom = COLOR_TOKENS.some((t) => workingColors[t.key]);
+  const hasAnyCustom = COLOR_TOKENS.some((tok) => workingColors[tok.key]);
 
   const isPresetActive = (preset: Preset | CustomColorPreset) => {
     const presetColors = "createdAt" in preset ? preset.colors : preset.colors;
-    return COLOR_TOKENS.every((t) => {
-      const current = workingColors[t.key];
+    return COLOR_TOKENS.every((tok) => {
+      const current = workingColors[tok.key];
       return (
-        current === presetColors[t.key] || (!current && presetColors[t.key] === DEFAULTS[t.key])
+        current === presetColors[tok.key] || (!current && presetColors[tok.key] === DEFAULTS[tok.key])
       );
     });
   };
@@ -787,7 +826,7 @@ export function ColorCustomizationPage() {
         <div>
           <div className="mb-2.5 flex items-center justify-between px-1 gap-2">
             <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-              Presets
+              {t("colorCustomization.presetsLabel")}
             </h2>
             <div className="flex items-center gap-1.5">
               <button
@@ -802,7 +841,7 @@ export function ColorCustomizationPage() {
                 )}
               >
                 <Upload className="h-3 w-3" />
-                Import
+                {t("colorCustomization.importButton")}
               </button>
               <button
                 type="button"
@@ -816,7 +855,7 @@ export function ColorCustomizationPage() {
                 )}
               >
                 <Download className="h-3 w-3" />
-                Export
+                {t("colorCustomization.exportButton")}
               </button>
               {hasAnyCustom && (
                 <button
@@ -831,7 +870,7 @@ export function ColorCustomizationPage() {
                   )}
                 >
                   <RotateCcw className="h-3 w-3" />
-                  Reset All
+                  {t("colorCustomization.resetAllButton")}
                 </button>
               )}
             </div>
@@ -868,7 +907,7 @@ export function ColorCustomizationPage() {
                       active ? "text-accent" : "text-fg/60",
                     )}
                   >
-                    {preset.name}
+                    {PRESET_NAME_KEYS[preset.name] ? t(PRESET_NAME_KEYS[preset.name] as any) : preset.name}
                   </span>
                 </button>
               );
@@ -879,7 +918,7 @@ export function ColorCustomizationPage() {
         {importedPresets.length > 0 && (
           <div>
             <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-              Custom Presets
+              {t("colorCustomization.customPresetsLabel")}
             </h2>
             <div className="space-y-2">
               {importedPresets.map((preset) => {
@@ -940,11 +979,11 @@ export function ColorCustomizationPage() {
 
         {/* Grouped token editors */}
         {TOKEN_GROUPS.map((group) => {
-          const tokens = COLOR_TOKENS.filter((t) => t.group === group.id);
+          const tokens = COLOR_TOKENS.filter((tok) => tok.group === group.id);
           return (
             <div key={group.id}>
               <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                {group.label}
+                {t(GROUP_LABEL_KEYS[group.id] as any)}
               </h2>
               <div className="space-y-2.5">
                 {tokens.map((token) => {
@@ -980,8 +1019,8 @@ export function ColorCustomizationPage() {
                             />
                           </button>
                           <div>
-                            <div className="text-sm font-medium text-fg">{token.label}</div>
-                            <div className="text-[11px] text-fg/45">{token.description}</div>
+                            <div className="text-sm font-medium text-fg">{t(TOKEN_LABEL_KEYS[token.key].label as any)}</div>
+                            <div className="text-[11px] text-fg/45">{t(TOKEN_LABEL_KEYS[token.key].desc as any)}</div>
                           </div>
                         </div>
 
@@ -1023,7 +1062,7 @@ export function ColorCustomizationPage() {
         {/* Live preview */}
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-            Preview
+            {t("colorCustomization.previewLabel")}
           </h2>
           <div className="rounded-xl border border-fg/10 bg-surface p-4 space-y-4">
             <div className="space-y-1">

@@ -5,6 +5,7 @@ import type { Character, Settings, Model } from "../../../../core/storage/schema
 import { useAvatar } from "../../../hooks/useAvatar";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { BottomMenu } from "../../../components/BottomMenu";
+import { useI18n } from "../../../../core/i18n/context";
 import { MarkdownRenderer } from "../../chats/components/MarkdownRenderer";
 import { radius, cn, interactive } from "../../../design-tokens";
 import type { MessageActionState } from "../reducers/groupChatReducer";
@@ -37,18 +38,12 @@ function ActionRow({
       )}
     >
       <div
-        className={cn(
-          "flex items-center justify-center w-8 h-8 rounded-lg",
-          iconBg || "bg-fg/10",
-        )}
+        className={cn("flex items-center justify-center w-8 h-8 rounded-lg", iconBg || "bg-fg/10")}
       >
         <Icon size={16} className={cn(variant === "danger" ? "text-danger" : "text-fg")} />
       </div>
       <span
-        className={cn(
-          "text-[15px] text-left",
-          variant === "danger" ? "text-danger" : "text-fg/90",
-        )}
+        className={cn("text-[15px] text-left", variant === "danger" ? "text-danger" : "text-fg/90")}
       >
         {label}
       </span>
@@ -91,6 +86,7 @@ export function GroupChatMessageActionsBottomSheet({
   onRegenerate: (characterId?: string) => void;
   characters: Character[];
 }) {
+  const { t } = useI18n();
   const [showCharacterPicker, setShowCharacterPicker] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
@@ -153,9 +149,7 @@ export function GroupChatMessageActionsBottomSheet({
                   </span>
                 </div>
                 <div className="flex-1">
-                  <span className="text-fg/60">
-                    {modelName || messageAction.message.modelId}
-                  </span>
+                  <span className="text-fg/60">{modelName || messageAction.message.modelId}</span>
                 </div>
                 <div className="tabular-nums">
                   {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
@@ -179,7 +173,7 @@ export function GroupChatMessageActionsBottomSheet({
               <div className="space-y-1">
                 <ActionRow
                   icon={Edit3}
-                  label="Edit"
+                  label={t("common.buttons.edit")}
                   iconBg="bg-info/20"
                   onClick={() => {
                     setActionError(null);
@@ -191,7 +185,7 @@ export function GroupChatMessageActionsBottomSheet({
 
                 <ActionRow
                   icon={Copy}
-                  label="Copy"
+                  label={t("common.buttons.copy")}
                   iconBg="bg-secondary/20"
                   onClick={() => void handleCopyMessage()}
                 />
@@ -219,7 +213,9 @@ export function GroupChatMessageActionsBottomSheet({
 
                 <ActionRow
                   icon={Trash2}
-                  label={messageAction.message.isPinned ? "Unpin to delete" : "Delete"}
+                  label={
+                    messageAction.message.isPinned ? "Unpin to delete" : t("common.buttons.delete")
+                  }
                   onClick={() => void handleDeleteMessage()}
                   disabled={actionBusy || messageAction.message.isPinned}
                   variant="danger"
@@ -257,7 +253,7 @@ export function GroupChatMessageActionsBottomSheet({
                       radius.lg,
                     )}
                   >
-                    Cancel
+                    {t("common.buttons.cancel")}
                   </button>
                   <button
                     onClick={() => void handleSaveEdit()}
@@ -271,7 +267,7 @@ export function GroupChatMessageActionsBottomSheet({
                       radius.lg,
                     )}
                   >
-                    {actionBusy ? "Saving..." : "Save"}
+                    {actionBusy ? t("common.buttons.saving") : t("common.buttons.save")}
                   </button>
                 </div>
               </div>
@@ -287,9 +283,7 @@ export function GroupChatMessageActionsBottomSheet({
         title="Choose Character"
       >
         <div className="space-y-2">
-          <p className="text-sm text-fg/50 mb-3">
-            Select which character should respond instead:
-          </p>
+          <p className="text-sm text-fg/50 mb-3">Select which character should respond instead:</p>
           {characters.map((char) => (
             <CharacterPickerItem
               key={char.id}

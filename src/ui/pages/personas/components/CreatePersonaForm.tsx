@@ -5,6 +5,7 @@ import { PersonaFormState, PersonaFormAction } from "../hooks/createPersonaReduc
 import { AvatarPicker } from "../../../components/AvatarPicker";
 import { typography, radius, spacing, interactive, cn } from "../../../design-tokens";
 import type { AvatarCrop } from "../../../../core/storage/schemas";
+import { useI18n } from "../../../../core/i18n/context";
 
 const wordCount = (text: string) => {
   const trimmed = text.trim();
@@ -27,6 +28,7 @@ export function CreatePersonaForm({
   onSave,
   onImport,
 }: CreatePersonaFormProps) {
+  const { t } = useI18n();
   const {
     title,
     description,
@@ -61,8 +63,8 @@ export function CreatePersonaForm({
     >
       {/* Title */}
       <div className="space-y-1.5 text-left">
-        <h2 className="text-xl font-semibold text-fg">Create Persona</h2>
-        <p className="text-sm text-fg/50">Define a reusable writing style</p>
+        <h2 className="text-xl font-semibold text-fg">{t("personas.empty.createButton")}</h2>
+        <p className="text-sm text-fg/50">{t("components.createMenu.personaDesc")}</p>
       </div>
 
       <div className="space-y-5 rounded-2xl">
@@ -100,7 +102,7 @@ export function CreatePersonaForm({
               </button>
             )}
           </div>
-          <p className="mt-3 text-xs text-fg/40">Tap camera to add or generate avatar</p>
+          <p className="mt-3 text-xs text-fg/40">{t("personas.edit.avatarHint")}</p>
         </div>
 
         {/* Title Input */}
@@ -113,7 +115,7 @@ export function CreatePersonaForm({
               "uppercase text-fg/70",
             )}
           >
-            Persona Title *
+            {t("personas.edit.nameLabel")}
           </label>
           <div className="relative">
             <input
@@ -148,7 +150,7 @@ export function CreatePersonaForm({
             )}
           </div>
           <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-            A short name for this persona
+            {t("personas.edit.nameHint")}
           </p>
         </div>
 
@@ -162,7 +164,7 @@ export function CreatePersonaForm({
               "uppercase text-fg/70",
             )}
           >
-            Description
+            {t("personas.edit.descriptionLabel")}
           </label>
           <textarea
             value={description}
@@ -178,10 +180,10 @@ export function CreatePersonaForm({
             )}
           />
           <div className="flex justify-end text-[11px] text-fg/40">
-            {wordCount(description)} words
+            {wordCount(description)} {t("personas.edit.wordCount")}
           </div>
           <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-            Describe the writing style or personality traits
+            {t("personas.edit.descriptionHint")}
           </p>
         </div>
 
@@ -207,8 +209,8 @@ export function CreatePersonaForm({
                 <Bookmark size={16} />
               </div>
               <div className="text-left">
-                <h3 className="text-sm font-medium text-fg">Set as default persona</h3>
-                <p className="text-xs text-fg/40">Auto-apply to new chats</p>
+                <h3 className="text-sm font-medium text-fg">{t("personas.edit.setAsDefault")}</h3>
+                <p className="text-xs text-fg/40">{t("personas.edit.defaultDescription")}</p>
               </div>
             </div>
 
@@ -263,12 +265,12 @@ export function CreatePersonaForm({
         {importing ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Importing...
+            {t("common.buttons.importing")}
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
             <Upload className="h-4 w-4" />
-            Import Persona
+            {t("common.buttons.import")} {t("common.nav.personas")}
           </span>
         )}
       </motion.button>
@@ -290,10 +292,10 @@ export function CreatePersonaForm({
           {saving ? (
             <div className="flex items-center justify-center gap-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent/80" />
-              <span>Creating Persona...</span>
+              <span>{t("common.buttons.creating")}</span>
             </div>
           ) : (
-            "Create Persona"
+            t("personas.empty.createButton")
           )}
         </motion.button>
       </div>

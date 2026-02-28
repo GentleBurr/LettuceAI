@@ -12,29 +12,16 @@ import { playAccessibilitySound } from "../../../core/utils/accessibilityAudio";
 import { cn, radius, colors, interactive } from "../../design-tokens";
 import { SUPPORTED_LOCALES, type Locale, useI18n } from "../../../core/i18n/context";
 
-const SOUND_LABELS = {
-  send: {
-    title: "Send",
-    description: "Plays when you send a message",
-  },
-  success: {
-    title: "Success",
-    description: "Plays when the assistant finishes successfully",
-  },
-  failure: {
-    title: "Failure",
-    description: "Plays on error or when you abort",
-  },
-};
+const SOUND_KEYS = ["send", "success", "failure"] as const;
 
-type SoundKey = keyof typeof SOUND_LABELS;
+type SoundKey = (typeof SOUND_KEYS)[number];
 
 const HAPTIC_INTENSITIES = [
-  { value: "light", label: "Light" },
-  { value: "medium", label: "Medium" },
-  { value: "heavy", label: "Heavy" },
-  { value: "soft", label: "Soft" },
-  { value: "rigid", label: "Rigid" },
+  { value: "light", labelKey: "accessibility.haptics.light" as const },
+  { value: "medium", labelKey: "accessibility.haptics.medium" as const },
+  { value: "heavy", labelKey: "accessibility.haptics.heavy" as const },
+  { value: "soft", labelKey: "accessibility.haptics.soft" as const },
+  { value: "rigid", labelKey: "accessibility.haptics.rigid" as const },
 ] as const;
 
 type HapticIntensity = (typeof HAPTIC_INTENSITIES)[number]["value"];
@@ -186,7 +173,7 @@ export function AccessibilityPage() {
             {t("accessibility.sectionTitles.sounds")}
           </h2>
           <div className="space-y-3">
-            {(Object.keys(SOUND_LABELS) as SoundKey[]).map((key) => {
+            {SOUND_KEYS.map((key) => {
               const sound = accessibility[key];
               return (
                 <div
@@ -207,9 +194,9 @@ export function AccessibilityPage() {
                         <Volume2 className="h-4 w-4 text-fg/70" />
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-fg">{SOUND_LABELS[key].title}</div>
+                        <div className="text-sm font-medium text-fg">{t(`accessibility.sounds.${key}` as const)}</div>
                         <div className="mt-0.5 text-[11px] text-fg/45">
-                          {SOUND_LABELS[key].description}
+                          {t(`accessibility.sounds.${key}Description` as const)}
                         </div>
                       </div>
                     </div>
@@ -267,7 +254,7 @@ export function AccessibilityPage() {
                       )}
                     >
                       <Play className="h-3.5 w-3.5" />
-                      Test
+                      {t("accessibility.sounds.testButton")}
                     </button>
                   </div>
                 </div>
@@ -352,7 +339,7 @@ export function AccessibilityPage() {
                               : "border-fg/5 bg-fg/5 text-fg/40 hover:bg-fg/10",
                           )}
                         >
-                          <span className="text-[10px] font-medium">{opt.label}</span>
+                          <span className="text-[10px] font-medium">{t(opt.labelKey)}</span>
                         </button>
                       ))}
                     </div>
@@ -418,8 +405,8 @@ export function AccessibilityPage() {
         <div
           className={cn("rounded-xl border px-4 py-3 text-[11px] text-fg/45", colors.glass.subtle)}
         >
-          Feedback helps you notice when messages are sent or received.
-          {isMobile ? " Haptics are available on mobile devices." : ""}
+          {t("accessibility.feedbackInfo")}
+          {isMobile ? ` ${t("accessibility.hapticsInfo")}` : ""}
         </div>
       </section>
     </div>

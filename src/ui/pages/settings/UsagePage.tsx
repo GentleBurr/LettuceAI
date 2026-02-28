@@ -31,6 +31,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { BottomMenu } from "../../components";
+import { useI18n } from "../../../core/i18n/context";
 
 // ============================================================================
 // Utilities
@@ -220,9 +221,7 @@ function StatCard({
         <div className={`p-1.5 rounded-lg ${highlight ? "bg-accent/20" : "bg-fg/5"}`}>
           <Icon className={`h-3.5 w-3.5 ${highlight ? "text-accent" : "text-fg/50"}`} />
         </div>
-        <span className="text-[11px] font-medium text-fg/50 uppercase tracking-wide">
-          {label}
-        </span>
+        <span className="text-[11px] font-medium text-fg/50 uppercase tracking-wide">{label}</span>
       </div>
       <div className="flex items-end justify-between">
         <div>
@@ -295,6 +294,7 @@ function ActivityItem({ request }: { request: RequestUsage }) {
 // ============================================================================
 
 export function UsagePage() {
+  const { t } = useI18n();
   const { queryRecords, exportCSV, saveCSV, getAppActiveUsage } = useUsageTracking();
   const [appActiveUsage, setAppActiveUsage] = useState<AppActiveUsageSummary>({
     totalMs: 0,
@@ -607,7 +607,13 @@ export function UsagePage() {
     }
   };
 
-  const COLORS = ["var(--color-accent)", "var(--color-info)", "var(--color-secondary)", "#f472b6", "var(--color-warning)"];
+  const COLORS = [
+    "var(--color-accent)",
+    "var(--color-info)",
+    "var(--color-secondary)",
+    "#f472b6",
+    "var(--color-warning)",
+  ];
   const activeFilterCount = [selectedModel, selectedCharacter].filter(Boolean).length;
 
   return (
@@ -696,7 +702,7 @@ export function UsagePage() {
             <ActivityItem key={r.id} request={r} />
           ))}
           {filteredRecords.length === 0 && (
-            <p className="text-center text-fg/40 py-8 text-sm">No activity in this period</p>
+            <p className="text-center text-fg/40 py-8 text-sm">{t("common.labels.none")}</p>
           )}
         </div>
       </BottomMenu>
@@ -771,9 +777,7 @@ export function UsagePage() {
             <button
               onClick={() => setViewMode("dashboard")}
               className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                viewMode === "dashboard"
-                  ? "bg-fg/10 text-fg"
-                  : "text-fg/50 hover:text-fg/70"
+                viewMode === "dashboard" ? "bg-fg/10 text-fg" : "text-fg/50 hover:text-fg/70"
               }`}
             >
               <Activity className="h-3.5 w-3.5" />
@@ -782,9 +786,7 @@ export function UsagePage() {
             <button
               onClick={() => setViewMode("appTime")}
               className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                viewMode === "appTime"
-                  ? "bg-fg/10 text-fg"
-                  : "text-fg/50 hover:text-fg/70"
+                viewMode === "appTime" ? "bg-fg/10 text-fg" : "text-fg/50 hover:text-fg/70"
               }`}
             >
               <Clock className="h-3.5 w-3.5" />
@@ -811,9 +813,7 @@ export function UsagePage() {
                     key={key}
                     onClick={() => setDatePreset(key as DatePreset)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      datePreset === key
-                        ? "bg-fg/10 text-fg"
-                        : "text-fg/50 hover:text-fg/70"
+                      datePreset === key ? "bg-fg/10 text-fg" : "text-fg/50 hover:text-fg/70"
                     }`}
                   >
                     {label}
@@ -822,9 +822,7 @@ export function UsagePage() {
                 <button
                   onClick={() => setShowCustomDatePicker(true)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    datePreset === "custom"
-                      ? "bg-fg/10 text-fg"
-                      : "text-fg/50 hover:text-fg/70"
+                    datePreset === "custom" ? "bg-fg/10 text-fg" : "text-fg/50 hover:text-fg/70"
                   }`}
                 >
                   Custom
@@ -1036,9 +1034,7 @@ export function UsagePage() {
                                 className="h-2 w-2 rounded-full shrink-0"
                                 style={{ backgroundColor: COLORS[i % COLORS.length] }}
                               />
-                              <span className="text-xs text-fg/70 truncate flex-1">
-                                {m.name}
-                              </span>
+                              <span className="text-xs text-fg/70 truncate flex-1">{m.name}</span>
                               <span className="text-xs text-fg/40">
                                 {formatCompactNumber(m.tokens)}
                               </span>
@@ -1085,9 +1081,7 @@ export function UsagePage() {
                                 className="h-2 w-2 rounded-full shrink-0"
                                 style={{ backgroundColor: COLORS[i % COLORS.length] }}
                               />
-                              <span className="text-xs text-fg/70 truncate flex-1">
-                                {c.name}
-                              </span>
+                              <span className="text-xs text-fg/70 truncate flex-1">{c.name}</span>
                               <span className="text-xs text-fg/40">
                                 {formatCompactNumber(c.tokens)}
                               </span>
@@ -1125,10 +1119,8 @@ export function UsagePage() {
                     {filteredRecords.length === 0 && (
                       <div className="py-12 text-center">
                         <Calendar className="h-8 w-8 text-fg/20 mx-auto mb-2" />
-                        <p className="text-sm text-fg/50">No activity yet</p>
-                        <p className="text-xs text-fg/30 mt-1">
-                          Start chatting to see usage data
-                        </p>
+                        <p className="text-sm text-fg/50">{t("common.labels.none")}</p>
+                        <p className="text-xs text-fg/30 mt-1">Start chatting to see usage data</p>
                       </div>
                     )}
                   </div>
@@ -1161,9 +1153,7 @@ export function UsagePage() {
                     setAppTimePreset(key as typeof appTimePreset);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    appTimePreset === key
-                      ? "bg-fg/10 text-fg"
-                      : "text-fg/50 hover:text-fg/70"
+                    appTimePreset === key ? "bg-fg/10 text-fg" : "text-fg/50 hover:text-fg/70"
                   }`}
                 >
                   {label}

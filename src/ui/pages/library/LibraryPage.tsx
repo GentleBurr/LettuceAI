@@ -39,6 +39,7 @@ import {
 import { exportPersona, generateExportFilename } from "../../../core/storage/personaTransfer";
 import { importLorebook, readFileAsText } from "../../../core/storage/lorebookTransfer";
 import { listen } from "@tauri-apps/api/event";
+import { useI18n } from "../../../core/i18n/context";
 
 type FilterOption = "All" | "Characters" | "Personas" | "Lorebooks";
 type LibraryItem = (Character | Persona | Lorebook) & {
@@ -56,6 +57,7 @@ function getItemDisableGradient(item: LibraryItem): boolean | undefined {
 }
 
 export function LibraryPage() {
+  const { t } = useI18n();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [lorebooks, setLorebooks] = useState<Lorebook[]>([]);
@@ -290,21 +292,21 @@ export function LibraryPage() {
               )}
             >
               {filter === "All"
-                ? "Your library is empty"
+                ? t("library.emptyStates.all.title")
                 : filter === "Characters"
-                  ? "No characters yet"
+                  ? t("library.emptyStates.characters.title")
                   : filter === "Personas"
-                    ? "No personas yet"
-                    : "No lorebooks yet"}
+                    ? t("library.emptyStates.personas.title")
+                    : t("library.emptyStates.lorebooks.title")}
             </h3>
             <p className="mb-6 max-w-70 text-center text-sm text-fg/50">
               {filter === "All"
-                ? "Create characters, personas, and lorebooks to see them here"
+                ? t("library.emptyStates.all.description")
                 : filter === "Characters"
-                  ? "Create your first character to start chatting"
+                  ? t("library.emptyStates.characters.description")
                   : filter === "Personas"
-                    ? "Create a persona to customize your chat identity"
-                    : "Lorebooks are created from within a character's settings"}
+                    ? t("library.emptyStates.personas.description")
+                    : t("library.emptyStates.lorebooks.description")}
             </p>
             {filter === "Lorebooks" && (
               <button
@@ -313,7 +315,7 @@ export function LibraryPage() {
                 className="mb-3 flex items-center gap-2 rounded-xl border border-info/40 bg-info/20 px-5 py-2.5 text-sm font-medium text-info transition active:scale-95 active:bg-info/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload className="h-4 w-4" />
-                {importingLorebook ? "Importing..." : "Import Lorebook"}
+                {importingLorebook ? t("common.buttons.importing") : t("library.actions.importLorebook")}
               </button>
             )}
             {filter !== "Lorebooks" && (
@@ -324,7 +326,7 @@ export function LibraryPage() {
                 className="flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/20 px-5 py-2.5 text-sm font-medium text-accent/70 transition active:scale-95 active:bg-accent/30"
               >
                 <Users className="h-4 w-4" />
-                {filter === "Personas" ? "Create Persona" : "Create Character"}
+                {filter === "Personas" ? t("personas.empty.createButton") : t("characters.empty.createButton")}
               </button>
             )}
             <input
@@ -357,10 +359,17 @@ export function LibraryPage() {
       <BottomMenu
         isOpen={showFilterMenu}
         onClose={() => setShowFilterMenu(false)}
-        title="Filter Library"
+        title={t("library.filterTitle")}
       >
         <div className="space-y-2">
-          {(["All", "Characters", "Personas", "Lorebooks"] as FilterOption[]).map((option) => (
+          {(["All", "Characters", "Personas", "Lorebooks"] as FilterOption[]).map((option) => {
+            const filterLabels: Record<FilterOption, string> = {
+              All: t("library.filters.all"),
+              Characters: t("library.filters.characters"),
+              Personas: t("library.filters.personas"),
+              Lorebooks: t("library.filters.lorebooks"),
+            };
+            return (
             <button
               key={option}
               onClick={() => {
@@ -372,10 +381,11 @@ export function LibraryPage() {
                 filter === option ? "bg-fg/10 text-fg" : "text-fg/60 hover:bg-fg/5 hover:text-fg",
               )}
             >
-              <span className="text-sm font-medium">{option}</span>
+              <span className="text-sm font-medium">{filterLabels[option]}</span>
               {filter === option && <Check className="h-4 w-4 text-accent" />}
             </button>
-          ))}
+            );
+          })}
         </div>
       </BottomMenu>
 
@@ -395,7 +405,7 @@ export function LibraryPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border border-accent/30 bg-accent/20">
                   <MessageCircle className="h-4 w-4 text-accent" />
                 </div>
-                <span className="text-sm font-medium text-accent">Start Chat</span>
+                <span className="text-sm font-medium text-accent">{t("library.actions.startChat")}</span>
               </button>
             )}
 
@@ -408,10 +418,10 @@ export function LibraryPage() {
               </div>
               <span className="text-sm font-medium text-fg">
                 {selectedItem.itemType === "character"
-                  ? "Edit Character"
+                  ? t("library.actions.editCharacter")
                   : selectedItem.itemType === "persona"
-                    ? "Edit Persona"
-                    : "Edit Lorebook"}
+                    ? t("library.actions.editPersona")
+                    : t("library.actions.editLorebook")}
               </span>
             </button>
 
@@ -427,7 +437,7 @@ export function LibraryPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border border-fg/10 bg-fg/10">
                   <Pencil className="h-4 w-4 text-fg/70" />
                 </div>
-                <span className="text-sm font-medium text-fg">Rename Lorebook</span>
+                <span className="text-sm font-medium text-fg">{t("library.actions.renameLorebook")}</span>
               </button>
             )}
 
@@ -441,7 +451,7 @@ export function LibraryPage() {
                   <Download className="h-4 w-4 text-info" />
                 </div>
                 <span className="text-sm font-medium text-info">
-                  {exporting ? "Exporting..." : "Export Character"}
+                  {exporting ? t("common.buttons.exporting") : t("library.actions.exportCharacter")}
                 </span>
               </button>
             )}
@@ -458,7 +468,7 @@ export function LibraryPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-full border border-secondary/30 bg-secondary/20">
                   <Paintbrush className="h-4 w-4 text-secondary" />
                 </div>
-                <span className="text-sm font-medium text-secondary">Chat Appearance</span>
+                <span className="text-sm font-medium text-secondary">{t("library.actions.chatAppearance")}</span>
               </button>
             )}
 
@@ -472,7 +482,7 @@ export function LibraryPage() {
                   <Download className="h-4 w-4 text-info" />
                 </div>
                 <span className="text-sm font-medium text-info">
-                  {exporting ? "Exporting..." : "Export Persona"}
+                  {exporting ? t("common.buttons.exporting") : t("library.actions.exportPersona")}
                 </span>
               </button>
             )}
@@ -486,10 +496,10 @@ export function LibraryPage() {
               </div>
               <span className="text-sm font-medium text-danger">
                 {selectedItem.itemType === "character"
-                  ? "Delete Character"
+                  ? t("library.actions.deleteCharacter")
                   : selectedItem.itemType === "persona"
-                    ? "Delete Persona"
-                    : "Delete Lorebook"}
+                    ? t("library.actions.deletePersona")
+                    : t("library.actions.deleteLorebook")}
               </span>
             </button>
           </div>
@@ -510,13 +520,13 @@ export function LibraryPage() {
       <BottomMenu
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title={`Delete ${selectedItem?.itemType === "character" ? "Character" : selectedItem?.itemType === "persona" ? "Persona" : "Lorebook"}?`}
+        title={t("library.deleteConfirm.title", { itemType: selectedItem?.itemType === "character" ? t("library.itemTypes.character") : selectedItem?.itemType === "persona" ? t("library.itemTypes.persona") : t("library.itemTypes.lorebook") })}
       >
         <div className="space-y-4">
           <p className="text-sm text-fg/70">
-            Are you sure you want to delete \"{selectedItem ? getItemName(selectedItem) : ""}\"?
+            {t("library.deleteConfirm.message")} &quot;{selectedItem ? getItemName(selectedItem) : ""}&quot;?
             {selectedItem?.itemType === "character" &&
-              " This will also delete all chat sessions with this character."}
+              ` ${t("library.deleteConfirm.characterWarning")}`}
           </p>
           <div className="flex gap-3">
             <button
@@ -524,14 +534,14 @@ export function LibraryPage() {
               disabled={deleting}
               className="flex-1 rounded-xl border border-fg/10 bg-fg/5 py-3 text-sm font-medium text-fg transition hover:border-fg/20 hover:bg-fg/10 disabled:opacity-50"
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={handleDelete}
               disabled={deleting}
               className="flex-1 rounded-xl border border-danger/30 bg-danger/20 py-3 text-sm font-medium text-danger transition hover:bg-danger/30 disabled:opacity-50"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
             </button>
           </div>
         </div>
@@ -540,13 +550,13 @@ export function LibraryPage() {
       <BottomMenu
         isOpen={Boolean(renameItem)}
         onClose={() => setRenameItem(null)}
-        title="Rename Lorebook"
+        title={t("library.rename.title")}
       >
         <div className="space-y-4">
           <input
             value={renameName}
             onChange={(e) => setRenameName(e.target.value)}
-            placeholder="Enter new name..."
+            placeholder={t("library.rename.placeholder")}
             className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3 text-base text-fg placeholder-fg/40 transition focus:border-fg/25 focus:outline-none"
             autoFocus
           />
@@ -555,14 +565,14 @@ export function LibraryPage() {
               onClick={() => setRenameItem(null)}
               className="flex-1 rounded-xl border border-fg/10 bg-fg/5 py-3 text-sm font-medium text-fg transition hover:border-fg/20 hover:bg-fg/10"
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={handleRenameConfirm}
               disabled={renaming || !renameName.trim()}
               className="flex-1 rounded-xl border border-accent/30 bg-accent/20 py-3 text-sm font-medium text-accent/70 transition hover:border-accent/50 hover:bg-accent/30 disabled:opacity-50"
             >
-              {renaming ? "Saving..." : "Save"}
+              {renaming ? t("common.buttons.saving") : t("common.buttons.save")}
             </button>
           </div>
         </div>
@@ -584,14 +594,14 @@ function getItemAvatarPath(item: LibraryItem): string | undefined {
   return (item as Character | Persona).avatarPath;
 }
 
-function getItemDescription(item: LibraryItem): string {
-  if (item.itemType === "lorebook") return "Lorebook";
+function getItemDescription(item: LibraryItem, t?: (key: any) => string): string {
+  if (item.itemType === "lorebook") return t ? t("library.lorebookLabel") : "Lorebook";
   if (item.itemType === "character") {
     const character = item as Character;
-    return (character.description || character.definition || "").trim() || "No description yet";
+    return (character.description || character.definition || "").trim() || (t ? t("library.noDescriptionYet") : "No description yet");
   }
   const persona = item as Persona;
-  return persona.description.trim() || "No description yet";
+  return persona.description.trim() || (t ? t("library.noDescriptionYet") : "No description yet");
 }
 
 const ItemAvatar = memo(({ item, className }: { item: LibraryItem; className?: string }) => {
@@ -635,7 +645,8 @@ ItemAvatar.displayName = "ItemAvatar";
 
 const LibraryCard = memo(
   ({ item, onSelect }: { item: LibraryItem; onSelect: (item: LibraryItem) => void }) => {
-    const descriptionPreview = getItemDescription(item);
+    const { t } = useI18n();
+    const descriptionPreview = getItemDescription(item, t);
     const avatarPath = getItemAvatarPath(item);
 
     // Only use gradient for non-lorebook items
@@ -648,10 +659,10 @@ const LibraryCard = memo(
 
     const badge =
       item.itemType === "character"
-        ? { label: "Character", dotClass: "bg-info" }
+        ? { label: t("library.itemTypes.character"), dotClass: "bg-info" }
         : item.itemType === "persona"
-          ? { label: "Persona", dotClass: "bg-secondary" }
-          : { label: "Lorebook", dotClass: "bg-warning" };
+          ? { label: t("library.itemTypes.persona"), dotClass: "bg-secondary" }
+          : { label: t("library.itemTypes.lorebook"), dotClass: "bg-warning" };
 
     return (
       <motion.button

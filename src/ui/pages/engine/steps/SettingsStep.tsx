@@ -1,4 +1,5 @@
 import type { EngineSettings } from "../hooks/engineSetupReducer";
+import { useI18n } from "../../../../core/i18n/context";
 
 type Props = {
   settings: EngineSettings;
@@ -68,22 +69,23 @@ function SliderField({
 }
 
 export function SettingsStep({ settings, isSaving, error, onUpdate, onSave }: Props) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5 px-4 py-6">
       <div>
-        <h2 className="text-lg font-semibold text-white">Engine Settings</h2>
+        <h2 className="text-lg font-semibold text-white">{t("engine.settingsStep.title")}</h2>
         <p className="mt-1 text-sm text-white/50">
-          Configure engine-wide settings. These all have sensible defaults — feel free to skip.
+          {t("engine.settingsStep.subtitle")}
         </p>
       </div>
 
       {/* Engine Config */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-          Engine
+          {t("engine.settings.sections.engine")}
         </h3>
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-white/70">Data Directory</label>
+          <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.settings.fields.dataDirectory")}</label>
           <input
             type="text"
             value={settings.dataDir}
@@ -92,20 +94,20 @@ export function SettingsStep({ settings, isSaving, error, onUpdate, onSave }: Pr
           />
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-white/70">Log Level</label>
+          <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.settings.fields.logLevel")}</label>
           <select
             value={settings.logLevel}
             onChange={(e) => onUpdate({ logLevel: e.target.value })}
             className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
           >
-            <option value="DEBUG" className="bg-black">DEBUG</option>
-            <option value="INFO" className="bg-black">INFO</option>
-            <option value="WARNING" className="bg-black">WARNING</option>
-            <option value="ERROR" className="bg-black">ERROR</option>
+            <option value="DEBUG" className="bg-black">{t("engine.settings.logLevels.debug")}</option>
+            <option value="INFO" className="bg-black">{t("engine.settings.logLevels.info")}</option>
+            <option value="WARNING" className="bg-black">{t("engine.settings.logLevels.warning")}</option>
+            <option value="ERROR" className="bg-black">{t("engine.settings.logLevels.error")}</option>
           </select>
         </div>
         <NumberField
-          label="Max History (conversation turns)"
+          label={t("engine.settings.fields.maxHistory")}
           value={settings.maxHistory}
           onChange={(v) => onUpdate({ maxHistory: Math.max(1, Math.round(v)) })}
           min={1}
@@ -115,29 +117,29 @@ export function SettingsStep({ settings, isSaving, error, onUpdate, onSave }: Pr
       {/* Background Loops */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-          Background Loops
+          {t("engine.settings.sections.backgroundLoops")}
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
-            label="Synthesis (min)"
+            label={t("engine.settings.backgroundLoops.synthesis")}
             value={settings.synthesisInterval}
             onChange={(v) => onUpdate({ synthesisInterval: Math.max(1, Math.round(v)) })}
             min={1}
           />
           <NumberField
-            label="Consolidation (min)"
+            label={t("engine.settings.backgroundLoops.consolidation")}
             value={settings.consolidationInterval}
             onChange={(v) => onUpdate({ consolidationInterval: Math.max(1, Math.round(v)) })}
             min={1}
           />
           <NumberField
-            label="BM25 Rebuild (min)"
+            label={t("engine.settings.backgroundLoops.bm25Rebuild")}
             value={settings.bm25RebuildInterval}
             onChange={(v) => onUpdate({ bm25RebuildInterval: Math.max(1, Math.round(v)) })}
             min={1}
           />
           <NumberField
-            label="Drip Research (min)"
+            label={t("engine.settings.backgroundLoops.dripResearch")}
             value={settings.dripResearchInterval}
             onChange={(v) => onUpdate({ dripResearchInterval: Math.max(1, Math.round(v)) })}
             min={1}
@@ -148,11 +150,11 @@ export function SettingsStep({ settings, isSaving, error, onUpdate, onSave }: Pr
       {/* Memory Config */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-          Memory
+          {t("engine.settings.sections.memory")}
         </h3>
         <div>
           <label className="mb-1 block text-[11px] font-medium text-white/70">
-            Embedding Model
+            {t("engine.settings.memory.embeddingModel")}
           </label>
           <input
             type="text"
@@ -162,23 +164,23 @@ export function SettingsStep({ settings, isSaving, error, onUpdate, onSave }: Pr
           />
         </div>
         <NumberField
-          label="Max Retrieval Results"
+          label={t("engine.settings.memory.maxRetrieval")}
           value={settings.maxRetrievalResults}
           onChange={(v) => onUpdate({ maxRetrievalResults: Math.max(1, Math.round(v)) })}
           min={1}
         />
         <SliderField
-          label="Dense Weight"
+          label={t("engine.settings.memory.denseWeight")}
           value={settings.denseWeight}
           onChange={(v) => onUpdate({ denseWeight: v })}
         />
         <SliderField
-          label="BM25 Weight"
+          label={t("engine.settings.memory.bm25Weight")}
           value={settings.bm25Weight}
           onChange={(v) => onUpdate({ bm25Weight: v })}
         />
         <SliderField
-          label="Graph Weight"
+          label={t("engine.settings.memory.graphWeight")}
           value={settings.graphWeight}
           onChange={(v) => onUpdate({ graphWeight: v })}
         />
@@ -191,7 +193,7 @@ export function SettingsStep({ settings, isSaving, error, onUpdate, onSave }: Pr
         disabled={isSaving}
         className="w-full rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400/60 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isSaving ? "Completing Setup..." : "Complete Setup"}
+        {isSaving ? t("engine.settingsStep.completingSetup") : t("engine.settingsStep.completeSetup")}
       </button>
     </div>
   );

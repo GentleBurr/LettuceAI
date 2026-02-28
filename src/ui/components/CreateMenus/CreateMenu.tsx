@@ -23,6 +23,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { AvatarImage } from "../AvatarImage";
 import { useAvatar } from "../../hooks/useAvatar";
 import { importLorebook, readFileAsText } from "../../../core/storage/lorebookTransfer";
+import { useI18n } from "../../../core/i18n/context";
 
 type CreationGoal = "character" | "persona" | "lorebook";
 type CreationStatus = "active" | "previewShown" | "completed" | "cancelled";
@@ -79,6 +80,7 @@ function EditTargetAvatar({ goal, target }: { goal: CreationGoal; target: EditTa
 }
 
 export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [mode, setMode] = useState<
     | "menu"
@@ -160,9 +162,9 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   };
 
   const goalMeta: Record<CreationGoal, { label: string; color: string; icon: typeof Sparkles }> = {
-    character: { label: "Character", color: "from-rose-500 to-rose-600", icon: Sparkles },
-    persona: { label: "Persona", color: "from-purple-500 to-purple-600", icon: Brain },
-    lorebook: { label: "Lorebook", color: "from-amber-500 to-amber-600", icon: BookOpen },
+    character: { label: t("components.createMenu.character"), color: "from-rose-500 to-rose-600", icon: Sparkles },
+    persona: { label: t("components.createMenu.persona"), color: "from-purple-500 to-purple-600", icon: Brain },
+    lorebook: { label: t("components.createMenu.lorebook"), color: "from-amber-500 to-amber-600", icon: BookOpen },
   };
 
   const formatTimeAgo = (timestamp: number): string => {
@@ -212,7 +214,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         setEditTargets(
           items.map((c) => ({
             id: c.id,
-            title: c.name || "Unnamed character",
+            title: c.name || t("components.createMenu.unnamedCharacter"),
             avatarPath: c.avatarPath,
             avatarCrop: c.avatarCrop ?? null,
           })),
@@ -222,14 +224,14 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         setEditTargets(
           items.map((p) => ({
             id: p.id,
-            title: p.title || "Untitled persona",
+            title: p.title || t("components.createMenu.untitledPersona"),
             avatarPath: p.avatarPath,
             avatarCrop: p.avatarCrop ?? null,
           })),
         );
       } else {
         const items = await listLorebooks();
-        setEditTargets(items.map((l) => ({ id: l.id, title: l.name || "Untitled lorebook" })));
+        setEditTargets(items.map((l) => ({ id: l.id, title: l.name || t("components.createMenu.untitledLorebook") })));
       }
     } catch (err) {
       console.error("Failed to load edit targets:", err);
@@ -253,8 +255,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   };
 
   const latestIncomplete = goalSessions.find((session) => session.status !== "completed") ?? null;
-  const selectedGoalLabel = selectedGoal ? goalMeta[selectedGoal].label : "Smart Creator";
-  const historyTitle = `${selectedGoalLabel} Conversations`;
+  const selectedGoalLabel = selectedGoal ? goalMeta[selectedGoal].label : t("components.createMenu.smartCreator");
+  const historyTitle = t("components.createMenu.conversationsTitle", { goal: selectedGoalLabel });
 
   return (
     <BottomMenu
@@ -262,16 +264,16 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       onClose={handleClose}
       title={
         mode === "menu"
-          ? "Create New"
+          ? t("components.createMenu.title")
           : mode === "ai-helper"
-            ? "Smart Creator"
+            ? t("components.createMenu.smartCreator")
             : mode === "ai-helper-actions"
-              ? `${selectedGoalLabel} Creator`
+              ? t("components.createMenu.creatorTitle", { goal: selectedGoalLabel })
               : mode === "ai-helper-history"
                 ? historyTitle
                 : mode === "ai-helper-edit-select"
-                  ? `Edit ${selectedGoalLabel}`
-                  : "Name Lorebook"
+                  ? t("components.createMenu.editTitle", { goal: selectedGoalLabel })
+                  : t("components.createMenu.nameLorebookTitle")
       }
       includeExitIcon={false}
       location="bottom"
@@ -280,8 +282,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         <MenuSection>
           <MenuButton
             icon={Sparkles}
-            title="Smart Creator"
-            description="Let the assistant guide your creation"
+            title={t("components.createMenu.smartCreator")}
+            description={t("components.createMenu.smartCreatorDesc")}
             color="from-rose-500 to-rose-600"
             onClick={() => {
               if (smartToolSelection) {
@@ -293,12 +295,12 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             }}
           />
 
-          <MenuDivider label="Or create manually" />
+          <MenuDivider label={t("components.createMenu.divider")} />
 
           <MenuButton
             icon={User}
-            title="Character"
-            description="Create a custom character"
+            title={t("components.createMenu.character")}
+            description={t("components.createMenu.characterDesc")}
             color="from-blue-500 to-blue-600"
             onClick={() => {
               onClose();
@@ -308,8 +310,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
           <MenuButton
             icon={Brain}
-            title="Persona"
-            description="Create a reusable voice"
+            title={t("components.createMenu.persona")}
+            description={t("components.createMenu.personaDesc")}
             color="from-purple-500 to-purple-600"
             onClick={() => {
               onClose();
@@ -319,8 +321,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
           <MenuButton
             icon={Users}
-            title="Group Chat"
-            description="Chat with multiple characters"
+            title={t("components.createMenu.groupChat")}
+            description={t("components.createMenu.groupChatDesc")}
             color="from-emerald-500 to-emerald-600"
             onClick={() => {
               onClose();
@@ -330,8 +332,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
           <MenuButton
             icon={BookOpen}
-            title="Lorebook"
-            description="Build your world reference"
+            title={t("components.createMenu.lorebook")}
+            description={t("components.createMenu.lorebookDesc")}
             color="from-amber-500 to-amber-600"
             onClick={() => setMode("lorebook-name")}
           />
@@ -340,24 +342,24 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         <MenuSection>
           <MenuButton
             icon={Sparkles}
-            title="Character"
-            description="Build a character with guided creation"
+            title={t("components.createMenu.character")}
+            description={t("components.createMenu.characterSmartDesc")}
             color="from-rose-500 to-rose-600"
             onClick={() => void openGoalActions("character")}
           />
 
           <MenuButton
             icon={Brain}
-            title="Persona"
-            description="Create a reusable voice or personality"
+            title={t("components.createMenu.persona")}
+            description={t("components.createMenu.personaSmartDesc")}
             color="from-purple-500 to-purple-600"
             onClick={() => void openGoalActions("persona")}
           />
 
           <MenuButton
             icon={BookOpen}
-            title="Lorebook"
-            description="Build a structured world reference"
+            title={t("components.createMenu.lorebook")}
+            description={t("components.createMenu.lorebookSmartDesc")}
             color="from-amber-500 to-amber-600"
             onClick={() => void openGoalActions("lorebook")}
           />
@@ -367,15 +369,15 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           {loadingGoalSessions ? (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-5 text-sm text-white/70">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading conversations...</span>
+              <span>{t("components.createMenu.loadingConversations")}</span>
             </div>
           ) : (
             <>
               {selectedGoal && (
                 <MenuButton
                   icon={Plus}
-                  title="Create new"
-                  description="Start a fresh guided creation chat"
+                  title={t("components.createMenu.createNew")}
+                  description={t("components.createMenu.createNewDesc")}
                   color={goalMeta[selectedGoal].color}
                   onClick={() => navigateToNew(selectedGoal)}
                 />
@@ -384,8 +386,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               {selectedGoal && (
                 <MenuButton
                   icon={Sparkles}
-                  title="Edit existing"
-                  description={`Pick a ${selectedGoal} and edit it with Smart Creator`}
+                  title={t("components.createMenu.editExisting")}
+                  description={t("components.createMenu.editExistingDesc", { goal: selectedGoal })}
                   color="from-rose-500 to-rose-600"
                   onClick={() => void openEditTargetSelector()}
                 />
@@ -394,7 +396,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               {latestIncomplete && selectedGoal && (
                 <MenuButton
                   icon={History}
-                  title="Continue last conversation"
+                  title={t("components.createMenu.continueLast")}
                   description={`${latestIncomplete.title} • ${formatTimeAgo(latestIncomplete.updatedAt)}`}
                   color="from-blue-500 to-cyan-600"
                   onClick={() => navigateToSession(selectedGoal, latestIncomplete.id)}
@@ -403,8 +405,8 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
               <MenuButton
                 icon={History}
-                title="See older conversations"
-                description="Open any previous Smart Creator conversation"
+                title={t("components.createMenu.seeOlder")}
+                description={t("components.createMenu.seeOlderDesc")}
                 color="from-indigo-500 to-blue-600"
                 onClick={() => setMode("ai-helper-history")}
               />
@@ -416,23 +418,23 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           {loadingGoalSessions ? (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-5 text-sm text-white/70">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading conversations...</span>
+              <span>{t("components.createMenu.loadingConversations")}</span>
             </div>
           ) : goalSessions.length === 0 ? (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/65">
-              No conversations yet for this creator.
+              {t("components.createMenu.noConversations")}
             </div>
           ) : (
             <>
               {goalSessions.map((session) => {
                 const statusLabel =
                   session.status === "completed"
-                    ? "Completed"
+                    ? t("components.createMenu.sessionCompleted")
                     : session.status === "cancelled"
-                      ? "Cancelled"
-                      : "Draft";
+                      ? t("components.createMenu.sessionCancelled")
+                      : t("components.createMenu.sessionDraft");
                 const subtitleParts = [
-                  `${session.messageCount} messages`,
+                  t("components.createMenu.sessionMessages", { count: session.messageCount }),
                   formatTimeAgo(session.updatedAt),
                   session.preview ? session.preview : "",
                 ].filter(Boolean);
@@ -440,7 +442,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                   <MenuButton
                     key={session.id}
                     icon={goalMeta[session.creationGoal].icon}
-                    title={session.title || "Untitled conversation"}
+                    title={session.title || t("components.createMenu.untitledConversation")}
                     description={subtitleParts.join(" • ")}
                     color={goalMeta[session.creationGoal].color}
                     onClick={() => selectedGoal && navigateToSession(selectedGoal, session.id)}
@@ -465,7 +467,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             onClick={() => setMode("ai-helper-actions")}
             className="w-full rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
           >
-            Back
+            {t("common.buttons.back")}
           </button>
         </MenuSection>
       ) : mode === "ai-helper-edit-select" ? (
@@ -473,11 +475,11 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           {loadingEditTargets ? (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-5 text-sm text-white/70">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading {selectedGoalLabel.toLowerCase()}s...</span>
+              <span>{t("components.createMenu.loadingItems", { items: selectedGoalLabel.toLowerCase() + "s" })}</span>
             </div>
           ) : editTargets.length === 0 ? (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/65">
-              No {selectedGoalLabel.toLowerCase()}s found.
+              {t("components.createMenu.noItemsFound", { items: selectedGoalLabel.toLowerCase() + "s" })}
             </div>
           ) : (
             <>
@@ -498,7 +500,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             onClick={() => setMode("ai-helper-actions")}
             className="w-full rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
           >
-            Back
+            {t("common.buttons.back")}
           </button>
         </MenuSection>
       ) : (
@@ -506,7 +508,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           <input
             value={lorebookName}
             onChange={(e) => setLorebookName(e.target.value)}
-            placeholder="Enter lorebook name..."
+            placeholder={t("components.createMenu.lorebookNamePlaceholder")}
             className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-base text-white placeholder-white/40 transition focus:border-white/25 focus:outline-none"
             autoFocus
             onKeyDown={(e) => {
@@ -518,7 +520,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               onClick={() => setMode("menu")}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
             >
-              Back
+              {t("common.buttons.back")}
             </button>
             <button
               onClick={() => lorebookImportInputRef.current?.click()}
@@ -530,7 +532,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {isImportingLorebook ? "Importing..." : "Import"}
+              {isImportingLorebook ? t("components.createMenu.lorebookImporting") : t("components.createMenu.lorebookImport")}
             </button>
             <button
               onClick={handleCreateLorebook}
@@ -538,7 +540,7 @@ export function CreateMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/20 py-3 text-sm font-medium text-emerald-100 transition hover:border-emerald-500/50 hover:bg-emerald-500/30 disabled:opacity-50"
             >
               {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isCreating ? "Creating..." : "Create"}
+              {isCreating ? t("components.createMenu.lorebookCreating") : t("components.createMenu.lorebookCreate")}
             </button>
             <input
               ref={lorebookImportInputRef}

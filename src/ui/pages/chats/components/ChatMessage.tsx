@@ -9,6 +9,7 @@ import type { ChatAppearanceSettings } from "../../../../core/storage/schemas";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { useSessionAttachments } from "../../../hooks/useSessionAttachment";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface VariantState {
   total: number;
@@ -160,6 +161,7 @@ const MessageActions = React.memo(function MessageActions({
   isRegenerating: boolean;
   onRegenerate: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <motion.div
       className="absolute -bottom-4 right-0 flex items-center gap-2"
@@ -185,7 +187,7 @@ const MessageActions = React.memo(function MessageActions({
           interactive.active.scale,
           "disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:scale-100",
         )}
-        aria-label="Regenerate response"
+        aria-label={t("chats.message.regenerateResponse")}
         style={{ willChange: "transform" }}
       >
         {isRegenerating ? (
@@ -206,24 +208,26 @@ const ThinkingSection = React.memo(function ThinkingSection({
   isStreaming: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useI18n();
 
-  const THINKING_TEXTS = [
-    "Thinking really hard…",
-    "Consulting the lettuce council…",
-    "Stealing thoughts from the void…",
-    "Warming up the brain cells…",
-    "Loading forbidden knowledge…",
-    "Overthinking (as usual)…",
-    "Pretending to be smart…",
-    "Crunching imaginary numbers…",
-    "Arguing with myself…",
-    "Asking the universe nicely…",
-  ];
+  const THINKING_TEXT_KEYS = [
+    "chats.message.thinkingMessages.thinkingReallyHard",
+    "chats.message.thinkingMessages.lettuceCouncil",
+    "chats.message.thinkingMessages.stealingThoughts",
+    "chats.message.thinkingMessages.warmingBrainCells",
+    "chats.message.thinkingMessages.forbiddenKnowledge",
+    "chats.message.thinkingMessages.overthinking",
+    "chats.message.thinkingMessages.pretendingToBeSmart",
+    "chats.message.thinkingMessages.crunchingNumbers",
+    "chats.message.thinkingMessages.arguingWithMyself",
+    "chats.message.thinkingMessages.askingUniverse",
+  ] as const;
 
   const thinkingText = React.useMemo(() => {
     if (!isStreaming) return null;
-    return THINKING_TEXTS[Math.floor(Math.random() * THINKING_TEXTS.length)];
-  }, [isStreaming]);
+    const key = THINKING_TEXT_KEYS[Math.floor(Math.random() * THINKING_TEXT_KEYS.length)];
+    return t(key);
+  }, [isStreaming, t]);
 
   if (!reasoning || reasoning.trim().length === 0) {
     return null;
@@ -248,7 +252,7 @@ const ThinkingSection = React.memo(function ThinkingSection({
         </motion.div>
         <span className="flex items-center gap-1.5">
           {isStreaming && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60" />}
-          <span className="font-medium">{isStreaming ? thinkingText : "Thought process"}</span>
+          <span className="font-medium">{isStreaming ? thinkingText : t("chats.message.thoughtProcess")}</span>
         </span>
       </button>
 
@@ -305,6 +309,7 @@ function ChatMessageInner({
   reasoning,
   swapPlaces = false,
 }: ChatMessageProps) {
+  const { t } = useI18n();
   const prevRoleRef = useRef(message.role);
   const [crossShift, setCrossShift] = useState(0);
 
@@ -506,19 +511,19 @@ function ChatMessageInner({
                 )}
                 aria-label={
                   isAudioLoading
-                    ? "Cancel audio generation"
+                    ? t("chats.message.cancelAudioGeneration")
                     : isAudioPlaying
-                      ? "Stop audio"
-                      : "Play message audio"
+                      ? t("chats.message.stopAudio")
+                      : t("chats.message.playMessageAudio")
                 }
                 aria-pressed={isAudioPlaying}
                 aria-busy={isAudioLoading}
                 title={
                   isAudioLoading
-                    ? "Cancel audio generation"
+                    ? t("chats.message.cancelAudioGeneration")
                     : isAudioPlaying
-                      ? "Stop audio"
-                      : "Play audio"
+                      ? t("chats.message.stopAudio")
+                      : t("chats.message.playAudio")
                 }
               >
                 {isAudioLoading ? (
@@ -607,13 +612,13 @@ function ChatMessageInner({
                     )}
                     onClick={() =>
                       attachment.data &&
-                      onImageClick?.(attachment.data, attachment.filename || "Attached image")
+                      onImageClick?.(attachment.data, attachment.filename || t("chats.message.attachedImage"))
                     }
                   >
                     {attachment.data ? (
                       <img
                         src={attachment.data}
-                        alt={attachment.filename || "Attached image"}
+                        alt={attachment.filename || t("chats.message.attachedImage")}
                         className="max-h-48 max-w-full object-contain"
                         style={{
                           maxWidth:
@@ -660,7 +665,7 @@ function ChatMessageInner({
             transition={{ duration: 0.2, delay: 0.15 }}
           >
             <span className="text-white">
-              {isStartingSceneMessage ? "Scene" : "Variant"}{" "}
+              {isStartingSceneMessage ? t("chats.message.sceneLabel") : t("chats.message.variantLabel")}{" "}
               {computed.selectedVariantIndex >= 0 ? computed.selectedVariantIndex + 1 : 1}
               {computed.totalVariants > 0 ? ` / ${computed.totalVariants}` : ""}
             </span>
@@ -672,7 +677,7 @@ function ChatMessageInner({
                 transition={{ duration: 0.15 }}
               >
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-300/30 border-t-emerald-300" />
-                Regenerating
+                {t("chats.message.regenerating")}
               </motion.span>
             )}
           </motion.div>
@@ -778,8 +783,9 @@ export const ChatMessage = React.memo(ChatMessageInner, (prev, next) => {
 });
 
 function TypingIndicator() {
+  const { t } = useI18n();
   return (
-    <div className="flex items-center gap-1" aria-label="Assistant is typing" aria-live="polite">
+    <div className="flex items-center gap-1" aria-label={t("chats.message.assistantIsTyping")} aria-live="polite">
       <span className="typing-dot" />
       <span className="typing-dot" style={{ animationDelay: "0.2s" }} />
       <span className="typing-dot" style={{ animationDelay: "0.4s" }} />

@@ -14,6 +14,7 @@ import { getPlatform } from "../../../../core/utils/platform";
 import { BottomMenu, MenuButton, MenuSection } from "../../../components";
 import { ReferenceAvatar } from "./ReferenceSelector";
 import type { Reference } from "./ReferenceSelector";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ImageAttachment {
   id: string;
@@ -54,6 +55,7 @@ export function CreationHelperFooter({
   onRemoveReference,
   onOpenReferenceSelector,
 }: CreationHelperFooterProps) {
+  const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
   const hasAttachments = pendingAttachments.length > 0;
   const hasReferences = references.length > 0;
@@ -230,8 +232,8 @@ export function CreationHelperFooter({
             "hover:border-fg/25 hover:bg-fg/15",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
-          title="More options"
-          aria-label="More options"
+          title={t("characters.creationHelper.moreOptions")}
+          aria-label={t("characters.creationHelper.moreOptions")}
         >
           <Plus size={20} />
         </button>
@@ -261,7 +263,7 @@ export function CreationHelperFooter({
               "transition-opacity duration-150",
             )}
           >
-            Describe your character...
+            {t("characters.creationHelper.describePlaceholder")}
           </span>
         )}
         <button
@@ -294,8 +296,8 @@ export function CreationHelperFooter({
               "hover:border-fg/25 hover:bg-fg/15",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
-          title={sending ? "Stop generation" : "Send message"}
-          aria-label={sending ? "Stop generation" : "Send message"}
+          title={sending ? t("characters.creationHelper.stopGeneration") : t("characters.creationHelper.sendMessage")}
+          aria-label={sending ? t("characters.creationHelper.stopGeneration") : t("characters.creationHelper.sendMessage")}
         >
           {sending ? <Square className="h-4 w-4 fill-current" /> : <SendHorizonal size={18} />}
         </button>
@@ -305,13 +307,13 @@ export function CreationHelperFooter({
       <BottomMenu
         isOpen={showPlusMenu}
         onClose={() => setShowPlusMenu(false)}
-        title="Add to Message"
+        title={t("characters.creationHelper.addToMessage")}
       >
         <MenuSection>
           <MenuButton
             icon={ImageIcon}
             title="Upload Image"
-            description="Add an avatar or reference image"
+            description={t("characters.creationHelper.uploadImageDesc")}
             color="from-info to-info/80"
             onClick={() => {
               fileInputRef.current?.click();
@@ -322,7 +324,7 @@ export function CreationHelperFooter({
               <MenuButton
                 icon={User}
                 title="Reference Character"
-                description="Use an existing character as inspiration"
+                description={t("characters.creationHelper.referenceCharacterDesc")}
                 color="from-secondary to-danger/80"
                 onClick={() => {
                   setShowPlusMenu(false);
@@ -332,7 +334,7 @@ export function CreationHelperFooter({
               <MenuButton
                 icon={Users}
                 title="Reference Persona"
-                description="Use your persona as context"
+                description={t("characters.creationHelper.referencePersonaDesc")}
                 color="from-warning to-warning/80"
                 onClick={() => {
                   setShowPlusMenu(false);

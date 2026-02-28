@@ -25,6 +25,7 @@ import {
 } from "@tauri-apps/plugin-barcode-scanner";
 import { interactive, radius, cn } from "../../design-tokens";
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 type SyncStatus =
   | { status: "Idle" }
@@ -38,6 +39,7 @@ type SyncStatus =
   | { status: "Error"; details: { message: string } };
 
 export function SyncPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"host" | "client">("client");
   const [status, setStatus] = useState<SyncStatus>({ status: "Idle" });
   const [hostIp, setHostIp] = useState("");
@@ -248,7 +250,7 @@ export function SyncPage() {
       <BottomMenu
         isOpen={isPendingApproval}
         onClose={() => handleApproval(false)}
-        title="Connection Request"
+        title={t("sync.modals.connectionRequest")}
       >
         <div className="mb-6 px-1 text-center">
           <div className="mb-4 flex justify-center">
@@ -260,22 +262,22 @@ export function SyncPage() {
             {(status as any).details?.device_name || "Unknown Device"}
           </h4>
           <p className="text-sm text-white/50 font-mono mb-2">{(status as any).details?.ip}</p>
-          <p className="text-sm text-white/40">wants to sync with this device.</p>
+          <p className="text-sm text-white/40">{t("sync.modals.requestMessage")}</p>
         </div>
 
         <div className="space-y-3">
           <MenuButton
             icon={Check}
-            title="Accept Connection"
-            description="Allow this device to sync data"
+            title={t("sync.modals.acceptConnection")}
+            description={t("sync.modals.acceptDesc")}
             color="from-emerald-500 to-emerald-600"
             onClick={() => handleApproval(true)}
             loading={isAccepting}
           />
           <MenuButton
             icon={X}
-            title="Decline"
-            description="Block this connection attempt"
+            title={t("sync.modals.decline")}
+            description={t("sync.modals.declineDesc")}
             color="from-rose-500 to-red-600"
             onClick={() => handleApproval(false)}
             disabled={isAccepting}
@@ -283,25 +285,25 @@ export function SyncPage() {
         </div>
       </BottomMenu>
 
-      <BottomMenu isOpen={isReadyToStart} onClose={() => {}} title="Ready to Sync">
+      <BottomMenu isOpen={isReadyToStart} onClose={() => {}} title={t("sync.modals.readyToSync")}>
         <div className="mb-6 px-1 text-center">
           <div className="mb-4 flex justify-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-green-500/20 to-emerald-500/20 border border-white/10">
               <Check className="h-8 w-8 text-green-300" />
             </div>
           </div>
-          <h4 className="text-lg font-medium text-white mb-1">Connection Established</h4>
+          <h4 className="text-lg font-medium text-white mb-1">{t("sync.modals.connectionEstablished")}</h4>
           <p className="text-sm text-white/50 mb-2">
-            {(status as any).details?.device_name} is ready.
+            {(status as any).details?.device_name} {t("sync.modals.deviceReady")}
           </p>
-          <p className="text-sm text-white/40">Tap below to start synchronizing data.</p>
+          <p className="text-sm text-white/40">{t("sync.modals.startSyncMessage")}</p>
         </div>
 
         <div className="space-y-3">
           <MenuButton
             icon={RefreshCw}
-            title="Start Syncing"
-            description="Begin data transfer now"
+            title={t("sync.modals.startSyncing")}
+            description={t("sync.modals.startSyncingDesc")}
             color="from-blue-500 to-blue-600"
             onClick={handleStartSync}
             loading={isStartingSyncSession}
@@ -315,8 +317,8 @@ export function SyncPage() {
           <div className="flex items-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3">
             <CheckCircle className="h-5 w-5 shrink-0 text-emerald-400" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-emerald-200">Sync Complete!</p>
-              <p className="text-xs text-emerald-200/60">All data synchronized</p>
+              <p className="text-sm font-medium text-emerald-200">{t("sync.messages.completed")}</p>
+              <p className="text-xs text-emerald-200/60">{t("sync.messages.completedDesc")}</p>
             </div>
             <button
               type="button"
@@ -333,7 +335,7 @@ export function SyncPage() {
           <div className="flex items-center gap-3 rounded-xl border border-red-400/20 bg-red-400/10 p-3">
             <AlertTriangle className="h-5 w-5 shrink-0 text-red-400" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-red-200">Connection Error</p>
+              <p className="text-sm font-medium text-red-200">{t("sync.messages.error")}</p>
               <p className="text-xs text-red-200/60">{(status as any).details?.message}</p>
             </div>
             <button
@@ -351,7 +353,7 @@ export function SyncPage() {
           <div className="flex items-center gap-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
             <AlertTriangle className="h-5 w-5 shrink-0 text-amber-300" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-amber-200">Outdated Client Detected</p>
+              <p className="text-sm font-medium text-amber-200">{t("sync.messages.outdatedClient")}</p>
               <p className="text-xs text-amber-200/70">{warningMessage}</p>
             </div>
           </div>
@@ -361,7 +363,7 @@ export function SyncPage() {
         {isIdle && (
           <div>
             <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">
-              Mode
+              {t("sync.sections.mode")}
             </h2>
             <div className="flex gap-2">
               <button
@@ -392,8 +394,8 @@ export function SyncPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white">Join</p>
-                    <p className="text-[11px] text-white/50">Connect to host</p>
+                    <p className="text-sm font-medium text-white">{t("sync.modes.join")}</p>
+                    <p className="text-[11px] text-white/50">{t("sync.modes.joinDesc")}</p>
                   </div>
                 </div>
               </button>
@@ -425,8 +427,8 @@ export function SyncPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white">Host</p>
-                    <p className="text-[11px] text-white/50">Share your data</p>
+                    <p className="text-sm font-medium text-white">{t("sync.modes.host")}</p>
+                    <p className="text-[11px] text-white/50">{t("sync.modes.hostDesc")}</p>
                   </div>
                 </div>
               </button>
@@ -438,7 +440,7 @@ export function SyncPage() {
         {(isIdle || isError) && activeTab === "client" && (
           <div className="space-y-3">
             <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">
-              Connect to Host
+              {t("sync.sections.connectToHost")}
             </h2>
             {isMobile && (
               <button
@@ -449,13 +451,13 @@ export function SyncPage() {
                   "hover:bg-white/10",
                 )}
               >
-                <Scan className="h-4 w-4" /> Scan QR Code
+                <Scan className="h-4 w-4" /> {t("sync.buttons.scanQRCode")}
               </button>
             )}
             <div className="border border-white/10 bg-white/5 p-4 rounded-xl space-y-3">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-white/50">
-                  Host Address or JSON
+                  {t("sync.fields.hostAddress")}
                 </label>
                 <input
                   type="text"
@@ -470,7 +472,7 @@ export function SyncPage() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-white/50">PIN Code</label>
+                <label className="mb-1.5 block text-xs font-medium text-white/50">{t("sync.fields.pinCode")}</label>
                 <input
                   type="text"
                   value={pin}
@@ -502,11 +504,11 @@ export function SyncPage() {
               {isConnectingToHost ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Connecting...
+                  {t("sync.buttons.connecting")}
                 </>
               ) : (
                 <>
-                  <Wifi className="h-4 w-4" /> Connect
+                  <Wifi className="h-4 w-4" /> {t("sync.buttons.connect")}
                 </>
               )}
             </button>
@@ -517,17 +519,17 @@ export function SyncPage() {
         {isIdle && activeTab === "host" && (
           <div className="space-y-3">
             <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">
-              Start Hosting{" "}
+              {t("sync.sections.startHosting")}{" "}
             </h2>
             <div className="border border-white/10 bg-white/5 p-4 rounded-xl">
               <div className="flex items-start gap-3">
                 <Monitor className="h-5 w-5 text-white/40 mt-0.5" />
                 <div>
                   <p className="text-sm text-white/70">
-                    Other devices can connect and sync data from this device.
+                    {t("sync.hostingDesc1")}
                   </p>
                   <p className="mt-1 text-xs text-white/40">
-                    Your data will be shared with connected clients.
+                    {t("sync.hostingDesc2")}
                   </p>
                 </div>
               </div>
@@ -544,11 +546,11 @@ export function SyncPage() {
               {isStartingHost ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Starting server...
+                  {t("sync.buttons.startingServer")}
                 </>
               ) : (
                 <>
-                  <Wifi className="h-4 w-4" /> Start Hosting
+                  <Wifi className="h-4 w-4" /> {t("sync.buttons.startHosting")}
                 </>
               )}
             </button>
@@ -559,16 +561,16 @@ export function SyncPage() {
         {role === "client" && (isConnecting || isSyncing || isConnected) && (
           <div className="space-y-3">
             <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">
-              Status
+              {t("sync.sections.status")}
             </h2>
             <div className="border border-blue-400/20 bg-blue-400/10 p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-300" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-blue-200">
-                    {isConnecting && "Connecting..."}
-                    {isConnected && "Connected"}
-                    {isSyncing && "Syncing..."}
+                    {isConnecting && t("sync.status.connecting")}
+                    {isConnected && t("sync.status.connected")}
+                    {isSyncing && t("sync.status.syncing")}
                   </p>
                   {isSyncing && (
                     <p className="text-xs text-blue-200/60">{(status as any).details?.phase}</p>
@@ -583,7 +585,7 @@ export function SyncPage() {
                 radius.lg,
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
           </div>
         )}
@@ -593,7 +595,7 @@ export function SyncPage() {
           <div className="space-y-4 pb-6">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">
-                Hosting Service
+                {t("sync.sections.hosting")}
               </h2>
               <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5">
                 <span className="relative flex h-1.5 w-1.5">
@@ -613,7 +615,7 @@ export function SyncPage() {
                     <div className="flex h-45 w-45 items-center justify-center mb-6">
                       <div className="text-center">
                         <Loader2 className="h-12 w-12 animate-spin text-blue-400 mx-auto mb-4" />
-                        <p className="text-lg font-medium text-blue-200">Syncing...</p>
+                        <p className="text-lg font-medium text-blue-200">{t("sync.status.syncing")}</p>
                         <p className="text-sm text-blue-200/60 mt-1">
                           {(status as any).details?.phase || "Transferring data"}
                         </p>
@@ -621,7 +623,7 @@ export function SyncPage() {
                     </div>
                     <div className="w-full text-center space-y-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">
-                        Sync in Progress
+                        {t("sync.status.syncInProgress")}
                       </p>
                     </div>
                   </>
@@ -639,7 +641,7 @@ export function SyncPage() {
                     </div>
                     <div className="w-full text-center space-y-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">
-                        Local Network Address
+                        {t("sync.sections.localAddress")}
                       </p>
                       <div className="flex items-center justify-center gap-2">
                         <code className="text-2xl font-mono font-bold text-white leading-none">
@@ -672,13 +674,13 @@ export function SyncPage() {
             {!isSyncing && (
               <div className="border border-emerald-400/20 bg-emerald-400/10 p-4 rounded-xl text-center">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/60 mb-2">
-                  Connection PIN
+                  {t("sync.sections.connectionPin")}
                 </p>
                 <code className="text-4xl font-mono font-bold text-emerald-300 tracking-[0.4em]">
                   {(status as any).details?.pin || "------"}
                 </code>
                 <p className="text-xs text-emerald-200/40 mt-2">
-                  Share this PIN with the connecting device
+                  {t("sync.pinDescription")}
                 </p>
               </div>
             )}

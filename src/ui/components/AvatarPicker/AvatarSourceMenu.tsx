@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ImageIcon, Crop } from "lucide-react";
 import { useRef, useEffect } from "react";
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 
 interface AvatarSourceMenuProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export function AvatarSourceMenu({
   hasImageGenerationModels,
   hasCurrentAvatar = false,
 }: AvatarSourceMenuProps) {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,12 +112,12 @@ export function AvatarSourceMenu({
                       hasImageGenerationModels ? "text-white" : "text-white/50"
                     )}
                   >
-                    Generate Image
+                    {t("components.avatarSource.generateImage")}
                   </p>
                   <p className="text-[11px] text-white/40">
                     {hasImageGenerationModels
-                      ? "AI-powered avatar creation"
-                      : "No image models available"}
+                      ? t("components.avatarSource.generateImageDesc")
+                      : t("components.avatarSource.noImageModels")}
                   </p>
                 </div>
               </button>
@@ -146,8 +148,8 @@ export function AvatarSourceMenu({
                       <Crop size={18} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-white">Edit Current</p>
-                      <p className="text-[11px] text-white/40">Reposition or crop</p>
+                      <p className="text-sm font-medium text-white">{t("components.avatarSource.editCurrent")}</p>
+                      <p className="text-[11px] text-white/40">{t("components.avatarSource.editCurrentDesc")}</p>
                     </div>
                   </button>
 
@@ -177,8 +179,8 @@ export function AvatarSourceMenu({
                   <ImageIcon size={18} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">Choose Image</p>
-                  <p className="text-[11px] text-white/40">Select from your device</p>
+                  <p className="text-sm font-medium text-white">{t("components.avatarSource.chooseImage")}</p>
+                  <p className="text-[11px] text-white/40">{t("components.avatarSource.chooseImageDesc")}</p>
                 </div>
               </button>
             </div>

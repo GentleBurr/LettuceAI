@@ -1,5 +1,6 @@
 import { ArrowLeft, Settings, Brain } from "lucide-react";
 
+import { useI18n } from "../../../../core/i18n/context";
 import type { GroupSession, Character } from "../../../../core/storage/schemas";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { cn } from "../../../design-tokens";
@@ -22,6 +23,7 @@ export function GroupChatHeader({
   hasBackgroundImage?: boolean;
   headerOverlayClassName?: string;
 }) {
+  const { t } = useI18n();
   return (
     <header
       className={cn(
@@ -37,14 +39,14 @@ export function GroupChatHeader({
         <button
           onClick={onBack}
           className="flex shrink-0 px-[0.6em] py-[0.3em] items-center justify-center -ml-2 text-fg transition hover:text-fg/80"
-          aria-label="Back"
+          aria-label={t("groupChats.header.back")}
         >
           <ArrowLeft size={18} strokeWidth={2.5} />
         </button>
 
         <div className="min-w-0 flex-1 ml-2">
           <h1 className="h1-group-chat truncate text-lg font-bold text-fg/90">{session.name}</h1>
-          <p className="truncate text-xs text-fg/50">{characters.length} characters</p>
+          <p className="truncate text-xs text-fg/50">{characters.length} {t("groupChats.header.characters")}</p>
         </div>
 
         <div className="relative flex items-center mr-3">
@@ -75,7 +77,7 @@ export function GroupChatHeader({
         <button
           onClick={onMemories}
           className="flex items-center px-[0.6em] py-[0.3em] justify-center text-fg/70 hover:text-fg transition"
-          aria-label="Memories"
+          aria-label={t("groupChats.header.memories")}
         >
           <Brain size={18} />
         </button>
@@ -83,7 +85,7 @@ export function GroupChatHeader({
         <button
           onClick={onSettings}
           className="flex items-center px-[0.6em] py-[0.3em] justify-center text-fg/70 hover:text-fg transition"
-          aria-label="Settings"
+          aria-label={t("groupChats.header.settings")}
         >
           <Settings size={18} />
         </button>

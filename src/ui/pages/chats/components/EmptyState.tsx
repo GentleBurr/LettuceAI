@@ -1,6 +1,7 @@
 import { Rocket } from "lucide-react";
 import { useRocketEasterEgg } from "../../../hooks/useRocketEasterEgg";
 import { useNavigationManager, Routes } from "../../../navigation";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface EmptyStateProps {
   title: string;
@@ -9,6 +10,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, showBackButton = true }: EmptyStateProps) {
   const { backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
   const rocket = useRocketEasterEgg();
 
   return (
@@ -29,7 +31,7 @@ export function EmptyState({ title, showBackButton = true }: EmptyStateProps) {
           onClick={() => backOrReplace(Routes.chat)}
           className="rounded-full border border-white/15 px-5 py-2 text-sm font-medium text-white transition hover:border-white/30"
         >
-          Go back
+          {t("chats.emptyState.goBack")}
         </button>
       )}
     </div>

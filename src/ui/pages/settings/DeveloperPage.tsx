@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Sparkles, User, MessageSquare, Calculator } from "lucide-react";
 import { typography, radius, interactive, cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import {
   saveCharacter,
   savePersona,
@@ -12,6 +13,7 @@ import type { Character } from "../../../core/storage/schemas";
 import { storageBridge } from "../../../core/storage/files";
 
 export function DeveloperPage() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
 
@@ -212,34 +214,34 @@ export function DeveloperPage() {
         {/* Test Data Generators */}
         <section className="space-y-3">
           <h2 className={cn(typography.h2.size, typography.h2.weight, "text-fg mb-3")}>
-            Test Data Generators
+            {t("developer.sectionTitles.testDataGenerators")}
           </h2>
 
           <ActionButton
             icon={<Sparkles />}
-            title="Generate Test Character"
-            description="Create a single test character"
+            title={t("developer.testData.generateCharacter")}
+            description={t("developer.testData.generateCharacterDesc")}
             onClick={generateTestCharacter}
           />
 
           <ActionButton
             icon={<User />}
-            title="Generate Test Persona"
-            description="Create a single test persona"
+            title={t("developer.testData.generatePersona")}
+            description={t("developer.testData.generatePersonaDesc")}
             onClick={generateTestPersona}
           />
 
           <ActionButton
             icon={<MessageSquare />}
-            title="Generate Test Session"
-            description="Create a test chat session with existing character"
+            title={t("developer.testData.generateSession")}
+            description={t("developer.testData.generateSessionDesc")}
             onClick={generateTestSession}
           />
 
           <ActionButton
             icon={<Sparkles />}
-            title="Generate Bulk Test Data"
-            description="Create 3 characters and 2 personas"
+            title={t("developer.testData.generateBulk")}
+            description={t("developer.testData.generateBulkDesc")}
             onClick={generateBulkTestData}
             variant="primary"
           />
@@ -248,43 +250,43 @@ export function DeveloperPage() {
         {/* Debug Info */}
         <section className={cn("mt-8 space-y-3")}>
           <h2 className={cn(typography.h2.size, typography.h2.weight, "text-fg mb-3")}>
-            Storage Maintenance
+            {t("developer.sectionTitles.storageMaintenance")}
           </h2>
           <ActionButton
             icon={<Sparkles />}
-            title="Optimize Database"
-            description="Apply PRAGMAs and run VACUUM (mobile only)"
+            title={t("developer.storageMaintenance.optimizeDb")}
+            description={t("developer.storageMaintenance.optimizeDbDesc")}
             onClick={optimizeDb}
             variant="primary"
           />
           <ActionButton
             icon={<Sparkles />}
-            title="Backup & Remove Legacy Files"
-            description="Moves legacy .bin storage into a backup folder"
+            title={t("developer.storageMaintenance.backupLegacy")}
+            description={t("developer.storageMaintenance.backupLegacyDesc")}
             onClick={backupLegacy}
             variant="danger"
           />
 
           <h2 className={cn(typography.h2.size, typography.h2.weight, "text-fg mb-3 mt-6")}>
-            Usage Tracking
+            {t("developer.sectionTitles.usageTracking")}
           </h2>
           <ActionButton
             icon={<Calculator />}
-            title="Recalculate All Usage Costs"
-            description="Re-fetches pricing and recalculates costs for all OpenRouter usage records"
+            title={t("developer.usageTracking.recalculateAll")}
+            description={t("developer.usageTracking.recalculateAllDesc")}
             onClick={recalculateUsageCosts}
             variant="primary"
           />
 
           <h2 className={cn(typography.h2.size, typography.h2.weight, "text-fg mb-3 mt-6")}>
-            Environment Info
+            {t("developer.sectionTitles.environmentInfo")}
           </h2>
 
-          <InfoCard title="Mode" value={import.meta.env.MODE} />
+          <InfoCard title={t("developer.environmentInfo.mode")} value={import.meta.env.MODE} />
 
-          <InfoCard title="Dev Mode" value={import.meta.env.DEV ? "Yes" : "No"} />
+          <InfoCard title={t("developer.environmentInfo.devMode")} value={import.meta.env.DEV ? "Yes" : "No"} />
 
-          <InfoCard title="Vite Version" value={import.meta.env.VITE_APP_VERSION || "N/A"} />
+          <InfoCard title={t("developer.environmentInfo.viteVersion")} value={import.meta.env.VITE_APP_VERSION || "N/A"} />
         </section>
       </main>
     </div>

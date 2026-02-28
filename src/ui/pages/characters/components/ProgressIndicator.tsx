@@ -1,19 +1,20 @@
 import { motion } from "framer-motion";
 import { User, BookOpen, FileText, Check } from "lucide-react";
 import { typography, radius, cn } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ProgressIndicatorProps {
   currentStep: number;
   stepLabel: string;
 }
 
-const steps = [
-  { number: 1, label: "Identity", icon: User },
-  { number: 2, label: "Scenes", icon: BookOpen },
-  { number: 3, label: "Details", icon: FileText },
-];
-
 export function ProgressIndicator({ currentStep, stepLabel }: ProgressIndicatorProps) {
+  const { t } = useI18n();
+  const steps = [
+    { number: 1, label: t("characters.progress.identity"), icon: User },
+    { number: 2, label: t("characters.progress.scenes"), icon: BookOpen },
+    { number: 3, label: t("characters.progress.details"), icon: FileText },
+  ];
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100;
 
   return (
@@ -29,7 +30,7 @@ export function ProgressIndicator({ currentStep, stepLabel }: ProgressIndicatorP
               "uppercase text-fg/40"
             )}
           >
-            Step {currentStep} of {steps.length}
+            {t("onboarding.stepIndicator", { current: currentStep, total: steps.length })}
           </span>
           <div className={cn("h-1 w-1", radius.full, "bg-fg/20")} />
           <span className={cn(typography.bodySmall.size, typography.h3.weight, "text-fg/70")}>

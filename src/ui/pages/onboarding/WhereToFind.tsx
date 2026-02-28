@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { DISCORD_SERVER_LINK } from "../../../core/utils/links";
+import { useI18n } from "../../../core/i18n/context";
 
 type Guide = {
   title: string;
@@ -173,6 +174,7 @@ const guides: Record<string, Guide> = {
 };
 
 export function WhereToFindPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const providerId = searchParams.get("provider") || "default";
@@ -195,7 +197,7 @@ export function WhereToFindPage() {
         <button
           onClick={() => navigate(-1)}
           className="flex items-center justify-center rounded-full border border-white/10 bg-white/10 text-white hover:border-white/25 hover:bg-white/15 active:scale-95 transition"
-          aria-label="Go back"
+          aria-label={t("common.buttons.goBack")}
         >
           <ArrowLeft size={10} />
         </button>
@@ -207,7 +209,8 @@ export function WhereToFindPage() {
 
       <h1 className="text-2xl font-semibold leading-tight text-white">{guide.title}</h1>
       <p className="mt-2 text-sm text-white/65">
-        Follow these steps to get your API key, then return to LettuceAI and paste it into the provider settings.
+        Follow these steps to get your API key, then return to LettuceAI and paste it into the
+        provider settings.
       </p>
 
       <div className="mt-6 space-y-3">

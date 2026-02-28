@@ -27,6 +27,7 @@ import {
 } from "../../../core/storage/characterTransfer";
 import { storageBridge } from "../../../core/storage/files";
 import { ChatTemplateSelector } from "./components/ChatTemplateSelector";
+import { useI18n } from "../../../core/i18n/context";
 
 export function ChatPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -52,6 +53,7 @@ export function ChatPage() {
     null,
   );
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   useEffect(() => {
     getChatsViewMode()
@@ -331,7 +333,7 @@ export function ChatPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/10">
                 <Edit2 className="h-4 w-4 text-white/70" />
               </div>
-              <span className="text-sm font-medium text-white">Edit Character</span>
+              <span className="text-sm font-medium text-white">{t("chats.editCharacter")}</span>
             </button>
 
             <button
@@ -343,7 +345,7 @@ export function ChatPage() {
                 <Download className="h-4 w-4 text-blue-400" />
               </div>
               <span className="text-sm font-medium text-blue-300">
-                {exporting ? "Exporting..." : "Export Character"}
+                {exporting ? t("common.buttons.exporting") : t("chats.exportCharacter")}
               </span>
             </button>
 
@@ -358,7 +360,7 @@ export function ChatPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/20">
                 <Paintbrush className="h-4 w-4 text-purple-400" />
               </div>
-              <span className="text-sm font-medium text-purple-300">Chat Appearance</span>
+              <span className="text-sm font-medium text-purple-300">{t("chats.chatAppearance")}</span>
             </button>
 
             <button
@@ -370,7 +372,7 @@ export function ChatPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/20">
                 <Upload className="h-4 w-4 text-emerald-300" />
               </div>
-              <span className="text-sm font-medium text-emerald-200">Import Chat Package</span>
+              <span className="text-sm font-medium text-emerald-200">{t("chats.importChatPackage")}</span>
             </button>
 
             <button
@@ -382,7 +384,7 @@ export function ChatPage() {
                 <EyeOff className="h-4 w-4 text-amber-400" />
               </div>
               <span className="text-sm font-medium text-amber-200">
-                {hiding ? "Hiding..." : "Hide this character"}
+                {hiding ? "Hiding..." : t("chats.hideThisCharacter")}
               </span>
             </button>
 
@@ -395,7 +397,7 @@ export function ChatPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-red-500/30 bg-red-500/20">
                 <Trash2 className="h-4 w-4 text-red-400" />
               </div>
-              <span className="text-sm font-medium text-red-300">Delete Character</span>
+              <span className="text-sm font-medium text-red-300">{t("chats.deleteCharacter")}</span>
             </button>
           </div>
         )}
@@ -418,23 +420,21 @@ export function ChatPage() {
           setChatpkgImportTarget(null);
           setPendingChatpkgImport(null);
         }}
-        title="Import Chat Package"
+        title={t("chats.importChatPackage")}
       >
         <div className="space-y-4">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
             {pendingChatpkgImport?.info?.characterId ? (
               pendingChatpkgImport.info.characterId === chatpkgImportTarget?.id ? (
-                <p>This package is character-specific and matches the selected character.</p>
+                <p>{t("chats.characterSpecificMatches")}</p>
               ) : (
                 <p>
-                  This package is character-specific and points to another character. It will be
-                  imported into {chatpkgImportTarget?.name}.
+                  {t("chats.characterSpecificMismatch", { name: chatpkgImportTarget?.name ?? "" })}
                 </p>
               )
             ) : (
               <p>
-                This package is non-character-specific. It will be imported into{" "}
-                {chatpkgImportTarget?.name}.
+                {t("chats.nonCharacterSpecificImport", { name: chatpkgImportTarget?.name ?? "" })}
               </p>
             )}
           </div>
@@ -445,7 +445,7 @@ export function ChatPage() {
             disabled={importingChatpkg}
             className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/20 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-50"
           >
-            {importingChatpkg ? "Importing..." : "Import"}
+            {importingChatpkg ? t("common.buttons.importing") : t("common.buttons.import")}
           </button>
         </div>
       </BottomMenu>
@@ -454,12 +454,11 @@ export function ChatPage() {
       <BottomMenu
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title="Delete Character?"
+        title={t("chats.deleteCharacterTitle")}
       >
         <div className="space-y-4">
           <p className="text-sm text-white/70">
-            Are you sure you want to delete "{selectedCharacter?.name}"? This will also delete all
-            chat sessions with this character.
+            {t("chats.deleteCharacterConfirmation", { name: selectedCharacter?.name ?? "" })}
           </p>
           <div className="flex gap-3">
             <button
@@ -467,14 +466,14 @@ export function ChatPage() {
               disabled={deleting}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10 disabled:opacity-50"
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={handleDelete}
               disabled={deleting}
               className="flex-1 rounded-xl border border-red-500/30 bg-red-500/20 py-3 text-sm font-medium text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
             </button>
           </div>
         </div>
@@ -630,6 +629,7 @@ function CharacterSkeleton() {
 }
 
 function EmptyState() {
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -640,10 +640,10 @@ function EmptyState() {
     >
       <div className={spacing.field}>
         <h3 className={cn(typography.h3.size, typography.h3.weight, "text-white")}>
-          No characters yet
+          {t("chats.noCharactersYet")}
         </h3>
         <p className={cn(typography.body.size, typography.body.lineHeight, "text-white/50")}>
-          Create your first character from the + button below to start chatting
+          {t("chats.createFirstCharacter")}
         </p>
       </div>
     </div>
@@ -702,8 +702,9 @@ const CharacterCard = memo(
     onSelect: (character: Character) => void;
     onLongPress: (character: Character) => void;
   }) => {
+    const { t } = useI18n();
     const descriptionPreview =
-      (character.description || character.definition || "").trim() || "No description yet";
+      (character.description || character.definition || "").trim() || t("common.labels.noDescriptionYet");
     const { gradientCss, hasGradient, textColor, textSecondary } = useAvatarGradient(
       "character",
       character.id,
@@ -895,8 +896,9 @@ const HeroCard = memo(
     onSelect: (character: Character) => void;
     onLongPress: (character: Character) => void;
   }) => {
+    const { t } = useI18n();
     const descriptionPreview =
-      (character.description || character.definition || "").trim() || "No description yet";
+      (character.description || character.definition || "").trim() || t("common.labels.noDescriptionYet");
     const { gradientCss, hasGradient, textColor, textSecondary } = useAvatarGradient(
       "character",
       character.id,
@@ -1009,8 +1011,9 @@ const GalleryCard = memo(
     onSelect: (character: Character) => void;
     onLongPress: (character: Character) => void;
   }) => {
+    const { t } = useI18n();
     const descriptionPreview =
-      (character.description || character.definition || "").trim() || "No description yet";
+      (character.description || character.definition || "").trim() || t("common.labels.noDescriptionYet");
     const avatarUrl = useAvatar("character", character.id, character.avatarPath, "base");
     const hasAvatar = avatarUrl && isImageLike(avatarUrl);
     const { gradientCss, hasGradient } = useAvatarGradient(

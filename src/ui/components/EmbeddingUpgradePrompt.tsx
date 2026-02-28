@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../../core/i18n/context";
 
 interface EmbeddingUpgradePromptProps {
   onDismiss: () => void;
@@ -17,6 +18,7 @@ export function EmbeddingUpgradePrompt({
   returnTo,
   currentVersion,
 }: EmbeddingUpgradePromptProps) {
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const handleUpgrade = () => {
@@ -28,11 +30,11 @@ export function EmbeddingUpgradePrompt({
     navigate(`/settings/embedding-download?${params.toString()}`);
   };
 
-  const title = "Embedding Model v3 Available";
+  const title = t("components.embeddingUpgrade.title");
   const body =
     currentVersion === "v1"
-      ? "You're using v1 with 512 tokens. Upgrade to v3 for better memory quality and long-context support."
-      : "You're using legacy v2. Upgrade to v3 for better memory quality with the latest embedding model.";
+      ? t("components.embeddingUpgrade.v1Message")
+      : t("components.embeddingUpgrade.v2Message");
 
   return (
     <motion.div
@@ -64,14 +66,14 @@ export function EmbeddingUpgradePrompt({
               onClick={handleUpgrade}
               className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-amber-400 shadow-lg shadow-amber-500/20"
             >
-              Upgrade to v3
+              {t("components.embeddingUpgrade.button")}
               <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={onDismiss}
               className="rounded-xl px-4 py-2 text-sm text-amber-200/60 hover:text-amber-200 transition-colors hover:bg-white/5"
             >
-              Later
+              {t("common.buttons.later")}
             </button>
           </div>
         </div>

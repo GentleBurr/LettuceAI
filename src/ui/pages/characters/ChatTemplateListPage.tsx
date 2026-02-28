@@ -5,10 +5,12 @@ import { Plus, MessageSquare, Trash2, MoreVertical, Loader2 } from "lucide-react
 import { listCharacters, saveCharacter } from "../../../core/storage/repo";
 import type { Character } from "../../../core/storage/schemas";
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 export default function ChatTemplateListPage() {
   const { characterId } = useParams<{ characterId: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [character, setCharacter] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
   const [menuTemplateId, setMenuTemplateId] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export default function ChatTemplateListPage() {
 
   if (!character) {
     return (
-      <div className="flex h-full items-center justify-center text-fg/50">Character not found</div>
+      <div className="flex h-full items-center justify-center text-fg/50">{t("characters.templates.characterNotFound")}</div>
     );
   }
 
@@ -70,7 +72,7 @@ export default function ChatTemplateListPage() {
       {templates.length > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-fg/50">
-            {templates.length} template{templates.length !== 1 ? "s" : ""} for {character.name}
+            {t("characters.templates.templateCount", { count: templates.length })}
           </p>
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -78,7 +80,7 @@ export default function ChatTemplateListPage() {
             className="flex items-center gap-1.5 rounded-lg border border-accent/50 bg-accent/20 px-3 py-1.5 text-xs font-medium text-accent transition active:bg-accent/30"
           >
             <Plus className="h-3.5 w-3.5" />
-            New Template
+            {t("characters.templates.newTemplate")}
           </motion.button>
         </div>
       )}
@@ -88,10 +90,9 @@ export default function ChatTemplateListPage() {
           <div className="mb-3 rounded-2xl border border-fg/10 bg-fg/5 p-4">
             <MessageSquare className="h-8 w-8 text-fg/30" />
           </div>
-          <p className="text-sm font-medium text-fg/60">No templates yet</p>
+          <p className="text-sm font-medium text-fg/60">{t("characters.templates.noTemplatesYet")}</p>
           <p className="mt-1 max-w-xs text-xs text-fg/40">
-            Chat templates let you start conversations with pre-written messages from both you and{" "}
-            {character.name}.
+            {t("characters.templates.explanation", { name: character.name })}
           </p>
           <motion.button
             whileTap={{ scale: 0.97 }}
@@ -99,7 +100,7 @@ export default function ChatTemplateListPage() {
             className="mt-4 flex items-center gap-2 rounded-xl border border-accent/50 bg-accent/20 px-4 py-2 text-sm font-medium text-accent transition active:bg-accent/30"
           >
             <Plus className="h-4 w-4" />
-            Create Template
+            {t("characters.templates.createTemplate")}
           </motion.button>
         </div>
       ) : (
@@ -132,8 +133,7 @@ export default function ChatTemplateListPage() {
                   <div className="min-w-0 flex-1">
                     <span className="truncate text-sm font-medium text-fg">{template.name}</span>
                     <p className="mt-0.5 text-xs text-fg/50">
-                      {template.messages.length} message
-                      {template.messages.length !== 1 ? "s" : ""}
+                      {t("characters.templates.messageCount", { count: template.messages.length })}
                     </p>
                     {template.messages.length > 0 && (
                       <p className="mt-1 line-clamp-2 text-xs text-fg/40">
@@ -167,7 +167,7 @@ export default function ChatTemplateListPage() {
       >
         <MenuButton
           icon={<Trash2 className="h-4 w-4" />}
-          title="Delete template"
+          title={t("characters.templates.deleteTemplate")}
           color="from-rose-500 to-red-600"
           onClick={() => menuTemplateId && handleDelete(menuTemplateId)}
         />

@@ -23,6 +23,7 @@ import { storageBridge } from "../../../core/storage/files";
 import { typography, radius, cn, colors, interactive } from "../../design-tokens";
 import { BottomMenu, MenuButton, MenuButtonGroup, MenuDivider } from "../../components";
 import { Routes, useNavigationManager } from "../../navigation";
+import { useI18n } from "../../../core/i18n/context";
 
 interface SessionPreview {
   id: string;
@@ -36,6 +37,8 @@ export function ChatHistoryPage() {
   const { characterId } = useParams<{ characterId: string }>();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
+  const formatTimeAgo = useFormatTimeAgo();
   const [character, setCharacter] = useState<Character | null>(null);
   const [sessions, setSessions] = useState<SessionPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,7 +92,7 @@ export function ChatHistoryPage() {
             const lastMessage = p.lastMessage || "";
             return {
               id: p.id,
-              title: p.title?.trim() ? p.title : "Untitled Chat",
+              title: p.title?.trim() ? p.title : t("chats.untitledChat"),
               updatedAt: p.updatedAt,
               lastMessage: lastMessage.slice(0, 100) + (lastMessage.length > 100 ? "..." : ""),
               archived: p.archived,
@@ -178,7 +181,7 @@ export function ChatHistoryPage() {
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <MessageCircle className="mx-auto mb-4 h-12 w-12 text-white/30" />
-          <p className={cn(typography.body.size, "text-white/60")}>Character not found</p>
+          <p className={cn(typography.body.size, "text-white/60")}>{t("chats.characterNotFound")}</p>
         </div>
       </div>
     );
@@ -215,11 +218,11 @@ export function ChatHistoryPage() {
               <ArrowLeft size={14} strokeWidth={2.5} />
             </button>
             <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-xl font-bold text-white/90">Chat History</p>
+              <p className="truncate text-xl font-bold text-white/90">{t("chats.chatHistory")}</p>
               <p className="mt-0.5 truncate text-xs text-white/50">
                 {character
-                  ? `Previous conversations with ${character.name}`
-                  : "Previous conversations"}
+                  ? t("chats.previousConversationsWithCharacter", { name: character.name })
+                  : t("chats.previousConversations")}
               </p>
             </div>
           </div>
@@ -242,7 +245,7 @@ export function ChatHistoryPage() {
                 "active:scale-95 transition-transform",
               )}
             >
-              Retry
+              {t("common.buttons.retry")}
             </button>
           </div>
         )}
@@ -259,7 +262,7 @@ export function ChatHistoryPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search chats..."
+                placeholder={t("chats.searchChats")}
                 className={cn(
                   "w-full pl-10 pr-10 py-2.5",
                   "border bg-white/5",
@@ -302,20 +305,20 @@ export function ChatHistoryPage() {
           <div className="text-center py-20">
             <MessageCircle className="mx-auto mb-4 h-12 w-12 text-white/30" />
             <h3 className={cn(typography.h3.size, typography.h3.weight, "text-white/70 mb-2")}>
-              No conversations yet
+              {t("chats.noConversationsYet")}
             </h3>
             <p className={cn(typography.bodySmall.size, "text-white/40 mb-6")}>
-              Start chatting to see your history here
+              {t("chats.startChattingPrompt")}
             </p>
           </div>
         ) : filteredSessions.length === 0 ? (
           <div className="text-center py-20">
             <MessageCircle className="mx-auto mb-4 h-12 w-12 text-white/30" />
             <h3 className={cn(typography.h3.size, typography.h3.weight, "text-white/70 mb-2")}>
-              No matching chats
+              {t("chats.noMatchingChats")}
             </h3>
             <p className={cn(typography.bodySmall.size, "text-white/40 mb-6")}>
-              Try a different search term
+              {t("chats.tryDifferentSearchTerm")}
             </p>
             <button
               type="button"
@@ -330,7 +333,7 @@ export function ChatHistoryPage() {
                 interactive.transition.fast,
               )}
             >
-              Clear search
+              {t("common.buttons.clearSearch")}
             </button>
           </div>
         ) : (
@@ -353,11 +356,11 @@ export function ChatHistoryPage() {
       <BottomMenu
         isOpen={exportTarget != null}
         onClose={() => setExportTarget(null)}
-        title="Export Chat Package"
+        title={t("chats.exportChatPackage")}
       >
         <div className="rounded-xl border border-white/10 bg-white/4 p-3">
           <p className={cn(typography.bodySmall.size, "font-semibold text-white/90 truncate")}>
-            {exportTarget?.title || "Untitled Chat"}
+            {exportTarget?.title || t("chats.untitledChat")}
           </p>
           {exportTarget ? (
             <p className={cn(typography.caption.size, "text-white/45 mt-0.5")}>
@@ -371,8 +374,8 @@ export function ChatHistoryPage() {
         <MenuButtonGroup>
           <MenuButton
             icon={User}
-            title={exporting ? "Exporting..." : "Character-Specific Export"}
-            description="Bind this package to the chat character by default."
+            title={exporting ? t("common.buttons.exporting") : t("chats.characterSpecificExport")}
+            description={t("chats.characterSpecificExportDesc")}
             color="from-blue-500 to-cyan-600"
             disabled={!exportTarget || exporting}
             onClick={() => {
@@ -381,8 +384,8 @@ export function ChatHistoryPage() {
           />
           <MenuButton
             icon={Download}
-            title={exporting ? "Exporting..." : "Non-Character-Specific Export"}
-            description="Require character selection during import."
+            title={exporting ? t("common.buttons.exporting") : t("chats.nonCharacterSpecificExport")}
+            description={t("chats.nonCharacterSpecificExportDesc")}
             color="from-indigo-500 to-blue-600"
             disabled={!exportTarget || exporting}
             onClick={() => {
@@ -395,12 +398,12 @@ export function ChatHistoryPage() {
       <BottomMenu
         isOpen={deleteTarget != null}
         onClose={() => setDeleteTarget(null)}
-        title="Delete chat?"
+        title={t("chats.deleteChat")}
         includeExitIcon={false}
       >
         <div className="rounded-xl border border-white/10 bg-white/4 p-3">
           <p className={cn(typography.bodySmall.size, "font-semibold text-white/90 truncate")}>
-            {deleteTarget?.title || "Untitled Chat"}
+            {deleteTarget?.title || t("chats.untitledChat")}
           </p>
           {deleteTarget ? (
             <p className={cn(typography.caption.size, "text-white/45 mt-0.5")}>
@@ -419,8 +422,8 @@ export function ChatHistoryPage() {
         <MenuButtonGroup>
           <MenuButton
             icon={Trash2}
-            title={deleteTarget && busyIds.has(deleteTarget.id) ? "Deleting..." : "Delete chat"}
-            description="Permanently removes it from history"
+            title={deleteTarget && busyIds.has(deleteTarget.id) ? t("common.buttons.deleting") : t("chats.deleteChat")}
+            description={t("chats.deleteConfirmDesc")}
             color="from-rose-500 to-red-600"
             disabled={!deleteTarget || busyIds.has(deleteTarget.id)}
             onClick={() => {
@@ -433,8 +436,8 @@ export function ChatHistoryPage() {
           />
           <MenuButton
             icon={X}
-            title="Cancel"
-            description="Keep this chat"
+            title={t("common.buttons.cancel")}
+            description={t("chats.keepThisChat")}
             color="from-blue-500 to-blue-600"
             disabled={!!deleteTarget && busyIds.has(deleteTarget.id)}
             onClick={() => setDeleteTarget(null)}
@@ -460,6 +463,8 @@ function SessionCard({
   onRename: (newTitle: string) => void;
   isBusy: boolean;
 }) {
+  const { t } = useI18n();
+  const formatTimeAgo = useFormatTimeAgo();
   const [isRenaming, setIsRenaming] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
 
@@ -524,7 +529,7 @@ function SessionCard({
               typography.body.size,
               "focus:outline-none focus:border-blue-400/60",
             )}
-            placeholder="Chat title..."
+            placeholder={t("chats.chatTitlePlaceholder")}
           />
           <div className="flex gap-2">
             <button
@@ -537,7 +542,7 @@ function SessionCard({
                 "active:scale-95 disabled:opacity-50 transition-all",
               )}
             >
-              Save
+              {t("common.buttons.save")}
             </button>
             <button
               onClick={handleCancel}
@@ -548,7 +553,7 @@ function SessionCard({
                 "active:scale-95 transition-all",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
           </div>
         </div>
@@ -568,7 +573,7 @@ function SessionCard({
             )}
           >
             <Edit3 size={14} />
-            Rename
+            {t("common.buttons.rename")}
           </button>
           <button
             onClick={onExport}
@@ -581,7 +586,7 @@ function SessionCard({
             )}
           >
             <Download size={14} />
-            Export
+            {t("common.buttons.export")}
           </button>
           <button
             onClick={onDelete}
@@ -594,7 +599,7 @@ function SessionCard({
             )}
           >
             <Trash2 size={14} />
-            Delete
+            {t("common.buttons.delete")}
           </button>
         </div>
       )}
@@ -602,20 +607,23 @@ function SessionCard({
   );
 }
 
-function formatTimeAgo(timestamp: number): string {
-  const diffMs = Date.now() - timestamp;
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+function useFormatTimeAgo() {
+  const { t } = useI18n();
+  return (timestamp: number): string => {
+    const diffMs = Date.now() - timestamp;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 1) return t("common.time.justNow");
+    if (diffMinutes < 60) return t("common.time.minutesAgo", { minutes: diffMinutes });
 
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return t("common.time.hoursAgo", { hours: diffHours });
 
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return t("common.time.daysAgo", { days: diffDays });
 
-  return new Date(timestamp).toLocaleDateString();
+    return new Date(timestamp).toLocaleDateString();
+  };
 }
 
 export default ChatHistoryPage;

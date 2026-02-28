@@ -40,8 +40,10 @@ import {
 } from "../../../core/storage/audioProviders";
 
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 export function VoicesPage() {
+  const { t } = useI18n();
   const [providers, setProviders] = useState<AudioProvider[]>([]);
   const [userVoices, setUserVoices] = useState<UserVoice[]>([]);
   const [providerVoices, setProviderVoices] = useState<Record<string, CachedVoice[]>>({});
@@ -238,8 +240,8 @@ export function VoicesPage() {
         {providers.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-fg/10 py-8">
             <Mic className="mb-2 h-8 w-8 text-fg/20" />
-            <p className="text-sm text-fg/50">No audio providers configured</p>
-            <p className="text-xs text-fg/30">Add Gemini TTS or ElevenLabs to get started</p>
+            <p className="text-sm text-fg/50">{t("settings.items.providers.subtitle")}</p>
+            <p className="text-xs text-fg/30">{t("common.buttons.add")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -280,7 +282,9 @@ export function VoicesPage() {
       {/* My Voices Section (Voice Designer + Custom Provider Voices) */}
       <section>
         <div className="mb-2 flex items-center justify-between px-1">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-fg/40">My Voices</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wider text-fg/40">
+            {t("common.nav.voices")}
+          </h2>
           {editableProviders.length > 0 && (
             <button
               onClick={handleCreateVoice}
@@ -413,9 +417,7 @@ export function VoicesPage() {
                         >
                           <Volume2 className="h-3 w-3 shrink-0 text-fg/40" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-medium text-fg/80">
-                              {voice.name}
-                            </p>
+                            <p className="truncate text-xs font-medium text-fg/80">{voice.name}</p>
                             {voice.labels?.category && (
                               <p className="truncate text-[10px] text-fg/40">
                                 {voice.labels.category}
@@ -455,9 +457,7 @@ export function VoicesPage() {
       {/* TTS Audio Cache Section */}
       <section>
         <div className="mb-2 px-1">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-fg/40">
-            Audio Cache
-          </h2>
+          <h2 className="text-xs font-medium uppercase tracking-wider text-fg/40">Audio Cache</h2>
         </div>
         <div className="rounded-xl border border-fg/10 bg-fg/5 p-4">
           <div className="flex items-start gap-3">
@@ -1095,7 +1095,9 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
               {sampleLength}/{minVoiceDesignChars} characters required for voice design preview
             </p>
           )}
-          {previewError && <p className="mt-1 text-xs font-medium text-danger/80">{previewError}</p>}
+          {previewError && (
+            <p className="mt-1 text-xs font-medium text-danger/80">{previewError}</p>
+          )}
         </div>
 
         {/* Preview Button */}

@@ -3,6 +3,7 @@ import { ChevronsRight, Plus, SendHorizonal, Square, X } from "lucide-react";
 import type { Character, ImageAttachment } from "../../../../core/storage/schemas";
 import { radius, typography, interactive, shadows, cn } from "../../../design-tokens";
 import { getPlatform } from "../../../../core/utils/platform";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ChatFooterProps {
   draft: string;
@@ -38,6 +39,7 @@ export function ChatFooter({
   triggerFileInput,
   onFileInputTriggered,
 }: ChatFooterProps) {
+  const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
   const hasAttachments = pendingAttachments.length > 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -152,7 +154,7 @@ export function ChatFooter({
                     interactive.transition.fast,
                     interactive.active.scale,
                   )}
-                  aria-label="Remove attachment"
+                  aria-label={t("chats.footer.removeAttachment")}
                 >
                   <X className="h-5 w-5 text-black drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
                 </button>
@@ -194,8 +196,8 @@ export function ChatFooter({
               "hover:border-white/25 hover:bg-white/15",
               "disabled:cursor-not-allowed disabled:opacity-40",
             )}
-            title={onOpenPlusMenu ? "More options" : "Add image"}
-            aria-label={onOpenPlusMenu ? "More options" : "Add image attachment"}
+            title={onOpenPlusMenu ? t("chats.footer.moreOptions") : t("chats.footer.addImage")}
+            aria-label={onOpenPlusMenu ? t("chats.footer.moreOptions") : t("chats.footer.addImageAttachment")}
           >
             <Plus size={20} />
           </button>
@@ -229,7 +231,7 @@ export function ChatFooter({
               "peer-focus:opacity-70",
             )}
           >
-            Send a message...
+            {t("chats.footer.sendMessagePlaceholder")}
           </span>
         )}
         <button
@@ -254,17 +256,17 @@ export function ChatFooter({
           )}
           title={
             sending && onAbort
-              ? "Stop generation"
+              ? t("chats.footer.stopGeneration")
               : hasDraft || hasAttachments
-                ? "Send message"
-                : "Continue conversation"
+                ? t("chats.footer.sendMessage")
+                : t("chats.footer.continueConversation")
           }
           aria-label={
             sending && onAbort
-              ? "Stop generation"
+              ? t("chats.footer.stopGeneration")
               : hasDraft || hasAttachments
-                ? "Send message"
-                : "Continue conversation"
+                ? t("chats.footer.sendMessage")
+                : t("chats.footer.continueConversation")
           }
         >
           {sending && onAbort ? (

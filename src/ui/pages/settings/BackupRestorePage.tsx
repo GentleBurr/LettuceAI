@@ -17,6 +17,7 @@ import { useBackupRestore, type BackupInfo } from "./hooks/useBackupRestore";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { storageBridge } from "../../../core/storage/files";
+import { useI18n } from "../../../core/i18n/context";
 
 function formatDate(timestamp: number) {
   const date = new Date(timestamp);
@@ -27,6 +28,7 @@ export function BackupRestorePage() {
   const { state, actions } = useBackupRestore();
   const [showEmbeddingPrompt, setShowEmbeddingPrompt] = useState(false);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const handleRestoreClick = async () => {
     const result = await actions.handleImport();
@@ -81,7 +83,7 @@ export function BackupRestorePage() {
         {/* Create Backup */}
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-            Create
+            {t("backup.tabs.create")}
           </h2>
           <button
             onClick={actions.openExportModal}
@@ -103,8 +105,8 @@ export function BackupRestorePage() {
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-fg">New Backup</p>
-                <p className="text-[11px] text-fg/50">Export all data with encryption</p>
+                <p className="text-sm font-medium text-fg">{t("backup.create.newBackupButton")}</p>
+                <p className="text-[11px] text-fg/50">{t("backup.create.exportDescription")}</p>
               </div>
             </div>
           </button>
@@ -114,13 +116,13 @@ export function BackupRestorePage() {
         <div>
           <div className="flex items-center justify-between mb-2 px-1">
             <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-              Available Backups
+              {t("backup.restore.availableBackups")}
             </h2>
             <button
               onClick={actions.handleBrowseForBackup}
               className="text-[10px] font-medium text-info hover:text-info/80"
             >
-              Browse Files
+              {t("backup.restore.browseFiles")}
             </button>
           </div>
 
@@ -131,9 +133,9 @@ export function BackupRestorePage() {
           ) : state.backups.length === 0 ? (
             <div className="rounded-xl border border-fg/10 bg-fg/5 p-6 text-center">
               <FileArchive className="mx-auto h-8 w-8 text-fg/20" />
-              <p className="mt-3 text-sm text-fg/40">No backups found</p>
+              <p className="mt-3 text-sm text-fg/40">{t("backup.restore.noBackupsFound")}</p>
               <p className="mt-1 text-xs text-fg/30">
-                Create a backup or tap "Browse Files" to find one
+                {t("backup.restore.noBackupsDesc")}
               </p>
               <button
                 onClick={actions.handleBrowseForBackup}
@@ -146,7 +148,7 @@ export function BackupRestorePage() {
                 )}
               >
                 <Upload className="h-4 w-4" />
-                Browse for .lettuce file
+                {t("backup.restore.browseDesc")}
               </button>
             </div>
           ) : (
@@ -174,7 +176,7 @@ export function BackupRestorePage() {
       <BottomMenu
         isOpen={state.activeModal === "export"}
         onClose={actions.closeModal}
-        title="Create Backup"
+        title={t("backup.create.createButton")}
       >
         <div className="space-y-4">
           <p className="text-sm text-fg/50">
@@ -244,7 +246,7 @@ export function BackupRestorePage() {
                 "hover:bg-fg/10",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={actions.handleExport}
@@ -263,12 +265,12 @@ export function BackupRestorePage() {
               {state.exporting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Creating...
+                  {t("common.buttons.creating")}
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  Create
+                  {t("common.buttons.create")}
                 </>
               )}
             </button>
@@ -280,7 +282,7 @@ export function BackupRestorePage() {
       <BottomMenu
         isOpen={state.activeModal === "import"}
         onClose={actions.closeModal}
-        title="Restore Backup"
+        title={t("backup.restore.restoreDialogTitle")}
       >
         <div className="space-y-4">
           {state.selectedBackup && (
@@ -353,7 +355,7 @@ export function BackupRestorePage() {
                     "hover:bg-fg/10",
                   )}
                 >
-                  Cancel
+                  {t("common.buttons.cancel")}
                 </button>
                 <button
                   onClick={handleRestoreClick}
@@ -371,12 +373,12 @@ export function BackupRestorePage() {
                   {state.importing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Restoring...
+                      {t("common.buttons.importing")}
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      Restore
+                      {t("common.buttons.import")}
                     </>
                   )}
                 </button>
@@ -390,7 +392,7 @@ export function BackupRestorePage() {
       <BottomMenu
         isOpen={state.activeModal === "delete"}
         onClose={actions.closeModal}
-        title="Delete Backup"
+        title={t("backup.restore.deleteDialogTitle")}
       >
         <div className="space-y-4">
           {state.selectedBackup && (
@@ -415,7 +417,7 @@ export function BackupRestorePage() {
                     "hover:bg-fg/10",
                   )}
                 >
-                  Cancel
+                  {t("common.buttons.cancel")}
                 </button>
                 <button
                   onClick={actions.handleDelete}
@@ -426,7 +428,7 @@ export function BackupRestorePage() {
                   )}
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
+                  {t("common.buttons.delete")}
                 </button>
               </div>
             </>

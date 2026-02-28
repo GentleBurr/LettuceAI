@@ -65,6 +65,7 @@ import { AvatarImage } from "../../components/AvatarImage";
 import { useAvatar } from "../../hooks/useAvatar";
 import { Image, RefreshCw, Sparkles, Check, PenLine, Lock } from "lucide-react";
 import { radius, cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 
 const LONG_PRESS_DELAY = 450;
 const SCROLL_THRESHOLD = 10; // pixels of movement to cancel long press
@@ -76,6 +77,7 @@ export function ChatConversationPage() {
   const { characterId } = useParams<{ characterId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const sessionId = searchParams.get("sessionId") || undefined;
   const jumpToMessageId = searchParams.get("jumpToMessage");
 
@@ -268,7 +270,7 @@ export function ChatConversationPage() {
       selectedCharacterIds.unshift(character.id);
     }
     if (selectedCharacterIds.length < 2) {
-      setGroupBranchError("Select at least 2 characters for a group chat.");
+      setGroupBranchError(t("chats.selectTwoCharactersMinimum"));
       return;
     }
 
@@ -335,7 +337,7 @@ export function ChatConversationPage() {
 
       setShowGroupCharacterSelector(false);
       setMessageToBranch(null);
-      setActionStatus("Group branch created! Redirecting...");
+      setActionStatus(t("chats.groupBranchCreated"));
       navigate(`/group-chats/${groupSession.id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1438,7 +1440,7 @@ export function ChatConversationPage() {
   }
 
   if (!character || !session) {
-    return <EmptyState title="Character not found" />;
+    return <EmptyState title={t("chats.characterNotFound")} />;
   }
 
   return (
@@ -1625,7 +1627,7 @@ export function ChatConversationPage() {
         {!isAtBottom && (
           <motion.button
             type="button"
-            aria-label="Scroll to bottom"
+            aria-label={t("chats.scrollToBottom")}
             onClick={() => scrollToBottom("smooth")}
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1710,7 +1712,7 @@ export function ChatConversationPage() {
           setShowCharacterSelector(false);
           setMessageToBranch(null);
         }}
-        title="Select Character"
+        title={t("chats.selectCharacter")}
       >
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           <p className="text-sm text-white/50 mb-4">
@@ -1753,7 +1755,7 @@ export function ChatConversationPage() {
           setMessageToBranch(null);
           setGroupBranchError(null);
         }}
-        title="Branch To Group Chat"
+        title={t("chats.branchToGroupChat")}
       >
         <div className="space-y-3">
           <p className="text-sm text-white/50">
@@ -1801,11 +1803,11 @@ export function ChatConversationPage() {
       </BottomMenu>
 
       {/* Plus Menu - Upload Image | Help Me Reply */}
-      <BottomMenu isOpen={showPlusMenu} onClose={() => setShowPlusMenu(false)} title="Add Content">
+      <BottomMenu isOpen={showPlusMenu} onClose={() => setShowPlusMenu(false)} title={t("chats.addContent")}>
         <div className="space-y-2">
           <MenuButton
             icon={ArrowLeftRight}
-            title={swapPlaces ? "Swap Places (On)" : "Swap Places"}
+            title={swapPlaces ? t("chats.swapPlacesOn") : t("chats.swapPlaces")}
             description={
               swapPlaces
                 ? "You are chatting as the character. Tap top banner to end."
@@ -1821,12 +1823,12 @@ export function ChatConversationPage() {
             }
           />
           {supportsImageInput && (
-            <MenuButton icon={Image} title="Upload Image" onClick={handlePlusMenuImageUpload} />
+            <MenuButton icon={Image} title={t("chats.uploadImage")} onClick={handlePlusMenuImageUpload} />
           )}
           {helpMeReplyEnabled && (
             <MenuButton
               icon={Sparkles}
-              title="Help Me Reply"
+              title={t("chats.helpMeReply")}
               description="Let AI suggest what to say"
               onClick={handlePlusMenuHelpMeReply}
             />
@@ -1838,7 +1840,7 @@ export function ChatConversationPage() {
       <BottomMenu
         isOpen={showChoiceMenu}
         onClose={() => setShowChoiceMenu(false)}
-        title="Help Me Reply"
+        title={t("chats.helpMeReply")}
       >
         <div className="space-y-2">
           <p className="text-sm text-white/60 mb-4">
@@ -1846,13 +1848,13 @@ export function ChatConversationPage() {
           </p>
           <MenuButton
             icon={PenLine}
-            title="Use my text as base"
+            title={t("chats.useMyTextAsBase")}
             description="Expand and improve your draft"
             onClick={() => handleHelpMeReply("enrich")}
           />
           <MenuButton
             icon={Sparkles}
-            title="Write something new"
+            title={t("chats.writeNewReply")}
             description="Generate a fresh reply"
             onClick={() => handleHelpMeReply("new")}
           />
@@ -1863,7 +1865,7 @@ export function ChatConversationPage() {
       <BottomMenu
         isOpen={showResultMenu}
         onClose={handleCloseHelpMeReplyResultMenu}
-        title="Suggested Reply"
+        title={t("chats.suggestedReply")}
       >
         <div className="space-y-4">
           {helpMeReplyError ? (

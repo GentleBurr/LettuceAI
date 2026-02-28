@@ -11,6 +11,7 @@ import { CharacterReviewStep } from "./steps/CharacterReviewStep";
 import { readSettings } from "../../../core/storage/repo";
 import { useNavigationManager } from "../../navigation";
 import type { ProviderCredential } from "../../../core/storage/schemas";
+import { useI18n } from "../../../core/i18n/context";
 
 function StepIndicator({ current }: { current: number }) {
   return (
@@ -34,6 +35,7 @@ function StepIndicator({ current }: { current: number }) {
 export function EngineCharacterCreate() {
   const { credentialId } = useParams<{ credentialId: string }>();
   const { back } = useNavigationManager();
+  const { t } = useI18n();
   const [credential, setCredential] = useState<ProviderCredential | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,12 +66,12 @@ export function EngineCharacterCreate() {
   if (!credential) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-        <p className="text-sm text-white/60">Engine provider not found.</p>
+        <p className="text-sm text-white/60">{t("engine.errors.providerNotFound")}</p>
         <button
           onClick={back}
           className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10"
         >
-          Go Back
+          {t("common.buttons.goBack")}
         </button>
       </div>
     );

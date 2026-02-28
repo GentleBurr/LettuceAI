@@ -56,6 +56,7 @@ import { Routes, useNavigationManager } from "../../navigation";
 import { PersonaSelector } from "../group-chats/components/settings";
 import { storageBridge } from "../../../core/storage/files";
 import { ChatTemplateSelector } from "./components/ChatTemplateSelector";
+import { useI18n } from "../../../core/i18n/context";
 
 function isImageLike(value?: string) {
   if (!value) return false;
@@ -271,6 +272,7 @@ function ModelOption({
 function ChatSettingsContent({ character }: { character: Character }) {
   const navigate = useNavigate();
   const { backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
   const { characterId } = useParams();
   const [models, setModels] = useState<Model[]>([]);
   const [globalDefaultModelId, setGlobalDefaultModelId] = useState<string | null>(null);
@@ -835,7 +837,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Memory (Primary) */}
           <section className={spacing.item}>
-            <SectionHeader title="Memory" subtitle="Summary, tags, tool call history" />
+            <SectionHeader title={t("chats.settings.memorySection")} subtitle={t("chats.settings.memorySectionDesc")} />
             <button
               onClick={() => {
                 if (!characterId) return;
@@ -897,7 +899,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Quick Settings */}
           <section className={spacing.item}>
-            <SectionHeader title="Quick Settings" subtitle="Most common adjustments" />
+            <SectionHeader title={t("chats.settings.quickSettings")} subtitle={t("chats.settings.quickSettingsDesc")} />
             <div className="grid grid-cols-1 gap-2">
               <QuickChip
                 icon={
@@ -914,14 +916,14 @@ function ChatSettingsContent({ character }: { character: Character }) {
                     <User className="h-4 w-4" />
                   )
                 }
-                label="Persona"
+                label={t("chats.settings.persona")}
                 value={getCurrentPersonaDisplay()}
                 onClick={() => setShowPersonaSelector(true)}
                 disabled={!currentSession}
               />
               <QuickChip
                 icon={<Cpu className="h-4 w-4" />}
-                label="Model"
+                label={t("chats.settings.model")}
                 value={getModelDisplay()}
                 onClick={() => {
                   setModelSelectorTarget("primary");
@@ -930,7 +932,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
               />
               <QuickChip
                 icon={<TriangleAlert className="h-4 w-4" />}
-                label="Fallback Model"
+                label={t("chats.settings.fallbackModel")}
                 value={getFallbackModelDisplay()}
                 onClick={() => {
                   setModelSelectorTarget("fallback");
@@ -943,7 +945,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
           {/* Voice */}
           {currentCharacter?.voiceConfig && (
             <section className={spacing.item}>
-              <SectionHeader title="Voice" subtitle="Text-to-speech playback" />
+              <SectionHeader title={t("chats.settings.voice")} subtitle={t("chats.settings.voiceDesc")} />
               <div
                 className={cn(
                   "flex items-center justify-between gap-3 rounded-xl border px-4 py-3",
@@ -999,7 +1001,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Advanced (Important) */}
           <section className={spacing.item}>
-            <SectionHeader title="Advanced" subtitle="Override model parameters for this session" />
+            <SectionHeader title={t("chats.settings.advanced")} subtitle={t("chats.settings.advancedDesc")} />
             <button
               onClick={() => {
                 if (!currentSession) return;
@@ -1073,24 +1075,24 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Session Management */}
           <section className={spacing.item}>
-            <SectionHeader title="Session" subtitle="Start new chats and browse history" />
+            <SectionHeader title={t("chats.settings.session")} subtitle={t("chats.settings.sessionDesc")} />
             <div className={spacing.field}>
               <SettingsButton
                 icon={<MessageSquarePlus className="h-4 w-4" />}
-                title="New Chat"
-                subtitle="Start a fresh conversation"
+                title={t("chats.settings.newChat")}
+                subtitle={t("chats.settings.newChatDesc")}
                 onClick={handleNewChat}
               />
               <SettingsButton
                 icon={<History className="h-4 w-4" />}
-                title="Chat History"
-                subtitle="View previous sessions"
+                title={t("chats.chatHistory")}
+                subtitle={t("chats.settings.chatHistoryDesc")}
                 onClick={handleViewHistory}
               />
               <SettingsButton
                 icon={<Upload className="h-4 w-4" />}
-                title="Import Chat Package"
-                subtitle="Import a .chatpkg into this character"
+                title={t("chats.importChatPackage")}
+                subtitle={t("chats.settings.importChatPackageDesc")}
                 onClick={() => {
                   void handleOpenImportChatpkg();
                 }}
@@ -1120,7 +1122,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
           setShowModelSelector(false);
           setModelSearchQuery("");
         }}
-        title={modelSelectorTarget === "fallback" ? "Select Fallback Model" : "Select Model"}
+        title={modelSelectorTarget === "fallback" ? t("chats.settings.selectFallbackModel") : t("chats.settings.selectModel")}
         includeExitIcon={false}
         location="bottom"
       >
@@ -1229,7 +1231,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
       <BottomMenu
         isOpen={showPersonaActions}
         onClose={() => setShowPersonaActions(false)}
-        title="Persona Actions"
+        title={t("chats.settings.personaActions")}
       >
         <MenuSection>
           <div className="space-y-2">
@@ -1602,23 +1604,22 @@ function ChatSettingsContent({ character }: { character: Character }) {
           setShowChatpkgImportMenu(false);
           setPendingChatpkgImport(null);
         }}
-        title="Import Chat Package"
+        title={t("chats.importChatPackage")}
       >
         <MenuSection>
           <div className="space-y-4">
             <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
               {pendingChatpkgImport?.info?.characterId ? (
                 pendingChatpkgImport.info.characterId === characterId ? (
-                  <p>This package is character-specific and matches this character.</p>
+                  <p>{t("chats.characterSpecificMatches")}</p>
                 ) : (
                   <p>
-                    This package is character-specific and points to another character. It will be
-                    imported into this character.
+                    {t("chats.characterSpecificMismatch", { name: currentCharacter.name })}
                   </p>
                 )
               ) : (
                 <p>
-                  This package is non-character-specific and will be imported into this character.
+                  {t("chats.nonCharacterSpecificImport", { name: currentCharacter.name })}
                 </p>
               )}
             </div>
@@ -1630,7 +1631,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
               disabled={importingChatpkg}
               className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/20 py-3 text-sm font-medium text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-50"
             >
-              {importingChatpkg ? "Importing..." : "Import"}
+              {importingChatpkg ? t("common.buttons.importing") : t("common.buttons.import")}
             </button>
           </div>
         </MenuSection>

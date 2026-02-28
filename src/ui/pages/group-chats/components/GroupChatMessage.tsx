@@ -1,6 +1,7 @@
 import { motion, type PanInfo, AnimatePresence } from "framer-motion";
 import React, { useCallback, useMemo, useState, useRef } from "react";
 import { RefreshCw, Pin, User, Bot, ChevronDown, Volume2, Loader2, Square } from "lucide-react";
+import { useI18n } from "../../../../core/i18n/context";
 import { MarkdownRenderer } from "../../chats/components/MarkdownRenderer";
 import type {
   GroupMessage,
@@ -98,6 +99,7 @@ const MessageAvatar = React.memo(function MessageAvatar({
   avatarShape?: "circle" | "rounded" | "hidden";
   avatarSize?: "small" | "medium" | "large";
 }) {
+  const { t } = useI18n();
   const characterAvatar = useAvatar(
     "character",
     character?.id ?? "",
@@ -122,7 +124,7 @@ const MessageAvatar = React.memo(function MessageAvatar({
         )}
       >
         {personaAvatar ? (
-          <AvatarImage src={personaAvatar} alt="User" crop={persona?.avatarCrop} applyCrop />
+          <AvatarImage src={personaAvatar} alt={t("groupChats.message.userAlt")} crop={persona?.avatarCrop} applyCrop />
         ) : (
           <User size={iconSize} className="text-fg/60" />
         )}
@@ -142,7 +144,7 @@ const MessageAvatar = React.memo(function MessageAvatar({
         {characterAvatar ? (
           <AvatarImage
             src={characterAvatar}
-            alt={character?.name || "Assistant"}
+            alt={character?.name || t("groupChats.message.assistantAlt")}
             crop={character?.avatarCrop}
             applyCrop
           />
@@ -166,6 +168,7 @@ const MessageActions = React.memo(function MessageActions({
   isRegenerating: boolean;
   onRegenerate: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <motion.div
       className="absolute -bottom-4 right-0 flex items-center gap-2"
@@ -191,7 +194,7 @@ const MessageActions = React.memo(function MessageActions({
           interactive.active.scale,
           "disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:scale-100",
         )}
-        aria-label="Regenerate response"
+        aria-label={t("groupChats.message.regenerateResponse")}
         style={{ willChange: "transform" }}
       >
         {isRegenerating ? (
@@ -211,19 +214,20 @@ const ThinkingSection = React.memo(function ThinkingSection({
   reasoning: string;
   isStreaming: boolean;
 }) {
+  const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const THINKING_TEXTS = [
-    "Thinking really hard…",
-    "Consulting the lettuce council…",
-    "Stealing thoughts from the void…",
-    "Warming up the brain cells…",
-    "Loading forbidden knowledge…",
-    "Overthinking (as usual)…",
-    "Pretending to be smart…",
-    "Crunching imaginary numbers…",
-    "Arguing with myself…",
-    "Asking the universe nicely…",
+    t("groupChats.message.thinkingHard"),
+    t("groupChats.message.thinkingLettuce"),
+    t("groupChats.message.thinkingVoid"),
+    t("groupChats.message.thinkingBrainCells"),
+    t("groupChats.message.thinkingForbidden"),
+    t("groupChats.message.thinkingOverthinking"),
+    t("groupChats.message.thinkingPretending"),
+    t("groupChats.message.thinkingCrunching"),
+    t("groupChats.message.thinkingArguing"),
+    t("groupChats.message.thinkingUniverse"),
   ];
 
   const thinkingText = React.useMemo(() => {
@@ -254,7 +258,7 @@ const ThinkingSection = React.memo(function ThinkingSection({
         </motion.div>
         <span className="flex items-center gap-1.5">
           {isStreaming && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-fg/60" />}
-          <span className="font-medium">{isStreaming ? thinkingText : "Thought process"}</span>
+          <span className="font-medium">{isStreaming ? thinkingText : t("groupChats.message.thoughtProcess")}</span>
         </span>
       </button>
 
@@ -307,6 +311,7 @@ function GroupChatMessageInner({
   onCancelAudio,
   reasoning,
 }: GroupChatMessageProps) {
+  const { t } = useI18n();
   const longPressTimer = useRef<number | null>(null);
   const isLongPress = useRef(false);
 
@@ -518,19 +523,19 @@ function GroupChatMessageInner({
                 )}
                 aria-label={
                   isAudioLoading
-                    ? "Cancel audio generation"
+                    ? t("groupChats.message.cancelAudioGeneration")
                     : isAudioPlaying
-                      ? "Stop audio"
-                      : "Play message audio"
+                      ? t("groupChats.message.stopAudio")
+                      : t("groupChats.message.playMessageAudio")
                 }
                 aria-pressed={isAudioPlaying}
                 aria-busy={isAudioLoading}
                 title={
                   isAudioLoading
-                    ? "Cancel audio generation"
+                    ? t("groupChats.message.cancelAudioGeneration")
                     : isAudioPlaying
-                      ? "Stop audio"
-                      : "Play audio"
+                      ? t("groupChats.message.stopAudio")
+                      : t("groupChats.message.playAudio")
                 }
               >
                 {isAudioLoading ? (
@@ -625,7 +630,7 @@ function GroupChatMessageInner({
                     {attachment.data ? (
                       <img
                         src={attachment.data}
-                        alt={attachment.filename || "Attached image"}
+                        alt={attachment.filename || t("groupChats.message.attachedImage")}
                         className="max-h-48 max-w-full object-contain"
                         style={{
                           maxWidth:

@@ -7,10 +7,12 @@ import { readSettings } from "../../../core/storage/repo";
 import type { ProviderCredential } from "../../../core/storage/schemas";
 import { ENGINE_LLM_PROVIDERS, type EngineLlmProviderId } from "../../../core/engine/types";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
+import { useI18n } from "../../../core/i18n/context";
 
 export function EngineProvidersConfigPage() {
   const { credentialId } = useParams<{ credentialId: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [credential, setCredential] = useState<ProviderCredential | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,12 +41,12 @@ export function EngineProvidersConfigPage() {
   if (!credential) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-        <p className="text-sm text-white/60">Engine provider not found.</p>
+        <p className="text-sm text-white/60">{t("engine.errors.providerNotFound")}</p>
         <button
           onClick={() => navigate(-1)}
           className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10"
         >
-          Go Back
+          {t("common.buttons.goBack")}
         </button>
       </div>
     );
@@ -54,6 +56,7 @@ export function EngineProvidersConfigPage() {
 }
 
 function ProvidersInner({ credential }: { credential: ProviderCredential }) {
+  const { t } = useI18n();
   const baseUrl = credential.baseUrl || "";
   const apiKey = credential.apiKey || "";
   const {
@@ -121,7 +124,7 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
           {configured.length > 0 && (
             <section>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-                Active Providers
+                {t("engine.config.activeProviders")}
               </h3>
               <div className="space-y-2">
                 {configured.map((provider) => {
@@ -143,12 +146,12 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-white">{provider.name}</p>
                           <p className="truncate text-[11px] text-white/40">
-                            {config.model || "No model set"}
+                            {config.model || t("engine.config.noModelSet")}
                           </p>
                         </div>
                         {isDefault && (
                           <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                            Default
+                            {t("engine.config.defaultBadge")}
                           </span>
                         )}
                         {isEditing ? (
@@ -181,7 +184,7 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
 
           {configured.length === 0 && (
             <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3">
-              <p className="text-sm text-amber-200">No providers configured. Add at least one LLM backend below.</p>
+              <p className="text-sm text-amber-200">{t("engine.config.noProvidersWarning")}</p>
             </div>
           )}
 
@@ -189,7 +192,7 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
           {unconfigured.length > 0 && (
             <section>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-                Add Provider
+                {t("engine.config.addProvider")}
               </h3>
 
               {/* Import shortcut */}
@@ -197,7 +200,7 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
                 <div className="mb-3 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3">
                   <div className="mb-2 flex items-center gap-2">
                     <Import className="h-3.5 w-3.5 text-indigo-300" />
-                    <span className="text-xs font-medium text-indigo-200">Quick import from your app providers</span>
+                    <span className="text-xs font-medium text-indigo-200">{t("engine.config.quickImport")}</span>
                   </div>
                   <div className="space-y-1.5">
                     {importableProviders.map((ap) => {
@@ -218,7 +221,7 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
                             <Check className="h-4 w-4 text-emerald-300" />
                           ) : (
                             <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
-                              Import
+                              {t("engine.config.importButton")}
                             </span>
                           )}
                         </button>
@@ -284,14 +287,14 @@ function ProvidersInner({ credential }: { credential: ProviderCredential }) {
           >
             {state.saving ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Saving...
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("engine.config.saving")}
               </span>
             ) : saved ? (
               <span className="flex items-center justify-center gap-2">
-                <Check className="h-4 w-4" /> Saved
+                <Check className="h-4 w-4" /> {t("engine.config.saved")}
               </span>
             ) : (
-              "Save Changes"
+              t("engine.config.saveChanges")
             )}
           </button>
         </div>
@@ -319,38 +322,39 @@ function ProviderForm({
   onRemove?: () => void;
   onEnable?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-3 border-t border-white/10 px-4 py-3">
       <div>
-        <label className="mb-1 block text-[11px] font-medium text-white/70">Model</label>
+        <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.config.fields.model")}</label>
         <input
           type="text"
           value={config.model}
           onChange={(e) => onUpdate({ model: e.target.value })}
-          placeholder="e.g. claude-sonnet-4-5-20250929"
+          placeholder={t("engine.config.fields.modelPlaceholder")}
           className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
         />
       </div>
 
       {provider.requiresKey && (
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-white/70">API Key</label>
+          <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.config.fields.apiKey")}</label>
           <input
             type="password"
             value={config.apiKeyChanged ? config.apiKey : ""}
             onChange={(e) => onUpdate({ apiKey: e.target.value })}
-            placeholder={config.apiKeyRedacted || "Enter your API key"}
+            placeholder={config.apiKeyRedacted || t("engine.config.fields.apiKeyPlaceholder")}
             className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
           />
           {config.apiKeyRedacted && !config.apiKeyChanged && (
-            <p className="mt-1 text-[10px] text-white/40">Current key: {config.apiKeyRedacted}</p>
+            <p className="mt-1 text-[10px] text-white/40">{t("engine.config.fields.currentKey")} {config.apiKeyRedacted}</p>
           )}
         </div>
       )}
 
       {!provider.requiresKey && (
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-white/70">Base URL</label>
+          <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.config.fields.baseUrl")}</label>
           <input
             type="url"
             value={config.baseUrl}
@@ -363,7 +367,7 @@ function ProviderForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-white/70">Max Tokens</label>
+          <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.config.fields.maxTokens")}</label>
           <input
             type="number"
             value={config.maxTokens}
@@ -372,7 +376,7 @@ function ProviderForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-white/70">Temperature</label>
+          <label className="mb-1 block text-[11px] font-medium text-white/70">{t("engine.config.fields.temperature")}</label>
           <input
             type="number"
             step="0.1"
@@ -391,7 +395,7 @@ function ProviderForm({
             onClick={onEnable}
             className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20"
           >
-            Enable Provider
+            {t("engine.config.enableProvider")}
           </button>
         )}
         {!onEnable && !isDefault && (
@@ -399,12 +403,12 @@ function ProviderForm({
             onClick={onSetDefault}
             className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
           >
-            Set as Default
+            {t("engine.config.setAsDefault")}
           </button>
         )}
         {!onEnable && isDefault && (
           <div className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-center text-xs font-medium text-emerald-300">
-            Default Backend
+            {t("engine.config.defaultBackend")}
           </div>
         )}
         {onRemove && (
@@ -412,7 +416,7 @@ function ProviderForm({
             onClick={onRemove}
             className="flex items-center gap-1.5 rounded-lg border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20"
           >
-            <Trash2 className="h-3 w-3" /> Remove
+            <Trash2 className="h-3 w-3" /> {t("engine.config.remove")}
           </button>
         )}
       </div>

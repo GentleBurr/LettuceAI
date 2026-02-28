@@ -18,6 +18,7 @@ import {
 import { BottomMenu, MenuButton } from "../../components";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { TopNav } from "../../components/App";
+import { useI18n } from "../../../core/i18n/context";
 
 const DRAG_HOLD_MS = 450;
 
@@ -32,6 +33,7 @@ function KeywordTagInput({
   caseSensitive: boolean;
   onCaseSensitiveChange: (caseSensitive: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
 
   const addKeyword = () => {
@@ -49,9 +51,9 @@ function KeywordTagInput({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-medium text-fg/70">KEYWORDS</label>
+        <label className="text-[11px] font-medium text-fg/70">{t("characters.lorebook.keywords")}</label>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-fg/50">Case sensitive</span>
+          <span className="text-xs text-fg/50">{t("characters.lorebook.caseSensitive")}</span>
           <label
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 ${
               caseSensitive ? "bg-accent" : "bg-fg/20"
@@ -77,7 +79,7 @@ function KeywordTagInput({
         <input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Type a keyword..."
+          placeholder={t("characters.lorebook.typeKeyword")}
           className="flex-1 rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2.5 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
         />
         <button
@@ -86,7 +88,7 @@ function KeywordTagInput({
           disabled={!inputValue.trim()}
           className="rounded-xl border border-accent/40 bg-accent/20 px-4 py-2.5 text-sm font-medium text-accent/70 transition hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Add
+          {t("characters.lorebook.addButton")}
         </button>
       </div>
 
@@ -191,12 +193,13 @@ function EntryListItem({
     scrollLockRef.current = null;
   };
 
-  const displayTitle = entry.title?.trim() || entry.keywords[0] || "Untitled Entry";
+  const { t } = useI18n();
+  const displayTitle = entry.title?.trim() || entry.keywords[0] || t("characters.lorebook.untitledEntry");
   const displaySubtitle = entry.alwaysActive
-    ? "Always active"
+    ? t("characters.lorebook.alwaysActive")
     : entry.keywords.length > 0
       ? entry.keywords.slice(0, 3).join(", ") + (entry.keywords.length > 3 ? "..." : "")
-      : "No keywords";
+      : t("characters.lorebook.noKeywords");
 
   return (
     <motion.div
@@ -258,7 +261,7 @@ function EntryListItem({
         onContextMenu={(event) => event.preventDefault()}
         className="flex h-10 w-8 shrink-0 items-center justify-center text-fg/30"
         style={{ touchAction: "none" }}
-        title="Drag to reorder"
+        title={t("characters.lorebook.dragToReorder")}
       >
         <GripVertical size={18} />
       </button>
@@ -292,7 +295,7 @@ function EntryListItem({
           <div className="flex items-center gap-2">
             <h3 className="truncate text-sm font-semibold text-fg">{displayTitle}</h3>
             {!entry.enabled && (
-              <span className="text-[10px] uppercase tracking-wide text-fg/40">Disabled</span>
+              <span className="text-[10px] uppercase tracking-wide text-fg/40">{t("characters.lorebook.disabled")}</span>
             )}
           </div>
           <p className="line-clamp-1 text-xs text-fg/50">{displaySubtitle}</p>
@@ -323,6 +326,7 @@ function LorebookListView({
   onCreateLorebook: (name: string) => void;
   onDeleteLorebook: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [selectedLorebook, setSelectedLorebook] = useState<Lorebook | null>(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [newName, setNewName] = useState("");
@@ -352,15 +356,15 @@ function LorebookListView({
   const EmptyState = () => (
     <div className="flex h-64 flex-col items-center justify-center">
       <BookOpen className="mb-3 h-12 w-12 text-fg/20" />
-      <h3 className="mb-1 text-lg font-medium text-fg">No lorebooks yet</h3>
+      <h3 className="mb-1 text-lg font-medium text-fg">{t("characters.lorebook.noLorebooksYet")}</h3>
       <p className="mb-4 text-center text-sm text-fg/50">
-        Create a lorebook to add world lore for this character
+        {t("characters.lorebook.createLorebookDesc")}
       </p>
       <button
         onClick={() => setShowCreateMenu(true)}
         className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/70 transition hover:bg-accent/30"
       >
-        Create Lorebook
+        {t("characters.lorebook.createLorebook")}
       </button>
     </div>
   );
@@ -392,7 +396,7 @@ function LorebookListView({
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search lorebooks..."
+              placeholder={t("characters.lorebook.searchPlaceholder")}
               className="w-full rounded-xl border border-fg/10 bg-surface-el/20 pl-9 pr-4 py-2 text-sm text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
           </div>
@@ -413,7 +417,7 @@ function LorebookListView({
             <EmptyState />
           ) : filteredLorebooks.length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center text-fg/50">
-              <p>No matching lorebooks found</p>
+              <p>{t("characters.lorebook.noMatchingLorebooks")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -423,9 +427,9 @@ function LorebookListView({
                   <div className="flex items-center gap-2">
                     <Star className="h-4 w-4 fill-accent text-accent" />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-accent/80">Active Lorebooks</div>
+                      <div className="text-sm font-medium text-accent/80">{t("characters.lorebook.activeLorebooks")}</div>
                       <div className="text-xs text-accent/60">
-                        {assignedLorebookIds.size} enabled for this character
+                        {assignedLorebookIds.size} {t("characters.lorebook.enabledForCharacter")}
                       </div>
                     </div>
                   </div>
@@ -470,7 +474,7 @@ function LorebookListView({
                           )}
                         </div>
                         <p className="line-clamp-1 text-xs text-fg/50">
-                          {isAssigned ? "Enabled for this character" : "Tap to view entries"}
+                          {isAssigned ? t("characters.lorebook.enabledForCharacter") : t("characters.lorebook.tapToViewEntries")}
                         </p>
                       </div>
 
@@ -500,21 +504,21 @@ function LorebookListView({
           setShowCreateMenu(false);
           setNewName("");
         }}
-        title="New Lorebook"
+        title={t("characters.lorebook.newLorebookTitle")}
       >
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-fg/70">NAME</label>
+            <label className="text-[11px] font-medium text-fg/70">{t("characters.lorebook.nameLabel")}</label>
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              placeholder="Enter lorebook name..."
+              placeholder={t("characters.lorebook.enterNamePlaceholder")}
               autoFocus
               className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
             <p className="text-xs text-fg/50">
-              Lorebooks contain lore entries that are injected into prompts when keywords match.
+              {t("characters.lorebook.lorebookExplanation")}
             </p>
           </div>
 
@@ -523,7 +527,7 @@ function LorebookListView({
             disabled={!newName.trim()}
             className="w-full rounded-xl border border-accent/40 bg-accent/20 px-4 py-3.5 text-sm font-semibold text-accent/70 transition hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Lorebook
+            {t("characters.lorebook.createLorebook")}
           </button>
         </div>
       </BottomMenu>
@@ -538,8 +542,8 @@ function LorebookListView({
           <div className="space-y-2">
             <MenuButton
               icon={Edit2}
-              title="View Entries"
-              description="Edit lorebook entries"
+              title={t("characters.lorebook.viewEntries")}
+              description={t("characters.lorebook.editEntriesDesc")}
               color="from-info to-info/80"
               onClick={() => {
                 onSelectLorebook(selectedLorebook.id);
@@ -551,13 +555,13 @@ function LorebookListView({
               icon={Star}
               title={
                 assignedLorebookIds.has(selectedLorebook.id)
-                  ? "Disable for Character"
-                  : "Enable for Character"
+                  ? t("characters.lorebook.disableForCharacter")
+                  : t("characters.lorebook.enableForCharacter")
               }
               description={
                 assignedLorebookIds.has(selectedLorebook.id)
-                  ? "Remove from this character's active lorebooks"
-                  : "Add to this character's active lorebooks"
+                  ? t("characters.lorebook.removeFromActive")
+                  : t("characters.lorebook.addToActive")
               }
               color="from-accent to-accent/80"
               onClick={() => {
@@ -570,8 +574,8 @@ function LorebookListView({
             <button
               onClick={async () => {
                 const confirmed = await confirmBottomMenu({
-                  title: "Delete lorebook?",
-                  message: "Delete this lorebook? All entries will be lost.",
+                  title: t("characters.lorebook.deleteConfirmTitle"),
+                  message: t("characters.lorebook.deleteConfirmMessage"),
                   confirmLabel: "Delete",
                   destructive: true,
                 });
@@ -584,7 +588,7 @@ function LorebookListView({
               <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-danger/30 bg-danger/20">
                 <Trash2 className="h-4 w-4 text-danger" />
               </div>
-              <span className="text-sm font-medium text-danger">Delete Lorebook</span>
+              <span className="text-sm font-medium text-danger">{t("characters.lorebook.deleteLorebook")}</span>
             </button>
           </div>
         )}
@@ -610,6 +614,7 @@ function EntryListView({
   onDeleteEntry: (id: string) => void;
   onReorderEntries: (entries: LorebookEntry[]) => void;
 }) {
+  const { t } = useI18n();
   const [selectedEntry, setSelectedEntry] = useState<LorebookEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [dragState, setDragState] = useState<{ fromIndex: number; toIndex: number } | null>(null);
@@ -664,15 +669,15 @@ function EntryListView({
   const EmptyState = () => (
     <div className="flex h-64 flex-col items-center justify-center">
       <BookOpen className="mb-3 h-12 w-12 text-fg/20" />
-      <h3 className="mb-1 text-lg font-medium text-fg">No entries yet</h3>
+      <h3 className="mb-1 text-lg font-medium text-fg">{t("characters.lorebook.noEntriesYet")}</h3>
       <p className="mb-4 text-center text-sm text-fg/50">
-        Add entries to inject lore into your chats
+        {t("characters.lorebook.addEntriesToInject")}
       </p>
       <button
         onClick={onCreateEntry}
         className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/70 transition hover:bg-accent/30"
       >
-        Create Entry
+        {t("characters.lorebook.createEntry")}
       </button>
     </div>
   );
@@ -703,7 +708,7 @@ function EntryListView({
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search entries..."
+              placeholder={t("characters.lorebook.searchEntries")}
               className="w-full rounded-xl border border-fg/10 bg-surface-el/20 pl-9 pr-4 py-2 text-sm text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
           </div>
@@ -724,7 +729,7 @@ function EntryListView({
             <EmptyState />
           ) : filteredEntries.length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center text-fg/50">
-              <p>No matching entries found</p>
+              <p>{t("characters.lorebook.noMatchingEntries")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -753,7 +758,7 @@ function EntryListView({
       <BottomMenu
         isOpen={Boolean(selectedEntry)}
         onClose={() => setSelectedEntry(null)}
-        title={selectedEntry?.title || selectedEntry?.keywords[0] || "Entry"}
+        title={selectedEntry?.title || selectedEntry?.keywords[0] || t("characters.lorebook.entryDefaultName")}
       >
         {selectedEntry && (
           <div className="space-y-2">

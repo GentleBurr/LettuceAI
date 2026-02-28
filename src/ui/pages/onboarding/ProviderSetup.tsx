@@ -10,6 +10,7 @@ import {
 import { useProviderController } from "./hooks/useProviderController";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { getPlatform } from "../../../core/utils/platform";
+import { useI18n } from "../../../core/i18n/context";
 
 // Standard provider card for mobile
 interface ProviderCardProps {
@@ -97,6 +98,7 @@ function ProviderCardCompact({ provider, isActive, onClick }: ProviderCardProps)
 }
 
 export function ProviderSetupPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const platform = getPlatform();
   const isDesktop = platform.type === "desktop";
@@ -362,7 +364,7 @@ export function ProviderSetupPage() {
 
         {/* Title */}
         <div className="text-center space-y-2 mb-8">
-          <h1 className="text-2xl font-bold text-white">Choose your AI provider</h1>
+          <h1 className="text-2xl font-bold text-white">{t("onboarding.steps.provider")}</h1>
           <p className="text-sm text-gray-400 max-w-sm leading-relaxed">
             Select an AI provider to get started. Your API keys are securely encrypted on your
             device. No account signup needed.

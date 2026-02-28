@@ -16,6 +16,7 @@ import type { Model, SystemPromptTemplate } from "../../../../core/storage/schem
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../design-tokens";
 import { BottomMenu, MenuSection } from "../../../components/BottomMenu";
 import { getProviderIcon } from "../../../../core/utils/providerIcons";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface DescriptionStepProps {
   definition: string;
@@ -82,8 +83,10 @@ export function DescriptionStep({
   canSave,
   saving,
   error,
-  submitLabel = "Create Character",
+  submitLabel,
 }: DescriptionStepProps) {
+  const { t } = useI18n();
+  const resolvedSubmitLabel = submitLabel ?? t("characters.identity.title");
   const wordCount = definition.trim().split(/\s+/).filter(Boolean).length;
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [modelSearchQuery, setModelSearchQuery] = useState("");
@@ -118,9 +121,9 @@ export function DescriptionStep({
       {/* Title */}
       <div className={spacing.tight}>
         <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-          Character Details
+          {t("characters.details.title")}
         </h2>
-        <p className={cn(typography.body.size, "text-fg/50")}>Define personality and behavior</p>
+        <p className={cn(typography.body.size, "text-fg/50")}>{t("characters.details.subtitle")}</p>
       </div>
 
       {/* Desktop: Two-column layout / Mobile: stacked */}
@@ -138,7 +141,7 @@ export function DescriptionStep({
                   "uppercase text-fg/70",
                 )}
               >
-                Definition *
+                {t("characters.details.definition")}
               </label>
               {definition.trim() && (
                 <motion.span
@@ -146,7 +149,7 @@ export function DescriptionStep({
                   animate={{ opacity: 1, scale: 1 }}
                   className={cn(typography.caption.size, typography.caption.weight, "text-fg/40")}
                 >
-                  {wordCount} {wordCount === 1 ? "word" : "words"}
+                  {t("characters.details.wordCount", { count: wordCount })}
                 </motion.span>
               )}
             </div>
@@ -155,7 +158,7 @@ export function DescriptionStep({
                 value={definition}
                 onChange={(e) => onDefinitionChange(e.target.value)}
                 rows={8}
-                placeholder="Describe personality, speaking style, background, knowledge areas..."
+                placeholder={t("characters.details.definitionPlaceholder")}
                 className={cn(
                   "w-full resize-none border bg-surface-el/20 px-4 py-3 text-base leading-relaxed text-fg placeholder-fg/40 backdrop-blur-xl lg:rows-12",
                   radius.md,
@@ -186,10 +189,10 @@ export function DescriptionStep({
               )}
             </div>
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Be specific about tone, traits, and conversation style
+              {t("characters.details.definitionDesc")}
             </p>
             <div className="rounded-xl border border-info/20 bg-info/10 px-4 py-3">
-              <div className="text-xs font-medium text-info">Available Placeholders:</div>
+              <div className="text-xs font-medium text-info">{t("characters.details.availablePlaceholders")}</div>
               <div className="mt-2 space-y-1 text-xs text-info/70">
                 <div>
                   <code className="text-accent/80">{"{{char}}"}</code> - Character name
@@ -663,7 +666,7 @@ export function DescriptionStep({
               <span>Creating Character...</span>
             </div>
           ) : (
-            submitLabel
+            resolvedSubmitLabel
           )}
         </motion.button>
       </div>

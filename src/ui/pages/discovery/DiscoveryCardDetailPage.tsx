@@ -20,6 +20,7 @@ import {
   Play,
 } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryDetailSkeleton } from "./components";
 import {
   fetchCardDetail,
@@ -64,6 +65,7 @@ export function DiscoveryCardDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
   const { path } = useParams<{ path: string }>();
 
   const [cardData, setCardData] = useState<DiscoveryCardDetailResponse | null>(null);
@@ -222,10 +224,10 @@ export function DiscoveryCardDetailPage() {
   const card = cardData?.card;
   const startingScenes = [
     card?.definitionFirstMessage
-      ? { label: "Primary", content: card.definitionFirstMessage }
+      ? { label: t("discovery.detail.sceneLabels.primary"), content: card.definitionFirstMessage }
       : null,
     ...alternateGreetings.map((content, index) => ({
-      label: `Alternate ${index + 1}`,
+      label: `${t("discovery.detail.sceneLabels.alternate")} ${index + 1}`,
       content,
     })),
   ].filter((scene): scene is { label: string; content: string } => Boolean(scene));
@@ -285,20 +287,20 @@ export function DiscoveryCardDetailPage() {
           >
             <ArrowLeft size={20} strokeWidth={2.5} />
           </button>
-          <h1 className={cn(typography.h1.size, "font-bold text-fg")}>Error</h1>
+          <h1 className={cn(typography.h1.size, "font-bold text-fg")}>{t("discovery.detail.errorTitle")}</h1>
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center px-6">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-danger/30 bg-danger/10">
             <AlertCircle className="h-8 w-8 text-danger" />
           </div>
-          <h3 className="mb-2 text-lg font-semibold text-fg">Failed to load</h3>
-          <p className="mb-6 text-center text-sm text-fg/50">{error || "Character not found"}</p>
+          <h3 className="mb-2 text-lg font-semibold text-fg">{t("discovery.detail.errorSubtitle")}</h3>
+          <p className="mb-6 text-center text-sm text-fg/50">{error || t("discovery.detail.errorNotFound")}</p>
           <button
             onClick={handleBack}
             className="rounded-xl border border-fg/20 bg-fg/10 px-6 py-2.5 text-sm font-medium text-fg transition-all hover:bg-fg/15 active:scale-95"
           >
-            Go Back
+            {t("common.buttons.goBack")}
           </button>
         </div>
       </div>
@@ -325,7 +327,7 @@ export function DiscoveryCardDetailPage() {
             "transition-all hover:bg-surface-el/60",
             interactive.active.scale,
           )}
-          aria-label="Go back"
+          aria-label={t("common.buttons.goBack")}
         >
           <ArrowLeft size={20} strokeWidth={2.5} />
         </button>
@@ -338,7 +340,7 @@ export function DiscoveryCardDetailPage() {
             "transition-all hover:bg-surface-el/60",
             interactive.active.scale,
           )}
-          aria-label="Share"
+          aria-label={t("discovery.detail.share")}
         >
           <Share2 size={20} strokeWidth={2.5} />
         </button>
@@ -380,7 +382,7 @@ export function DiscoveryCardDetailPage() {
               <div className="flex flex-col items-center gap-2">
                 <Shield className="h-12 w-12 text-danger" />
                 <span className="text-sm font-bold uppercase tracking-wider text-danger">
-                  NSFW Content
+                  {t("discovery.detail.nsfwOverlay")}
                 </span>
               </div>
             </div>
@@ -394,19 +396,19 @@ export function DiscoveryCardDetailPage() {
             {card.isNsfw && (
               <span className="flex items-center gap-1 rounded-full bg-danger px-2.5 py-1 text-xs font-bold text-fg shadow-lg shadow-red-600/40">
                 <Shield className="h-3 w-3" />
-                NSFW
+                {t("discovery.detail.nsfwBadge")}
               </span>
             )}
             {card.isOc && (
               <span className="flex items-center gap-1 rounded-full bg-secondary/90 px-2.5 py-1 text-xs font-bold text-fg shadow-lg backdrop-blur-sm">
                 <Sparkles className="h-3 w-3" />
-                Original
+                {t("discovery.detail.originalBadge")}
               </span>
             )}
             {card.lorebookId && (
               <span className="flex items-center gap-1 rounded-full bg-warning/90 px-2.5 py-1 text-xs font-bold text-fg shadow-lg backdrop-blur-sm">
                 <BookOpen className="h-3 w-3" />
-                Lorebook
+                {t("discovery.detail.lorebookBadge")}
               </span>
             )}
           </div>
@@ -419,7 +421,7 @@ export function DiscoveryCardDetailPage() {
           <div>
             <h1 className={cn(typography.h1.size, "mb-1 font-bold text-fg")}>{card.name}</h1>
             {card.inChatName && card.inChatName !== card.name && (
-              <p className="mb-2 text-sm text-fg/50">Also known as: {card.inChatName}</p>
+              <p className="mb-2 text-sm text-fg/50">{t("discovery.detail.alsoKnownAs")} {card.inChatName}</p>
             )}
 
             <div className="flex flex-wrap items-center gap-3 text-sm text-fg/60">
@@ -470,7 +472,7 @@ export function DiscoveryCardDetailPage() {
           {/* Description */}
           {card.description && (
             <div className="space-y-2">
-              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>Description</h3>
+              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>{t("discovery.detail.sections.description")}</h3>
               <MarkdownRenderer content={card.description} className="text-fg/70" />
             </div>
           )}
@@ -484,30 +486,30 @@ export function DiscoveryCardDetailPage() {
               <div className="flex items-center gap-2">
                 <Hash className="h-4 w-4 text-fg/50" />
                 <h3 className={cn(typography.body.size, "font-semibold text-fg")}>
-                  Token Usage
+                  {t("discovery.detail.sections.tokenUsage")}
                 </h3>
                 <span className="rounded-full bg-fg/10 px-2 py-0.5 text-xs text-fg/60">
-                  {card.tokenTotal.toLocaleString()} total
+                  {card.tokenTotal.toLocaleString()} {t("discovery.detail.tokensTotalLabel")}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <TokenStatCard label="Description" value={card.tokenDescription} icon={FileText} />
-                <TokenStatCard label="Personality" value={card.tokenPersonality} icon={User} />
-                <TokenStatCard label="Scenario" value={card.tokenScenario} icon={BookOpen} />
+                <TokenStatCard label={t("discovery.detail.tokens.description")} value={card.tokenDescription} icon={FileText} />
+                <TokenStatCard label={t("discovery.detail.tokens.personality")} value={card.tokenPersonality} icon={User} />
+                <TokenStatCard label={t("discovery.detail.tokens.scenario")} value={card.tokenScenario} icon={BookOpen} />
                 <TokenStatCard
-                  label="First Message"
+                  label={t("discovery.detail.tokens.firstMessage")}
                   value={card.tokenFirstMes}
                   icon={MessageCircle}
                 />
                 <TokenStatCard
-                  label="Scenes"
+                  label={t("discovery.detail.tokens.scenes")}
                   value={1 + alternateGreetings.length}
                   icon={Sparkles}
                 />
-                <TokenStatCard label="Examples" value={card.tokenMesExample} icon={FileText} />
+                <TokenStatCard label={t("discovery.detail.tokens.examples")} value={card.tokenMesExample} icon={FileText} />
                 <TokenStatCard
-                  label="System Prompt"
+                  label={t("discovery.detail.tokens.systemPrompt")}
                   value={card.tokenSystemPrompt}
                   icon={FileText}
                 />
@@ -521,7 +523,7 @@ export function DiscoveryCardDetailPage() {
               <div className="flex items-center gap-2">
                 <MessageCircle className="h-4 w-4 text-fg/50" />
                 <h3 className={cn(typography.body.size, "font-semibold text-fg")}>
-                  Starting Scenes
+                  {t("discovery.detail.sections.startingScenes")}
                 </h3>
                 <span className="rounded-full bg-fg/10 px-2 py-0.5 text-xs text-fg/60">
                   {startingScenes.length}
@@ -545,7 +547,7 @@ export function DiscoveryCardDetailPage() {
 
           {card.definitionScenario && (
             <div className="space-y-2">
-              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>Scenario</h3>
+              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>{t("discovery.detail.sections.scenario")}</h3>
               <div className="rounded-xl border border-fg/10 bg-fg/5 p-4">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg/70">
                   {card.definitionScenario.length > 300
@@ -558,7 +560,7 @@ export function DiscoveryCardDetailPage() {
 
           {card.definitionPersonality && (
             <div className="space-y-2">
-              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>Personality</h3>
+              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>{t("discovery.detail.sections.personality")}</h3>
               <div className="rounded-xl border border-fg/10 bg-fg/5 p-4">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg/70">
                   {card.definitionPersonality.length > 300
@@ -571,28 +573,28 @@ export function DiscoveryCardDetailPage() {
 
           {/* Stats Section */}
           <div className="space-y-2">
-            <h3 className={cn(typography.body.size, "font-semibold text-fg")}>Stats</h3>
+            <h3 className={cn(typography.body.size, "font-semibold text-fg")}>{t("discovery.detail.sections.stats")}</h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-xl border border-fg/10 bg-fg/5 p-4 text-center">
                 <Eye className="mx-auto mb-2 h-5 w-5 text-info" />
                 <div className="text-lg font-bold text-fg">
                   {formatCount(card.analyticsViews)}
                 </div>
-                <div className="text-xs text-fg/50">Views</div>
+                <div className="text-xs text-fg/50">{t("discovery.detail.stats.views")}</div>
               </div>
               <div className="rounded-xl border border-fg/10 bg-fg/5 p-4 text-center">
                 <Download className="mx-auto mb-2 h-5 w-5 text-accent" />
                 <div className="text-lg font-bold text-fg">
                   {formatCount(card.analyticsDownloads)}
                 </div>
-                <div className="text-xs text-fg/50">Downloads</div>
+                <div className="text-xs text-fg/50">{t("discovery.detail.stats.downloads")}</div>
               </div>
               <div className="rounded-xl border border-fg/10 bg-fg/5 p-4 text-center">
                 <MessageCircle className="mx-auto mb-2 h-5 w-5 text-secondary" />
                 <div className="text-lg font-bold text-fg">
                   {formatCount(card.analyticsMessages)}
                 </div>
-                <div className="text-xs text-fg/50">Messages</div>
+                <div className="text-xs text-fg/50">{t("discovery.detail.stats.messages")}</div>
               </div>
             </div>
           </div>
@@ -600,7 +602,7 @@ export function DiscoveryCardDetailPage() {
           {/* Tags Section */}
           {tags.length > 0 && (
             <div className="space-y-2">
-              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>Tags</h3>
+              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>{t("discovery.detail.sections.tags")}</h3>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag, index) => (
                   <span
@@ -617,7 +619,7 @@ export function DiscoveryCardDetailPage() {
           {/* Author Section */}
           {authorInfo && (
             <div className="space-y-2">
-              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>Author</h3>
+              <h3 className={cn(typography.body.size, "font-semibold text-fg")}>{t("discovery.detail.sections.author")}</h3>
               <div className="rounded-xl border border-fg/10 bg-fg/5 p-4">
                 <div className="flex items-center gap-3">
                   {authorInfo.avatarUrl && (
@@ -631,7 +633,7 @@ export function DiscoveryCardDetailPage() {
                     <div className="font-semibold text-fg">{authorInfo.displayName}</div>
                     {authorInfo.followersCount !== undefined && (
                       <div className="text-sm text-fg/50">
-                        {authorInfo.followersCount} followers
+                        {authorInfo.followersCount} {t("discovery.detail.followersUnit")}
                       </div>
                     )}
                   </div>
@@ -664,7 +666,7 @@ export function DiscoveryCardDetailPage() {
                 )}
               >
                 <CheckCircle2 className="h-5 w-5" />
-                Downloaded
+                {t("discovery.detail.downloaded")}
               </button>
               <button
                 onClick={handleStartChat}
@@ -676,7 +678,7 @@ export function DiscoveryCardDetailPage() {
                 )}
               >
                 <Play className="h-5 w-5" />
-                Start Chat
+                {t("discovery.detail.startChat")}
               </button>
             </>
           ) : (
@@ -694,12 +696,12 @@ export function DiscoveryCardDetailPage() {
               {downloading ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Downloading...
+                  {t("discovery.detail.downloading")}
                 </>
               ) : (
                 <>
                   <Download className="h-5 w-5" />
-                  Download Character
+                  {t("discovery.detail.downloadCharacter")}
                 </>
               )}
             </button>
@@ -711,7 +713,7 @@ export function DiscoveryCardDetailPage() {
       <BottomMenu
         isOpen={showDownloadMenu}
         onClose={() => setShowDownloadMenu(false)}
-        title="Character Downloaded!"
+        title={t("discovery.detail.downloadSuccess.title")}
       >
         <div className="space-y-4">
           <div className="rounded-2xl border border-fg/10 bg-fg/5 p-3">
@@ -735,13 +737,13 @@ export function DiscoveryCardDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-fg">{card.name}</p>
-                  <p className="text-xs text-fg/50">Added to your library</p>
+                  <p className="text-xs text-fg/50">{t("discovery.detail.downloadSuccess.subtitle")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1 rounded-full border border-accent/30 bg-accent/15 px-2.5 py-1">
                 <CheckCircle2 className="h-3.5 w-3.5 text-accent/80" />
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent/80">
-                  Saved
+                  {t("discovery.detail.downloadSuccess.badge")}
                 </span>
               </div>
             </div>
@@ -750,15 +752,15 @@ export function DiscoveryCardDetailPage() {
           <MenuButtonGroup>
             <MenuButton
               icon={Play}
-              title="Start Chat"
-              description="Open the first scene now"
+              title={t("discovery.detail.downloadSuccess.startChat")}
+              description={t("discovery.detail.downloadSuccess.startChatDesc")}
               color="from-accent to-accent/80"
               onClick={handleStartChat}
             />
             <MenuButton
               icon={BookOpen}
-              title="View in Library"
-              description="Edit, manage, or export later"
+              title={t("discovery.detail.downloadSuccess.viewLibrary")}
+              description={t("discovery.detail.downloadSuccess.viewLibraryDesc")}
               color="from-info to-info/80"
               onClick={handleViewInLibrary}
             />
@@ -766,8 +768,8 @@ export function DiscoveryCardDetailPage() {
 
           <MenuButton
             icon={ArrowLeft}
-            title="Continue Browsing"
-            description="Back to discovery"
+            title={t("discovery.detail.downloadSuccess.continueBrowsing")}
+            description={t("discovery.detail.downloadSuccess.continueBrowsingDesc")}
             onClick={() => setShowDownloadMenu(false)}
           />
         </div>

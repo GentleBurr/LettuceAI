@@ -52,6 +52,7 @@ import { getProviderReasoningSupport } from "../../../core/storage/schemas";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
+import { useI18n } from "../../../core/i18n/context";
 
 type LlamaCppContextInfo = {
   maxContextLength: number;
@@ -109,6 +110,7 @@ const getEditDistance = (a: string, b: string) => {
 };
 
 export function EditModelPage() {
+  const { t } = useI18n();
   const [showParameterSupport, setShowParameterSupport] = useState(false);
   const [isManualInput, setIsManualInput] = useState(false);
   const [showModelSelector, setShowModelSelector] = useState(false);
@@ -580,7 +582,7 @@ export function EditModelPage() {
             </label>
             {providers.length === 0 ? (
               <div className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-                No providers configured. Add a provider first.
+                {t("settings.items.providers.subtitle")}
               </div>
             ) : (
               <>
@@ -778,7 +780,9 @@ export function EditModelPage() {
                         })
                       ) : (
                         <div className="py-10 text-center text-sm text-fg/40">
-                          <p>No models found matching "{searchQuery}"</p>
+                          <p>
+                            {t("common.buttons.search")}: "{searchQuery}"
+                          </p>
                           {didYouMeanSuggestions.length > 0 && (
                             <div className="mt-4">
                               <p className="mb-2 text-xs text-fg/50">Did you mean:</p>

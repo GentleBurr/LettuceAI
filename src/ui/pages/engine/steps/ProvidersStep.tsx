@@ -8,6 +8,7 @@ import {
 import type { LlmProviderConfig } from "../hooks/engineSetupReducer";
 import type { ProviderCredential } from "../../../../core/storage/schemas";
 import { getProviderIcon } from "../../../../core/utils/providerIcons";
+import { useI18n } from "../../../../core/i18n/context";
 
 type Props = {
   llmProviders: Record<EngineLlmProviderId, LlmProviderConfig>;
@@ -34,6 +35,7 @@ export function ProvidersStep({
   onSave,
   onNext,
 }: Props) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState<EngineLlmProviderId | null>(null);
   const [imported, setImported] = useState<Set<string>>(new Set());
 
@@ -56,10 +58,9 @@ export function ProvidersStep({
   return (
     <div className="space-y-4 px-4 py-6">
       <div>
-        <h2 className="text-lg font-semibold text-white">LLM Provider</h2>
+        <h2 className="text-lg font-semibold text-white">{t("engine.providers.title")}</h2>
         <p className="mt-1 text-sm text-white/50">
-          The Engine needs at least one LLM backend to function. Configure one or more providers
-          below.
+          {t("engine.providers.subtitle")}
         </p>
       </div>
 
@@ -67,7 +68,7 @@ export function ProvidersStep({
         <div className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3">
           <div className="mb-2 flex items-center gap-2">
             <Import className="h-3.5 w-3.5 text-indigo-300" />
-            <span className="text-xs font-medium text-indigo-200">Import from your providers</span>
+            <span className="text-xs font-medium text-indigo-200">{t("engine.providers.importFromProviders")}</span>
           </div>
           <div className="space-y-1.5">
             {importableProviders.map((provider) => {
@@ -86,11 +87,11 @@ export function ProvidersStep({
                   </div>
                   {isImported ? (
                     <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                      Imported
+                      {t("engine.providers.imported")}
                     </span>
                   ) : (
                     <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
-                      Use
+                      {t("engine.providers.use")}
                     </span>
                   )}
                 </button>
@@ -132,7 +133,7 @@ export function ProvidersStep({
                 <span className="flex-1 text-sm font-medium text-white">{provider.name}</span>
                 {isDefault && (
                   <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                    Default
+                    {t("engine.config.defaultBadge")}
                   </span>
                 )}
                 {isExpanded ? (
@@ -147,7 +148,7 @@ export function ProvidersStep({
                 <div className="space-y-3 border-t border-white/10 px-4 py-3">
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-white/70">
-                      Model
+                      {t("engine.config.fields.model")}
                     </label>
                     <input
                       type="text"
@@ -161,13 +162,13 @@ export function ProvidersStep({
                   {provider.requiresKey && (
                     <div>
                       <label className="mb-1 block text-[11px] font-medium text-white/70">
-                        API Key
+                        {t("engine.config.fields.apiKey")}
                       </label>
                       <input
                         type="password"
                         value={config.apiKey}
                         onChange={(e) => onUpdate(provider.id, { apiKey: e.target.value })}
-                        placeholder="Enter your API key"
+                        placeholder={t("engine.config.fields.apiKeyPlaceholder")}
                         className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
                       />
                     </div>
@@ -176,7 +177,7 @@ export function ProvidersStep({
                   {!provider.requiresKey && (
                     <div>
                       <label className="mb-1 block text-[11px] font-medium text-white/70">
-                        Base URL
+                        {t("engine.config.fields.baseUrl")}
                       </label>
                       <input
                         type="url"
@@ -191,7 +192,7 @@ export function ProvidersStep({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-[11px] font-medium text-white/70">
-                        Max Tokens
+                        {t("engine.config.fields.maxTokens")}
                       </label>
                       <input
                         type="number"
@@ -206,7 +207,7 @@ export function ProvidersStep({
                     </div>
                     <div>
                       <label className="mb-1 block text-[11px] font-medium text-white/70">
-                        Temperature
+                        {t("engine.config.fields.temperature")}
                       </label>
                       <input
                         type="number"
@@ -234,7 +235,7 @@ export function ProvidersStep({
                           : "border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                       }`}
                     >
-                      {isDefault ? "Default Backend" : "Set as Default"}
+                      {isDefault ? t("engine.config.defaultBackend") : t("engine.config.setAsDefault")}
                     </button>
                   )}
                 </div>
@@ -251,7 +252,7 @@ export function ProvidersStep({
         disabled={isSaving || enabledCount === 0}
         className="w-full rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400/60 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isSaving ? "Saving..." : "Save & Continue"}
+        {isSaving ? t("engine.config.saving") : t("engine.providers.saveContinue")}
       </button>
     </div>
   );

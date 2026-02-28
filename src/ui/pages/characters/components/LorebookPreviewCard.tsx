@@ -1,5 +1,6 @@
 import { BookOpen } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface LorebookPreview {
   id?: string;
@@ -24,7 +25,8 @@ export function LorebookPreviewCard({
   lorebook: LorebookPreview | null;
   entries: LorebookEntryPreview[];
 }) {
-  const name = lorebook?.name?.trim() || "Untitled Lorebook";
+  const { t } = useI18n();
+  const name = lorebook?.name?.trim() || t("characters.lorebookPreview.untitledLorebook");
   const entryCount = entries.length;
   const previewEntries = entries.slice(0, 4);
 
@@ -40,20 +42,20 @@ export function LorebookPreviewCard({
               {name}
             </h3>
             <p className="text-xs text-fg/50 mt-1">
-              {entryCount} entr{entryCount === 1 ? "y" : "ies"}
+              {t("characters.lorebookPreview.entryCount", { count: entryCount })}
             </p>
           </div>
         </div>
 
         <div className="mt-4">
-          <p className="text-xs text-fg/40 uppercase tracking-wider mb-2">Entries</p>
+          <p className="text-xs text-fg/40 uppercase tracking-wider mb-2">{t("characters.lorebookPreview.entries")}</p>
           {entryCount === 0 ? (
-            <p className="text-sm text-fg/50">No entries yet</p>
+            <p className="text-sm text-fg/50">{t("characters.lorebookPreview.noEntriesYet")}</p>
           ) : (
             <div className="space-y-2">
               {previewEntries.map((entry) => {
-                const title = entry.title?.trim() || "Untitled entry";
-                const content = entry.content?.trim() || "No content yet";
+                const title = entry.title?.trim() || t("characters.lorebookPreview.untitledEntry");
+                const content = entry.content?.trim() || t("characters.lorebookPreview.noContentYet");
                 const keywords = entry.keywords?.filter(Boolean) ?? [];
                 return (
                   <div
@@ -67,7 +69,7 @@ export function LorebookPreviewCard({
                       <p className="text-sm text-fg/80 truncate">{title}</p>
                       {entry.alwaysActive && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 border border-warning/30 text-warning">
-                          Always active
+                          {t("characters.lorebookPreview.alwaysActive")}
                         </span>
                       )}
                     </div>

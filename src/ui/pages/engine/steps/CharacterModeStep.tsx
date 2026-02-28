@@ -1,4 +1,5 @@
 import { Sparkles, PenLine, Loader2 } from "lucide-react";
+import { useI18n } from "../../../../core/i18n/context";
 
 type Props = {
   boostName: string;
@@ -21,12 +22,13 @@ export function CharacterModeStep({
   onBoost,
   onManual,
 }: Props) {
+  const { t } = useI18n();
   return (
     <div className="space-y-4 px-4 py-6">
       <div>
-        <h2 className="text-lg font-semibold text-white">Create Character</h2>
+        <h2 className="text-lg font-semibold text-white">{t("engine.characterCreate.steps.mode.title")}</h2>
         <p className="mt-1 text-sm text-white/50">
-          Generate a character with AI or build one from scratch.
+          {t("engine.characterCreate.steps.mode.subtitle")}
         </p>
       </div>
 
@@ -34,21 +36,21 @@ export function CharacterModeStep({
       <div className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-indigo-300" />
-          <span className="text-sm font-medium text-indigo-200">AI Boost</span>
+          <span className="text-sm font-medium text-indigo-200">{t("engine.characterCreate.steps.mode.aiBoost")}</span>
         </div>
         <p className="text-xs text-white/50">
-          Describe your character idea and the AI will generate a full character definition.
+          {t("engine.characterCreate.steps.mode.aiBoostDesc")}
         </p>
 
         <div>
           <label className="mb-1 block text-[11px] font-medium text-white/70">
-            Name (optional)
+            {t("engine.characterCreate.steps.mode.nameOptional")}
           </label>
           <input
             type="text"
             value={boostName}
             onChange={(e) => onBoostFieldChange("boostName", e.target.value)}
-            placeholder="e.g. Marcus Cole"
+            placeholder={t("engine.characterCreate.steps.mode.namePlaceholder")}
             disabled={boosting}
             className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none disabled:opacity-50"
           />
@@ -56,12 +58,12 @@ export function CharacterModeStep({
 
         <div>
           <label className="mb-1 block text-[11px] font-medium text-white/70">
-            Seed Description *
+            {t("engine.characterCreate.steps.mode.seedDescription")}
           </label>
           <textarea
             value={boostSeed}
             onChange={(e) => onBoostFieldChange("boostSeed", e.target.value)}
-            placeholder="e.g. jazz pianist in 1950s Harlem, philosophical, loves late-night conversations"
+            placeholder={t("engine.characterCreate.steps.mode.seedPlaceholder")}
             disabled={boosting}
             rows={3}
             className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none resize-none disabled:opacity-50"
@@ -70,13 +72,13 @@ export function CharacterModeStep({
 
         <div>
           <label className="mb-1 block text-[11px] font-medium text-white/70">
-            Era (optional)
+            {t("engine.characterCreate.steps.mode.eraOptional")}
           </label>
           <input
             type="text"
             value={boostEra}
             onChange={(e) => onBoostFieldChange("boostEra", e.target.value)}
-            placeholder="e.g. 1950s, modern, Victorian"
+            placeholder={t("engine.characterCreate.steps.mode.eraPlaceholder")}
             disabled={boosting}
             className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none disabled:opacity-50"
           />
@@ -92,12 +94,12 @@ export function CharacterModeStep({
           {boosting ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Generating...
+              {t("engine.characterCreate.steps.mode.generating")}
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
               <Sparkles className="h-4 w-4" />
-              Generate Character
+              {t("engine.characterCreate.steps.mode.generateCharacter")}
             </span>
           )}
         </button>
@@ -106,7 +108,7 @@ export function CharacterModeStep({
       {/* Manual */}
       <div className="relative flex items-center gap-3 py-1">
         <div className="flex-1 border-t border-white/10" />
-        <span className="text-[11px] text-white/30">or</span>
+        <span className="text-[11px] text-white/30">{t("engine.characterCreate.steps.mode.or")}</span>
         <div className="flex-1 border-t border-white/10" />
       </div>
 
@@ -116,7 +118,7 @@ export function CharacterModeStep({
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/70 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-50"
       >
         <PenLine className="h-4 w-4" />
-        Start from Scratch
+        {t("engine.characterCreate.steps.mode.startFromScratch")}
       </button>
     </div>
   );

@@ -7,6 +7,7 @@ import { listCharacters, listPersonas } from "../../../../core/storage/repo";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { AvatarImage } from "../../../components/AvatarImage";
 import type { AvatarCrop, Character, Persona } from "../../../../core/storage/schemas";
+import { useI18n } from "../../../../core/i18n/context";
 
 export interface Reference {
   type: "character" | "persona";
@@ -90,6 +91,7 @@ export function ReferenceSelector({
   onSelect,
   existingRefs = [],
 }: ReferenceSelectorProps) {
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [characters, setCharacters] = useState<Character[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -169,7 +171,7 @@ export function ReferenceSelector({
     <BottomMenu
       isOpen={isOpen}
       onClose={onClose}
-      title={type === "character" ? "Select Character" : "Select Persona"}
+      title={type === "character" ? t("characters.referenceSelector.selectCharacter") : t("characters.referenceSelector.selectPersona")}
     >
       <div className="space-y-4">
         {/* Search Input */}
@@ -179,7 +181,7 @@ export function ReferenceSelector({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${type}s...`}
+            placeholder={t("characters.referenceSelector.searchPlaceholder", { type })}
             className={cn(
               "w-full py-2.5 pl-10 pr-4",
               radius.lg,

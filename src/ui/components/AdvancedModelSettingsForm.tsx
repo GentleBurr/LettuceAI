@@ -2,6 +2,7 @@ import type { ChangeEvent } from "react";
 import { Brain, Info } from "lucide-react";
 import type { AdvancedModelSettings, ReasoningSupport } from "../../core/storage/schemas";
 import { cn } from "../design-tokens";
+import { useI18n } from "../../core/i18n/context";
 
 export const ADVANCED_TEMPERATURE_RANGE = { min: 0, max: 2 };
 export const ADVANCED_TOP_P_RANGE = { min: 0, max: 1 };
@@ -202,6 +203,7 @@ export function AdvancedModelSettingsForm({
   disabled,
   reasoningSupport = "none",
 }: AdvancedModelSettingsFormProps) {
+  const { t } = useI18n();
   const handleNumberChange =
     (key: keyof AdvancedModelSettings) => (event: ChangeEvent<HTMLInputElement>) => {
       const raw = event.target.value;
@@ -226,9 +228,9 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Temperature
+              {t("components.advancedModelSettings.temperature")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Higher = more creative</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.temperatureDesc")}</p>
           </div>
           <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-mono text-white/90">
             {settings.temperature?.toFixed(2) ?? "0.70"}
@@ -257,9 +259,9 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Top P
+              {t("components.advancedModelSettings.topP")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Lower = more focused</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.topPDesc")}</p>
           </div>
           <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-mono text-white/90">
             {settings.topP?.toFixed(2) ?? "1.00"}
@@ -288,9 +290,9 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Max Output Tokens
+              {t("components.advancedModelSettings.maxTokens")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Leave blank for default</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.maxTokensDesc")}</p>
           </div>
         </div>
         <input
@@ -310,12 +312,12 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Context Length
+              {t("components.advancedModelSettings.contextLength")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Local models only</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.contextLengthDesc")}</p>
           </div>
           <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-mono text-white/90">
-            {settings.contextLength ? settings.contextLength : "Auto"}
+            {settings.contextLength ? settings.contextLength : t("components.advancedModelSettings.contextLengthAuto")}
           </span>
         </div>
         <input
@@ -335,11 +337,11 @@ export function AdvancedModelSettingsForm({
             });
           }}
           disabled={disabled}
-          placeholder="Auto"
+          placeholder={t("components.advancedModelSettings.contextLengthAuto")}
           className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none disabled:opacity-50"
         />
         <div className="mt-1.5 flex justify-between text-[10px] text-white/40">
-          <span>Auto</span>
+          <span>{t("components.advancedModelSettings.contextLengthAuto")}</span>
           <span>{ADVANCED_CONTEXT_LENGTH_RANGE.max.toLocaleString()}</span>
         </div>
       </div>
@@ -349,9 +351,9 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Frequency Penalty
+              {t("components.advancedModelSettings.frequencyPenalty")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Reduce repetition of tokens</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.frequencyPenaltyDesc")}</p>
           </div>
           <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-mono text-white/90">
             {settings.frequencyPenalty?.toFixed(2) ?? "0.00"}
@@ -380,9 +382,9 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Presence Penalty
+              {t("components.advancedModelSettings.presencePenalty")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Encourage new topics</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.presencePenaltyDesc")}</p>
           </div>
           <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-mono text-white/90">
             {settings.presencePenalty?.toFixed(2) ?? "0.00"}
@@ -411,9 +413,9 @@ export function AdvancedModelSettingsForm({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Top K
+              {t("components.advancedModelSettings.topK")}
             </label>
-            <p className="mt-0.5 text-[11px] text-white/50">Limit token pool size</p>
+            <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.topKDesc")}</p>
           </div>
         </div>
         <input
@@ -434,7 +436,7 @@ export function AdvancedModelSettingsForm({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-white">
               <Brain className="h-4 w-4 text-amber-400" />
-              <h3 className="text-sm font-semibold">Thinking / Reasoning</h3>
+              <h3 className="text-sm font-semibold">{t("components.advancedModelSettings.reasoning")}</h3>
             </div>
 
             {!isAutoReasoning && (
@@ -461,8 +463,8 @@ export function AdvancedModelSettingsForm({
 
           <p className="text-[11px] text-white/50 leading-relaxed">
             {isAutoReasoning
-              ? "This model always uses reasoning. No configuration needed."
-              : "Enable advanced thinking capabilities for complex problem solving and reasoning tasks."}
+              ? t("components.advancedModelSettings.reasoningAutoDesc")
+              : t("components.advancedModelSettings.reasoningEnableDesc")}
           </p>
 
           {(settings.reasoningEnabled || isAutoReasoning) && (
@@ -487,7 +489,7 @@ export function AdvancedModelSettingsForm({
                               : "text-white/40 hover:text-white/60",
                           )}
                         >
-                          Effort Mode
+                          {t("components.advancedModelSettings.effortMode")}
                         </button>
                         <button
                           type="button"
@@ -505,7 +507,7 @@ export function AdvancedModelSettingsForm({
                               : "text-white/40 hover:text-white/60",
                           )}
                         >
-                          Budget Mode
+                          {t("components.advancedModelSettings.budgetMode")}
                         </button>
                       </div>
 
@@ -514,19 +516,19 @@ export function AdvancedModelSettingsForm({
                         <div className="rounded-xl border border-amber-400/30 bg-black/20 p-4">
                           <div className="mb-3">
                             <label className="text-xs font-medium uppercase tracking-wider text-amber-200/80">
-                              Reasoning Effort
+                              {t("components.advancedModelSettings.reasoningEffort")}
                             </label>
                             <p className="mt-0.5 text-[11px] text-white/50">
-                              Controls thinking depth
+                              {t("components.advancedModelSettings.reasoningEffortDesc")}
                             </p>
                           </div>
 
                           <div className="grid grid-cols-4 gap-2">
                             {[
-                              { value: null, label: "Auto" },
-                              { value: "low" as const, label: "Low" },
-                              { value: "medium" as const, label: "Med" },
-                              { value: "high" as const, label: "High" },
+                              { value: null, label: t("components.advancedModelSettings.reasoningEffortAuto") },
+                              { value: "low" as const, label: t("components.advancedModelSettings.reasoningEffortLow") },
+                              { value: "medium" as const, label: t("components.advancedModelSettings.reasoningEffortMed") },
+                              { value: "high" as const, label: t("components.advancedModelSettings.reasoningEffortHigh") },
                             ].map(({ value, label }) => (
                               <button
                                 key={label}
@@ -552,10 +554,10 @@ export function AdvancedModelSettingsForm({
                         <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                           <div className="mb-3">
                             <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-                              Reasoning Budget (tokens)
+                              {t("components.advancedModelSettings.reasoningBudget")}
                             </label>
                             <p className="mt-0.5 text-[11px] text-white/50">
-                              Max tokens reserved for thinking
+                              {t("components.advancedModelSettings.reasoningBudgetDesc")}
                             </p>
                           </div>
                           <input
@@ -579,9 +581,9 @@ export function AdvancedModelSettingsForm({
                 <div className="rounded-xl border border-amber-400/30 bg-black/20 p-4">
                   <div className="mb-3">
                     <label className="text-xs font-medium uppercase tracking-wider text-amber-200/80">
-                      Reasoning Effort
+                      {t("components.advancedModelSettings.reasoningEffort")}
                     </label>
-                    <p className="mt-0.5 text-[11px] text-white/50">Controls thinking depth</p>
+                    <p className="mt-0.5 text-[11px] text-white/50">{t("components.advancedModelSettings.reasoningEffortDesc")}</p>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
@@ -596,24 +598,31 @@ export function AdvancedModelSettingsForm({
                           : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white",
                       )}
                     >
-                      Auto
+                      {t("components.advancedModelSettings.reasoningEffortAuto")}
                     </button>
-                    {(["low", "medium", "high"] as const).map((effort) => (
+                    {(["low", "medium", "high"] as const).map((effort) => {
+                      const effortLabels = {
+                        low: t("components.advancedModelSettings.reasoningEffortLow"),
+                        medium: t("components.advancedModelSettings.reasoningEffortMed"),
+                        high: t("components.advancedModelSettings.reasoningEffortHigh"),
+                      } as const;
+                      return (
                       <button
                         key={effort}
                         type="button"
                         onClick={() => onChange({ ...settings, reasoningEffort: effort })}
                         disabled={disabled}
                         className={cn(
-                          "rounded-lg border px-3 py-2 text-xs font-medium transition-all active:scale-[0.98] disabled:opacity-50 capitalize",
+                          "rounded-lg border px-3 py-2 text-xs font-medium transition-all active:scale-[0.98] disabled:opacity-50",
                           settings.reasoningEffort === effort
                             ? "border-amber-400/40 bg-amber-400/20 text-amber-100"
                             : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white",
                         )}
                       >
-                        {effort}
+                        {effortLabels[effort]}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {settings.reasoningEffort && (
@@ -621,10 +630,10 @@ export function AdvancedModelSettingsForm({
                       <Info className="h-3 w-3 shrink-0 text-amber-400/60 mt-0.5" />
                       <p className="text-[10px] text-white/40">
                         {settings.reasoningEffort === "low" &&
-                          "Quick responses with minimal reasoning"}
-                        {settings.reasoningEffort === "medium" && "Balanced reasoning depth"}
+                          t("components.advancedModelSettings.reasoningEffortLowDesc")}
+                        {settings.reasoningEffort === "medium" && t("components.advancedModelSettings.reasoningEffortMediumDesc")}
                         {settings.reasoningEffort === "high" &&
-                          "Maximum reasoning depth for complex problems"}
+                          t("components.advancedModelSettings.reasoningEffortHighDesc")}
                       </p>
                     </div>
                   )}
@@ -636,10 +645,10 @@ export function AdvancedModelSettingsForm({
                 <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                   <div className="mb-3">
                     <label className="text-xs font-medium uppercase tracking-wider text-white/70">
-                      Reasoning Budget (tokens)
+                      {t("components.advancedModelSettings.reasoningBudget")}
                     </label>
                     <p className="mt-0.5 text-[11px] text-white/50">
-                      Max tokens reserved for thinking. Added to output limit.
+                      {t("components.advancedModelSettings.reasoningBudgetExtendedDesc")}
                     </p>
                   </div>
                   <input

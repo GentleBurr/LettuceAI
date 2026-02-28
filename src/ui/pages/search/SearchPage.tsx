@@ -11,6 +11,7 @@ import {
 } from "../../../core/storage/repo";
 import type { Character, Persona } from "../../../core/storage/schemas";
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { useAvatar } from "../../hooks/useAvatar";
 import { useAvatarGradient } from "../../hooks/useAvatarGradient";
 import { useRocketEasterEgg } from "../../hooks/useRocketEasterEgg";
@@ -19,6 +20,7 @@ import { AvatarImage } from "../../components/AvatarImage";
 type SearchTab = "characters" | "personas";
 
 export function SearchPage() {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SearchTab>("characters");
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -104,7 +106,7 @@ export function SearchPage() {
             <Search size={18} className="shrink-0 text-fg/40" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t("search.placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
@@ -128,14 +130,14 @@ export function SearchPage() {
             active={activeTab === "characters"}
             onClick={() => setActiveTab("characters")}
             icon={<MessageCircle size={14} />}
-            label="Characters"
+            label={t("search.tabs.characters")}
             count={hasQuery ? filteredCharacters.length : characters.length}
           />
           <TabButton
             active={activeTab === "personas"}
             onClick={() => setActiveTab("personas")}
             icon={<User size={14} />}
-            label="Personas"
+            label={t("search.tabs.personas")}
             count={hasQuery ? filteredPersonas.length : personas.length}
           />
         </div>
@@ -446,6 +448,7 @@ function LoadingSkeleton() {
 }
 
 function EmptyState({ type, hasQuery }: { type: "characters" | "personas"; hasQuery: boolean }) {
+  const { t } = useI18n();
   const isCharacters = type === "characters";
   const rocket = useRocketEasterEgg();
 
@@ -469,14 +472,14 @@ function EmptyState({ type, hasQuery }: { type: "characters" | "personas"; hasQu
         )}
       </div>
       <h3 className="mb-1 text-lg font-semibold text-fg/80">
-        {hasQuery ? `No ${type} found` : `No ${type} yet`}
+        {hasQuery ? t("search.noResults", { type }) : t("search.emptyState", { type })}
       </h3>
       <p className="text-sm text-fg/40">
         {hasQuery
-          ? "Try a different search term"
+          ? t("search.noResultsHint")
           : isCharacters
-            ? "Create your first character to start chatting"
-            : "Create a persona in settings"}
+            ? t("search.emptyCharacters")
+            : t("search.emptyPersonas")}
       </p>
     </div>
   );

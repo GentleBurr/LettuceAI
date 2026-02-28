@@ -1,6 +1,7 @@
 import { MessageSquare, FileText, Star } from "lucide-react";
 import { BottomMenu, MenuButton, MenuButtonGroup } from "../../../components/BottomMenu";
 import type { ChatTemplate } from "../../../../core/storage/schemas";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ChatTemplateSelectorProps {
   isOpen: boolean;
@@ -17,13 +18,14 @@ export function ChatTemplateSelector({
   defaultTemplateId,
   onSelect,
 }: ChatTemplateSelectorProps) {
+  const { t } = useI18n();
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title="Start with a template?">
+    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("chats.templates.startWithTemplate")}>
       <MenuButtonGroup>
         <MenuButton
           icon={<FileText className="h-4 w-4" />}
-          title="No template"
-          description="Start with scene only"
+          title={t("chats.templates.noTemplate")}
+          description={t("chats.templates.startWithSceneOnly")}
           color="from-blue-500 to-cyan-600"
           onClick={() => onSelect(null)}
         />
@@ -32,7 +34,7 @@ export function ChatTemplateSelector({
             .slice(0, 2)
             .map(
               (m) =>
-                `${m.role === "user" ? "You" : "Bot"}: ${m.content.slice(0, 60)}${m.content.length > 60 ? "..." : ""}`,
+                `${m.role === "user" ? t("chats.templates.you") : t("chats.templates.bot")}: ${m.content.slice(0, 60)}${m.content.length > 60 ? "..." : ""}`,
             )
             .join(" | ");
           return (
@@ -42,7 +44,7 @@ export function ChatTemplateSelector({
               title={template.name}
               description={
                 preview ||
-                `${template.messages.length} message${template.messages.length !== 1 ? "s" : ""}`
+                t("chats.templates.messageCount", { count: template.messages.length })
               }
               color="from-blue-500 to-cyan-600"
               rightElement={

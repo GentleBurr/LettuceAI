@@ -27,6 +27,7 @@ import {
 import { typography, radius, cn, interactive, colors, components } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
 import { BottomMenu } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 import { ToolLog } from "./components/memories/ToolLog";
 import { useGroupChatMemoriesController } from "./hooks/useGroupChatMemoriesController";
 
@@ -57,18 +58,12 @@ function MemoryActionRow({
       )}
     >
       <div
-        className={cn(
-          "flex items-center justify-center w-8 h-8 rounded-lg",
-          iconBg || "bg-fg/10",
-        )}
+        className={cn("flex items-center justify-center w-8 h-8 rounded-lg", iconBg || "bg-fg/10")}
       >
         <Icon size={16} className={cn(variant === "danger" ? "text-danger" : "text-fg")} />
       </div>
       <span
-        className={cn(
-          "text-[15px] text-left",
-          variant === "danger" ? "text-danger" : "text-fg/90",
-        )}
+        className={cn("text-[15px] text-left", variant === "danger" ? "text-danger" : "text-fg/90")}
       >
         {label}
       </span>
@@ -78,6 +73,7 @@ function MemoryActionRow({
 
 export function GroupChatMemoriesPage() {
   const { backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
   const { groupSessionId } = useParams();
 
   const {
@@ -104,7 +100,7 @@ export function GroupChatMemoriesPage() {
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
 
   const tabs = [
-    { id: "memories" as const, icon: Bot, label: "Memories" },
+    { id: "memories" as const, icon: Bot, label: t("common.nav.dynamicMemory") },
     { id: "tools" as const, icon: Clock, label: "Activity" },
   ];
 
@@ -133,7 +129,7 @@ export function GroupChatMemoriesPage() {
             "bg-fg/5 text-fg hover:bg-fg/10",
           )}
         >
-          Go back
+          {t("common.buttons.goBack")}
         </button>
       </div>
     );
@@ -159,13 +155,20 @@ export function GroupChatMemoriesPage() {
                 interactive.transition.fast,
                 "hover:text-fg/80",
               )}
-              aria-label="Go back"
+              aria-label={t("common.buttons.goBack")}
             >
               <ArrowLeft size={14} strokeWidth={2.5} />
             </button>
             <div className="min-w-0 flex-1 flex items-baseline gap-2 text-left">
-              <span className={cn("shrink-0", typography.h1.size, typography.h1.weight, colors.text.primary)}>
-                Memories
+              <span
+                className={cn(
+                  "shrink-0",
+                  typography.h1.size,
+                  typography.h1.weight,
+                  colors.text.primary,
+                )}
+              >
+                {t("common.nav.dynamicMemory")}
               </span>
               <span className={cn("truncate text-sm font-medium", colors.text.tertiary)}>
                 {session.name}
@@ -185,7 +188,7 @@ export function GroupChatMemoriesPage() {
                   "border-info/30 bg-info/15 text-info",
                 )}
               >
-                Processing
+                {t("common.labels.processing")}
               </div>
             )}
           </div>
@@ -221,7 +224,7 @@ export function GroupChatMemoriesPage() {
         {/* Error / Status Banners */}
         {(ui.actionError || ui.retryStatus !== "idle" || ui.memoryStatus === "processing") && (
           <div className="px-3 pt-3">
-            {(ui.retryStatus === "retrying" || ui.memoryStatus === "processing") ? (
+            {ui.retryStatus === "retrying" || ui.memoryStatus === "processing" ? (
               <div
                 className={cn(
                   radius.md,
@@ -304,305 +307,313 @@ export function GroupChatMemoriesPage() {
         )}
 
         <AnimatePresence mode="wait">
-        {ui.activeTab === "memories" ? (
-          <motion.div
-            key="memories"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className={cn("px-3 py-4", "space-y-5")}
-          >
-            {/* Context Summary - Tappable preview */}
-            <button
-              type="button"
-              onClick={() => setShowSummaryEditor(true)}
-              className={cn(
-                "w-full rounded-xl border border-accent/15 bg-accent/3 px-4 py-3 text-left",
-                "transition-all hover:border-accent/25 hover:bg-accent/5 active:scale-[0.99]",
-              )}
+          {ui.activeTab === "memories" ? (
+            <motion.div
+              key="memories"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className={cn("px-3 py-4", "space-y-5")}
             >
-              <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles size={13} className="text-accent/70 shrink-0" />
-                <span className="text-[11px] font-semibold text-accent/60 uppercase tracking-wider">
-                  Context Summary
-                </span>
-                {session?.memorySummaryTokenCount && session.memorySummaryTokenCount > 0 ? (
-                  <span className="text-[10px] text-fg/30 ml-auto">
-                    {session.memorySummaryTokenCount.toLocaleString()} tokens
-                  </span>
-                ) : null}
-              </div>
-              <p
+              {/* Context Summary - Tappable preview */}
+              <button
+                type="button"
+                onClick={() => setShowSummaryEditor(true)}
                 className={cn(
-                  typography.bodySmall.size,
-                  "leading-relaxed line-clamp-4 min-h-14",
-                  ui.summaryDraft
-                    ? "text-accent/70"
-                    : "text-accent/25 italic",
+                  "w-full rounded-xl border border-accent/15 bg-accent/3 px-4 py-3 text-left",
+                  "transition-all hover:border-accent/25 hover:bg-accent/5 active:scale-[0.99]",
                 )}
               >
-                {ui.summaryDraft || "Tap to add a context summary..."}
-              </p>
-            </button>
-
-            {/* Memories Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[12px] font-semibold uppercase tracking-wider text-fg/50">
-                  {ui.searchTerm.trim() ? `Results (${filteredMemories.length})` : "Saved Memories"}
-                </span>
-                <span className="text-[10px] text-fg/30 ml-auto">
-                  {stats.ai} AI · {stats.user} You
-                </span>
-              </div>
-
-              {/* Search + Add row */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="relative flex-1 min-w-0">
-                  <Search
-                    className={cn(
-                      "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4",
-                      colors.text.tertiary,
-                    )}
-                  />
-                  <input
-                    type="text"
-                    value={ui.searchTerm}
-                    onChange={(e) => dispatch({ type: "SET_SEARCH", value: e.target.value })}
-                    placeholder="Search memories..."
-                    className={cn(
-                      "w-full pl-10 pr-10 py-2.5",
-                      components.input.base,
-                      radius.lg,
-                      "text-sm text-fg placeholder-fg/40",
-                    )}
-                  />
-                  {ui.searchTerm.trim().length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => dispatch({ type: "CLEAR_SEARCH" })}
-                      className={cn(
-                        "absolute right-3 top-1/2 -translate-y-1/2",
-                        colors.text.tertiary,
-                        "hover:text-fg",
-                        interactive.transition.fast,
-                      )}
-                      aria-label="Clear search"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles size={13} className="text-accent/70 shrink-0" />
+                  <span className="text-[11px] font-semibold text-accent/60 uppercase tracking-wider">
+                    Context Summary
+                  </span>
+                  {session?.memorySummaryTokenCount && session.memorySummaryTokenCount > 0 ? (
+                    <span className="text-[10px] text-fg/30 ml-auto">
+                      {session.memorySummaryTokenCount.toLocaleString()} tokens
+                    </span>
+                  ) : null}
                 </div>
-                <button
-                  onClick={() => setShowAddMemoryMenu(true)}
+                <p
                   className={cn(
-                    "flex items-center justify-center shrink-0",
-                    "h-10.5 w-10.5 rounded-lg",
-                    "border border-fg/10 bg-fg/5",
-                    "text-fg/50",
-                    "hover:bg-fg/8 hover:text-fg/70",
-                    "transition-all active:scale-95",
+                    typography.bodySmall.size,
+                    "leading-relaxed line-clamp-4 min-h-14",
+                    ui.summaryDraft ? "text-accent/70" : "text-accent/25 italic",
                   )}
-                  aria-label="Add memory"
                 >
-                  <Plus size={18} />
-                </button>
-              </div>
+                  {ui.summaryDraft || "Tap to add a context summary..."}
+                </p>
+              </button>
 
-              {/* Memory List */}
-              {filteredMemories.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="flex flex-col items-center justify-center py-16"
-                >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5 mb-4">
-                    {ui.searchTerm ? (
-                      <Search className="h-7 w-7 text-fg/20" />
-                    ) : (
-                      <Bot className="h-7 w-7 text-fg/20" />
+              {/* Memories Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[12px] font-semibold uppercase tracking-wider text-fg/50">
+                    {ui.searchTerm.trim()
+                      ? `Results (${filteredMemories.length})`
+                      : "Saved Memories"}
+                  </span>
+                  <span className="text-[10px] text-fg/30 ml-auto">
+                    {stats.ai} AI · {stats.user} You
+                  </span>
+                </div>
+
+                {/* Search + Add row */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="relative flex-1 min-w-0">
+                    <Search
+                      className={cn(
+                        "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4",
+                        colors.text.tertiary,
+                      )}
+                    />
+                    <input
+                      type="text"
+                      value={ui.searchTerm}
+                      onChange={(e) => dispatch({ type: "SET_SEARCH", value: e.target.value })}
+                      placeholder="Search memories..."
+                      className={cn(
+                        "w-full pl-10 pr-10 py-2.5",
+                        components.input.base,
+                        radius.lg,
+                        "text-sm text-fg placeholder-fg/40",
+                      )}
+                    />
+                    {ui.searchTerm.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "CLEAR_SEARCH" })}
+                        className={cn(
+                          "absolute right-3 top-1/2 -translate-y-1/2",
+                          colors.text.tertiary,
+                          "hover:text-fg",
+                          interactive.transition.fast,
+                        )}
+                        aria-label="Clear search"
+                      >
+                        <X size={16} />
+                      </button>
                     )}
                   </div>
-                  <h3 className="mb-1 text-base font-semibold text-fg">
-                    {ui.searchTerm ? "No matching memories" : "No memories yet"}
-                  </h3>
-                  <p className="text-center text-sm text-fg/40 max-w-60">
-                    {ui.searchTerm
-                      ? "Try a different search term"
-                      : "Tap the Add button above to create one"}
-                  </p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  className="space-y-3"
-                  initial="hidden"
-                  animate="visible"
-                  variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
-                >
-                  <AnimatePresence>
-                  {filteredMemories.map((item) => {
-                    const expanded = ui.expandedMemories.has(item.index);
+                  <button
+                    onClick={() => setShowAddMemoryMenu(true)}
+                    className={cn(
+                      "flex items-center justify-center shrink-0",
+                      "h-10.5 w-10.5 rounded-lg",
+                      "border border-fg/10 bg-fg/5",
+                      "text-fg/50",
+                      "hover:bg-fg/8 hover:text-fg/70",
+                      "transition-all active:scale-95",
+                    )}
+                    aria-label="Add memory"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
 
-                    return (
-                      <motion.div
-                        key={item.id}
-                        layout
-                        variants={{
-                          hidden: { opacity: 0, y: 12 },
-                          visible: { opacity: 1, y: 0 },
-                        }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className={cn(
-                          "group relative overflow-hidden rounded-xl",
-                          "border",
-                          expanded
-                            ? "border-fg/10 bg-fg/2"
-                            : "border-fg/6 bg-fg/2 hover:border-fg/10 hover:bg-fg/3",
-                        )}
-                      >
-                        <div
-                          className="px-4 py-3 cursor-pointer"
-                          onClick={() => dispatch({ type: "TOGGLE_EXPANDED", index: item.index })}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              dispatch({ type: "TOGGLE_EXPANDED", index: item.index });
-                            }
-                          }}
-                        >
-                          {/* Top row: source icon + text + overflow */}
-                          <div className="flex items-start gap-2">
-                            <div className="shrink-0 mt-0.5">
-                              {item.isAi ? (
-                                <Bot size={14} className="text-info" />
-                              ) : (
-                                <User size={14} className="text-accent" />
-                              )}
-                            </div>
-                            <motion.div className="flex-1 min-w-0" layout>
-                              <p
-                                className={cn(
-                                  typography.bodySmall.size,
-                                  colors.text.secondary,
-                                  "leading-relaxed",
-                                  expanded ? "whitespace-pre-wrap" : "line-clamp-3",
-                                )}
-                              >
-                                {item.text}
-                              </p>
-                            </motion.div>
-                            {/* Overflow Button */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                dispatch({ type: "OPEN_MEMORY_ACTIONS", id: item.id });
-                              }}
-                              className={cn(
-                                "flex items-center justify-center shrink-0 p-2.5 -m-2 -mr-1",
-                                "rounded-lg text-fg/30",
-                                "transition-all hover:bg-fg/5 hover:text-fg/60",
-                                "active:scale-95",
-                              )}
-                              aria-label="Memory actions"
-                            >
-                              <EllipsisVertical size={16} />
-                            </button>
-                          </div>
+                {/* Memory List */}
+                {filteredMemories.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="flex flex-col items-center justify-center py-16"
+                  >
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5 mb-4">
+                      {ui.searchTerm ? (
+                        <Search className="h-7 w-7 text-fg/20" />
+                      ) : (
+                        <Bot className="h-7 w-7 text-fg/20" />
+                      )}
+                    </div>
+                    <h3 className="mb-1 text-base font-semibold text-fg">
+                      {ui.searchTerm ? "No matching memories" : "No memories yet"}
+                    </h3>
+                    <p className="text-center text-sm text-fg/40 max-w-60">
+                      {ui.searchTerm
+                        ? "Try a different search term"
+                        : "Tap the Add button above to create one"}
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    className="space-y-3"
+                    initial="hidden"
+                    animate="visible"
+                    variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
+                  >
+                    <AnimatePresence>
+                      {filteredMemories.map((item) => {
+                        const expanded = ui.expandedMemories.has(item.index);
 
-                          {/* Pin indicator */}
-                          {item.isPinned && (
-                            <div className="flex items-center justify-end mt-2">
-                              <Pin size={12} className="text-warning/60" />
-                            </div>
-                          )}
-
-                          {/* Expanded metadata */}
-                          <AnimatePresence>
-                            {expanded && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.15 }}
-                                className="overflow-hidden"
-                              >
-                                <div
-                                  className={cn(
-                                    "flex items-center gap-3 mt-2 pt-2 border-t border-fg/5",
-                                    "text-[10px] text-fg/30",
-                                  )}
-                                >
-                                  {item.tokenCount > 0 && (
-                                    <span>{item.tokenCount.toLocaleString()} tokens</span>
-                                  )}
-                                  {item.cycle && <span>Cycle {item.cycle}</span>}
-                                  {item.lastAccessedAt > 0 && (
-                                    <span>
-                                      Accessed {new Date(item.lastAccessedAt).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                  <span className={item.isCold ? "text-info/50" : "text-warning/50"}>
-                                    {item.isCold ? "Cold" : `Hot ${item.importanceScore.toFixed(1)}`}
-                                  </span>
-                                </div>
-                              </motion.div>
+                        return (
+                          <motion.div
+                            key={item.id}
+                            layout
+                            variants={{
+                              hidden: { opacity: 0, y: 12 },
+                              visible: { opacity: 1, y: 0 },
+                            }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className={cn(
+                              "group relative overflow-hidden rounded-xl",
+                              "border",
+                              expanded
+                                ? "border-fg/10 bg-fg/2"
+                                : "border-fg/6 bg-fg/2 hover:border-fg/10 hover:bg-fg/3",
                             )}
-                          </AnimatePresence>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="tools"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className={cn("px-3 py-4", "space-y-5")}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[12px] font-semibold uppercase tracking-wider text-fg/50">
-                Activity Log
-              </span>
-              <span className="text-[10px] text-fg/20 ml-auto">
-                {(session.memoryToolEvents?.length ?? 0).toLocaleString()} events
-              </span>
-              <button
-                onClick={handleRunMemoryCycle}
-                disabled={ui.retryStatus === "retrying" || ui.memoryStatus === "processing"}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
-                  "border border-fg/10 bg-fg/5",
-                  "text-[11px] font-semibold text-fg/50",
-                  "hover:bg-fg/8 hover:text-fg/70",
-                  "disabled:opacity-40 disabled:pointer-events-none",
-                  "transition-all active:scale-95",
+                          >
+                            <div
+                              className="px-4 py-3 cursor-pointer"
+                              onClick={() =>
+                                dispatch({ type: "TOGGLE_EXPANDED", index: item.index })
+                              }
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  dispatch({ type: "TOGGLE_EXPANDED", index: item.index });
+                                }
+                              }}
+                            >
+                              {/* Top row: source icon + text + overflow */}
+                              <div className="flex items-start gap-2">
+                                <div className="shrink-0 mt-0.5">
+                                  {item.isAi ? (
+                                    <Bot size={14} className="text-info" />
+                                  ) : (
+                                    <User size={14} className="text-accent" />
+                                  )}
+                                </div>
+                                <motion.div className="flex-1 min-w-0" layout>
+                                  <p
+                                    className={cn(
+                                      typography.bodySmall.size,
+                                      colors.text.secondary,
+                                      "leading-relaxed",
+                                      expanded ? "whitespace-pre-wrap" : "line-clamp-3",
+                                    )}
+                                  >
+                                    {item.text}
+                                  </p>
+                                </motion.div>
+                                {/* Overflow Button */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dispatch({ type: "OPEN_MEMORY_ACTIONS", id: item.id });
+                                  }}
+                                  className={cn(
+                                    "flex items-center justify-center shrink-0 p-2.5 -m-2 -mr-1",
+                                    "rounded-lg text-fg/30",
+                                    "transition-all hover:bg-fg/5 hover:text-fg/60",
+                                    "active:scale-95",
+                                  )}
+                                  aria-label="Memory actions"
+                                >
+                                  <EllipsisVertical size={16} />
+                                </button>
+                              </div>
+
+                              {/* Pin indicator */}
+                              {item.isPinned && (
+                                <div className="flex items-center justify-end mt-2">
+                                  <Pin size={12} className="text-warning/60" />
+                                </div>
+                              )}
+
+                              {/* Expanded metadata */}
+                              <AnimatePresence>
+                                {expanded && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div
+                                      className={cn(
+                                        "flex items-center gap-3 mt-2 pt-2 border-t border-fg/5",
+                                        "text-[10px] text-fg/30",
+                                      )}
+                                    >
+                                      {item.tokenCount > 0 && (
+                                        <span>{item.tokenCount.toLocaleString()} tokens</span>
+                                      )}
+                                      {item.cycle && <span>Cycle {item.cycle}</span>}
+                                      {item.lastAccessedAt > 0 && (
+                                        <span>
+                                          Accessed{" "}
+                                          {new Date(item.lastAccessedAt).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                      <span
+                                        className={item.isCold ? "text-info/50" : "text-warning/50"}
+                                      >
+                                        {item.isCold
+                                          ? "Cold"
+                                          : `Hot ${item.importanceScore.toFixed(1)}`}
+                                      </span>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </motion.div>
                 )}
-              >
-                <Cpu
-                  size={12}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="tools"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className={cn("px-3 py-4", "space-y-5")}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[12px] font-semibold uppercase tracking-wider text-fg/50">
+                  Activity Log
+                </span>
+                <span className="text-[10px] text-fg/20 ml-auto">
+                  {(session.memoryToolEvents?.length ?? 0).toLocaleString()} events
+                </span>
+                <button
+                  onClick={handleRunMemoryCycle}
+                  disabled={ui.retryStatus === "retrying" || ui.memoryStatus === "processing"}
                   className={cn(
-                    (ui.retryStatus === "retrying" || ui.memoryStatus === "processing") && "animate-pulse",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
+                    "border border-fg/10 bg-fg/5",
+                    "text-[11px] font-semibold text-fg/50",
+                    "hover:bg-fg/8 hover:text-fg/70",
+                    "disabled:opacity-40 disabled:pointer-events-none",
+                    "transition-all active:scale-95",
                   )}
-                />
-                Run
-              </button>
-            </div>
-            <ToolLog events={session.memoryToolEvents || []} />
-          </motion.div>
-        )}
+                >
+                  <Cpu
+                    size={12}
+                    className={cn(
+                      (ui.retryStatus === "retrying" || ui.memoryStatus === "processing") &&
+                        "animate-pulse",
+                    )}
+                  />
+                  Run
+                </button>
+              </div>
+              <ToolLog events={session.memoryToolEvents || []} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -636,7 +647,10 @@ export function GroupChatMemoriesPage() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                dispatch({ type: "SYNC_SUMMARY_FROM_SESSION", value: session?.memorySummary ?? "" });
+                dispatch({
+                  type: "SYNC_SUMMARY_FROM_SESSION",
+                  value: session?.memorySummary ?? "",
+                });
                 setShowSummaryEditor(false);
               }}
               className={cn(
@@ -821,7 +835,10 @@ export function GroupChatMemoriesPage() {
                     await handleTogglePin(selectedItem.index);
                     dispatch({ type: "SET_ACTION_ERROR", value: null });
                   } catch (err: any) {
-                    dispatch({ type: "SET_ACTION_ERROR", value: err?.message || "Failed to toggle pin" });
+                    dispatch({
+                      type: "SET_ACTION_ERROR",
+                      value: err?.message || "Failed to toggle pin",
+                    });
                   }
                   dispatch({ type: "CLOSE_MEMORY_ACTIONS" });
                 }}
@@ -849,7 +866,10 @@ export function GroupChatMemoriesPage() {
                     dispatch({ type: "SET_ACTION_ERROR", value: null });
                     dispatch({ type: "SHIFT_EXPANDED_AFTER_DELETE", index: selectedItem.index });
                   } catch (err: any) {
-                    dispatch({ type: "SET_ACTION_ERROR", value: err?.message || "Failed to remove memory" });
+                    dispatch({
+                      type: "SET_ACTION_ERROR",
+                      value: err?.message || "Failed to remove memory",
+                    });
                   }
                   dispatch({ type: "CLOSE_MEMORY_ACTIONS" });
                 }}

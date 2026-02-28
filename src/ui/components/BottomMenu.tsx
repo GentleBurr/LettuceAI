@@ -1,6 +1,7 @@
 import { motion, AnimatePresence, useDragControls, PanInfo } from "framer-motion";
 import { X, ChevronRight, LucideIcon, Loader2 } from "lucide-react";
 import { ReactNode, useCallback, useMemo, useEffect, useId, isValidElement } from "react";
+import { useI18n } from "../../core/i18n/context";
 
 const ICON_ACCENT_MAP: Record<string, string> = {
   "from-blue-500 to-blue-600":
@@ -60,13 +61,15 @@ export interface BottomMenuProps {
 export function BottomMenu({
   isOpen,
   onClose,
-  title = "Menu",
+  title,
   includeExitIcon = false,
   location = "bottom",
   children,
   className = "",
   rightAction,
 }: BottomMenuProps) {
+  const { t } = useI18n();
+  const resolvedTitle = title ?? t("components.bottomMenu.defaultTitle");
   const isBottomMenu = location === "bottom";
   const dragControls = useDragControls();
   const titleId = useId();
@@ -175,7 +178,7 @@ export function BottomMenu({
                   onPointerDown={handlePointerDown}
                   style={{ touchAction: "none" }}
                   className="flex h-8 w-28 items-center justify-center border-0 bg-transparent focus:outline-none"
-                  aria-label="Drag to close menu"
+                  aria-label={t("components.bottomMenu.dragTip")}
                 >
                   <span className="h-1 w-20 rounded-full bg-white/40" />
                 </button>
@@ -186,7 +189,7 @@ export function BottomMenu({
               className={`flex items-center justify-between px-6 ${isBottomMenu ? "pb-4" : "pt-4 pb-4"} shrink-0`}
             >
               <h3 id={titleId} className="text-lg font-semibold text-white">
-                {title}
+                {resolvedTitle}
               </h3>
               <div className="flex items-center gap-2">
                 {rightAction}
@@ -194,7 +197,7 @@ export function BottomMenu({
                   <button
                     className="flex items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white hover:bg-white/10 active:scale-95"
                     onClick={onClose}
-                    aria-label="Close menu"
+                    aria-label={t("components.bottomMenu.closeLabel")}
                   >
                     <X size={14} />
                   </button>
@@ -222,6 +225,7 @@ export function MenuButton({
   loading = false,
   rightElement,
 }: MenuButtonProps) {
+  const { t } = useI18n();
   const handleClick = useCallback(() => {
     if (!disabled && !loading) onClick();
   }, [disabled, loading, onClick]);
@@ -256,7 +260,7 @@ export function MenuButton({
         <div className="flex flex-1 items-center gap-2">
           <div className="flex-1">
             <h4 className="text-sm font-medium text-white group-hover:text-white">
-              {loading ? "Processing..." : title}
+              {loading ? t("components.bottomMenu.buttonProcessing") : title}
             </h4>
             {description && !loading && (
               <p className="mt-0.5 text-xs text-white/55">{description}</p>

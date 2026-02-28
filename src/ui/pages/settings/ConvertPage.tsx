@@ -11,6 +11,7 @@ import {
 } from "../../../core/storage/characterTransfer";
 import { generateExportFilename as generatePersonaFilename } from "../../../core/storage/personaTransfer";
 import { toast } from "../../components/toast";
+import { useI18n } from "../../../core/i18n/context";
 
 type UecKind = "character" | "persona";
 type DetectedKind = UecKind | "unknown";
@@ -34,6 +35,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function ConvertPage() {
+  const { t } = useI18n();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [converting, setConverting] = useState(false);
   const [convertedFilename, setConvertedFilename] = useState<string | null>(null);
@@ -182,9 +184,7 @@ export function ConvertPage() {
           <div className="rounded-2xl border border-fg/10 bg-fg/5 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className={cn(typography.body.size, "text-fg font-medium")}>
-                  Choose a file
-                </h3>
+                <h3 className={cn(typography.body.size, "text-fg font-medium")}>Choose a file</h3>
                 <p className={cn(typography.caption.size, "text-fg/50")}>
                   Supports legacy .json exports and existing Unified Entity Card (UEC) files.
                 </p>
@@ -199,7 +199,7 @@ export function ConvertPage() {
                 )}
               >
                 <Upload className="h-4 w-4" />
-                Browse
+                {t("common.buttons.browseFiles")}
                 <input
                   type="file"
                   accept="application/json,.json,.uec"
@@ -242,18 +242,14 @@ export function ConvertPage() {
               </div>
             ) : (
               <div className="mt-4 rounded-xl border border-dashed border-fg/15 bg-fg/5 px-4 py-6 text-center">
-                <p className={cn(typography.caption.size, "text-fg/40")}>
-                  No file selected yet
-                </p>
+                <p className={cn(typography.caption.size, "text-fg/40")}>No file selected yet</p>
               </div>
             )}
           </div>
 
           <div className="rounded-2xl border border-fg/10 bg-fg/5 p-4">
             <div>
-              <h3 className={cn(typography.body.size, "text-fg font-medium")}>
-                Output format
-              </h3>
+              <h3 className={cn(typography.body.size, "text-fg font-medium")}>Output format</h3>
               <p className={cn(typography.caption.size, "text-fg/50")}>
                 Choose how the converted file should be saved.
               </p>

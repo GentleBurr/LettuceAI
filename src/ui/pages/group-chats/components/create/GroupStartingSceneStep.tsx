@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Check, Copy } from "lucide-react";
+import { useI18n } from "../../../../../core/i18n/context";
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../../design-tokens";
 import type { Character } from "../../../../../core/storage/schemas";
 
@@ -40,6 +41,7 @@ export function GroupStartingSceneStep({
   creating,
   error,
 }: GroupStartingSceneStepProps) {
+  const { t } = useI18n();
   // Character autocomplete state
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteSearch, setAutocompleteSearch] = useState("");
@@ -154,11 +156,11 @@ export function GroupStartingSceneStep({
             <BookOpen className="h-4 w-4 text-secondary" />
           </div>
           <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-            Starting Scene
+            {t("groupChats.create.startingScene.title")}
           </h2>
         </div>
         <p className={cn(typography.body.size, "mt-2 text-fg/50")}>
-          Set the opening scenario for your roleplay
+          {t("groupChats.create.startingScene.subtitle")}
         </p>
       </div>
 
@@ -172,7 +174,7 @@ export function GroupStartingSceneStep({
             "uppercase text-fg/70",
           )}
         >
-          Scene Source
+          {t("groupChats.create.startingScene.sceneSource")}
         </label>
         <div className="flex gap-2">
           <button
@@ -187,7 +189,7 @@ export function GroupStartingSceneStep({
                 : "border-fg/15 bg-fg/5 text-fg/70 active:bg-fg/10",
             )}
           >
-            None
+            {t("groupChats.create.startingScene.none")}
           </button>
           <button
             onClick={() => onSceneSourceChange("custom")}
@@ -201,7 +203,7 @@ export function GroupStartingSceneStep({
                 : "border-fg/15 bg-fg/5 text-fg/70 active:bg-fg/10",
             )}
           >
-            Custom
+            {t("groupChats.create.startingScene.custom")}
           </button>
           <button
             onClick={() => onSceneSourceChange("character")}
@@ -217,15 +219,15 @@ export function GroupStartingSceneStep({
               availableScenes.length === 0 && "opacity-50 cursor-not-allowed",
             )}
           >
-            From Character
+            {t("groupChats.create.startingScene.fromCharacter")}
           </button>
         </div>
         <p className={cn(typography.bodySmall.size, "mt-2 text-fg/40")}>
           {sceneSource === "none"
-            ? "Start without a predefined scene"
+            ? t("groupChats.create.startingScene.noneDesc")
             : sceneSource === "custom"
-              ? "Write your own opening scenario"
-              : "Use a scene from one of your characters"}
+              ? t("groupChats.create.startingScene.customDesc")
+              : t("groupChats.create.startingScene.fromCharacterDesc")}
         </p>
       </div>
 
@@ -240,7 +242,7 @@ export function GroupStartingSceneStep({
               "uppercase text-fg/70",
             )}
           >
-            Scene Content
+            {t("groupChats.create.startingScene.sceneContent")}
           </label>
 
           {/* Character Autocomplete Popup - Above textarea */}
@@ -282,7 +284,7 @@ export function GroupStartingSceneStep({
             value={customScene}
             onChange={handleSceneInput}
             onKeyDown={handleSceneKeyDown}
-            placeholder="Describe the starting scene for this roleplay..."
+            placeholder={t("groupChats.create.startingScene.sceneContentPlaceholder")}
             rows={6}
             className={cn(
               "w-full px-4 py-3",
@@ -297,11 +299,7 @@ export function GroupStartingSceneStep({
           />
 
           <p className={cn(typography.bodySmall.size, "mt-2 text-fg/40")}>
-            Tip: Type{" "}
-            <code className="px-1.5 py-0.5 rounded bg-fg/10 text-secondary font-mono text-[10px]">
-              {`{{@"`}
-            </code>{" "}
-            to reference characters
+            {t("groupChats.create.startingScene.sceneReferenceTip")}
           </p>
         </div>
       )}
@@ -317,7 +315,7 @@ export function GroupStartingSceneStep({
               "uppercase text-fg/70",
             )}
           >
-            Select a Scene
+            {t("groupChats.create.startingScene.selectScene")}
           </label>
           <div className="space-y-2">
             {availableScenes.map((scene) => (
@@ -336,7 +334,7 @@ export function GroupStartingSceneStep({
                 >
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-sm font-medium text-fg/90">
-                      {scene.characterName}'s Scene
+                      {scene.characterName}{t("groupChats.create.startingScene.sceneLabel")}
                     </span>
                     {selectedCharacterSceneId === scene.sceneId && (
                       <Check size={14} className="text-accent" />
@@ -357,7 +355,7 @@ export function GroupStartingSceneStep({
                     )}
                   >
                     <Copy size={12} />
-                    Copy to Custom & Edit
+                    {t("groupChats.create.startingScene.copyToCustom")}
                   </button>
                 )}
               </div>
@@ -399,7 +397,7 @@ export function GroupStartingSceneStep({
               : "cursor-not-allowed border border-fg/5 bg-fg/5 text-fg/30",
           )}
         >
-          {creating ? "Creating..." : "Create Group Chat"}
+          {creating ? t("common.buttons.creating") : t("groupChats.create.groupSetup.createGroupChat")}
         </motion.button>
       </div>
     </motion.div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { User } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface PersonaPreview {
   id?: string;
@@ -22,10 +23,11 @@ export function PersonaPreviewCard({
   persona: PersonaPreview | null;
   sessionId?: string;
 }) {
+  const { t } = useI18n();
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
 
-  const title = persona?.title?.trim() || "Unnamed Persona";
-  const description = persona?.description?.trim() || "No description yet";
+  const title = persona?.title?.trim() || t("characters.personaPreview.unnamedPersona");
+  const description = persona?.description?.trim() || t("characters.personaPreview.noDescription");
   const avatarPath = persona?.avatarPath ?? null;
   const isDefault = persona?.isDefault ?? false;
 
@@ -89,7 +91,7 @@ export function PersonaPreviewCard({
             <div className="flex items-center gap-2 mt-1">
               {isDefault && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent/80">
-                  Default
+                  {t("characters.personaPreview.default")}
                 </span>
               )}
             </div>
@@ -97,7 +99,7 @@ export function PersonaPreviewCard({
         </div>
 
         <div className="mt-4">
-          <p className="text-xs text-fg/40 uppercase tracking-wider mb-1">Description</p>
+          <p className="text-xs text-fg/40 uppercase tracking-wider mb-1">{t("characters.personaPreview.description")}</p>
           <p className="text-sm text-fg/70 line-clamp-4">{description}</p>
         </div>
       </div>

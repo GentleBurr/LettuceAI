@@ -4,6 +4,7 @@ import type { ProviderCredential } from "../../../../core/storage/schemas";
 import { ModelConfigForm } from "../components/ConfigForm";
 import { getPlatform } from "../../../../core/utils/platform";
 import { getProviderIcon } from "../../../../core/utils/providerIcons";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ModelStepProps {
   providers: ProviderCredential[];
@@ -40,6 +41,7 @@ export function ModelStep({
   onGoBack,
   onShowRecommendations,
 }: ModelStepProps) {
+  const { t } = useI18n();
   const platform = getPlatform();
   const isDesktop = platform.type === "desktop";
   const showForm = Boolean(selectedCredential);
@@ -66,7 +68,7 @@ export function ModelStep({
       <div className="flex flex-1 items-center justify-center text-gray-300">
         <div className="flex items-center gap-3 text-sm">
           <Loader size={20} className="animate-spin" />
-          Loading providers...
+          {t("onboarding.loading")}
         </div>
       </div>
     );
@@ -79,16 +81,16 @@ export function ModelStep({
           <Settings size={26} />
         </div>
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-white">No providers configured</h2>
-          <p className="max-w-md text-sm text-gray-400">
-            You'll need to connect a provider before choosing a default model.
-          </p>
+          <h2 className="text-xl font-semibold text-white">
+            {t("onboarding.model.noProvidersTitle")}
+          </h2>
+          <p className="max-w-md text-sm text-gray-400">{t("onboarding.model.noProvidersDesc")}</p>
         </div>
         <button
           onClick={onGoBack}
           className="rounded-full border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/20"
         >
-          Go to provider setup
+          {t("onboarding.model.goToProviderSetup")}
         </button>
       </div>
     );

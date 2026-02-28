@@ -5,6 +5,7 @@ import { storageBridge } from "../../../core/storage/files";
 import { updateAdvancedSetting } from "../../../core/storage/advanced";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
+import { useI18n } from "../../../core/i18n/context";
 
 type Capacity = 1024 | 2048 | 4096;
 
@@ -15,6 +16,7 @@ const CAPACITY_OPTIONS: { value: Capacity; label: string; description: string }[
 ];
 
 export function EmbeddingDownloadPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo");
@@ -384,7 +386,7 @@ export function EmbeddingDownloadPage() {
                   }}
                   className="w-full py-2 text-sm text-fg/50 hover:text-fg/70 transition-colors"
                 >
-                  Cancel
+                  {t("common.buttons.cancel")}
                 </button>
               </div>
             </div>
@@ -496,9 +498,7 @@ export function EmbeddingDownloadPage() {
                       {testResults.scores.map((score, idx) => (
                         <div key={idx} className="rounded-lg border border-fg/10 bg-fg/5 p-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-fg/70">
-                              {score.pairName}
-                            </span>
+                            <span className="text-xs font-medium text-fg/70">{score.pairName}</span>
                             <span
                               className={`text-sm font-bold ${
                                 score.similarityScore > 0.6 ? "text-accent" : "text-warning"
@@ -507,9 +507,7 @@ export function EmbeddingDownloadPage() {
                               {score.similarityScore.toFixed(4)}
                             </span>
                           </div>
-                          <div className="mt-1 text-xs text-fg/50">
-                            Expected: {score.expected}
-                          </div>
+                          <div className="mt-1 text-xs text-fg/50">Expected: {score.expected}</div>
                         </div>
                       ))}
                     </div>
@@ -533,7 +531,7 @@ export function EmbeddingDownloadPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger/20 bg-danger/10 px-6 py-3 text-sm font-medium text-danger/80 transition hover:border-danger/30 hover:bg-danger/15"
             >
               <X className="h-4 w-4" />
-              Cancel Download
+              {t("common.buttons.cancel")}
             </button>
           )}
 

@@ -3,6 +3,7 @@ import { Cpu, ChevronDown, Check, Search, Loader2 } from "lucide-react";
 import { BottomMenu } from "./BottomMenu";
 import { cn, typography, interactive } from "../design-tokens";
 import type { Model } from "../../core/storage/schemas";
+import { useI18n } from "../../core/i18n/context";
 
 // Provider icons - matching the character settings
 function getProviderIcon(providerId: string) {
@@ -58,13 +59,16 @@ export function ModelSelectorButton({
   onSelect,
   loading = false,
   disabled = false,
-  placeholder = "Select a model",
+  placeholder: placeholderProp,
   allowClear = false,
-  clearLabel = "Use global default",
+  clearLabel: clearLabelProp,
   label,
   description,
   className,
 }: ModelSelectorButtonProps) {
+  const { t } = useI18n();
+  const placeholder = placeholderProp ?? t("components.modelSelector.placeholder");
+  const clearLabel = clearLabelProp ?? t("components.modelSelector.clearLabel");
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -113,7 +117,7 @@ export function ModelSelectorButton({
         )}
         <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
           <Loader2 className="h-4 w-4 animate-spin text-white/50" />
-          <span className={cn(typography.body.size, "text-white/50")}>Loading models...</span>
+          <span className={cn(typography.body.size, "text-white/50")}>{t("components.modelSelector.loading")}</span>
         </div>
       </div>
     );
@@ -128,9 +132,9 @@ export function ModelSelectorButton({
           </label>
         )}
         <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3">
-          <p className={cn(typography.body.size, "text-amber-200/90")}>No models available</p>
+          <p className={cn(typography.body.size, "text-amber-200/90")}>{t("components.modelSelector.noModels")}</p>
           <p className={cn(typography.bodySmall.size, "mt-1 text-amber-200/60")}>
-            Add a provider in settings first
+            {t("components.modelSelector.addProviderFirst")}
           </p>
         </div>
       </div>
@@ -193,7 +197,7 @@ export function ModelSelectorButton({
           setIsOpen(false);
           setSearchQuery("");
         }}
-        title="Select Model"
+        title={t("components.modelSelector.title")}
       >
         <div className="space-y-4">
           {/* Search */}
@@ -203,7 +207,7 @@ export function ModelSelectorButton({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search models..."
+              placeholder={t("components.modelSelector.searchPlaceholder")}
               className={cn(
                 "w-full rounded-xl border border-white/10 bg-black/30",
                 "px-4 py-2.5 pl-10 text-sm text-white placeholder-white/40",
@@ -274,8 +278,8 @@ export function ModelSelectorButton({
             {/* No results */}
             {filteredModels.length === 0 && (
               <div className="py-8 text-center">
-                <p className="text-sm text-white/50">No models found</p>
-                <p className="text-xs text-white/30 mt-1">Try a different search term</p>
+                <p className="text-sm text-white/50">{t("components.modelSelector.noResults")}</p>
+                <p className="text-xs text-white/30 mt-1">{t("components.modelSelector.noResultsHint")}</p>
               </div>
             )}
           </div>

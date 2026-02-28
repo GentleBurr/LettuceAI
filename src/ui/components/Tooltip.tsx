@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp } from "lucide-react";
 import { hasSeenTooltip, setTooltipSeen } from "../../core/storage/appState";
+import { useI18n } from "../../core/i18n/context";
 
 interface TooltipProps {
   isVisible: boolean;
@@ -18,6 +19,7 @@ export function Tooltip({
   position = "top",
   className = "" 
 }: TooltipProps) {
+  const { t } = useI18n();
   const [shouldShow, setShouldShow] = useState(false);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function Tooltip({
               
               {/* Dismiss hint */}
               <div className="mt-3 pt-3 border-t border-white/20">
-                <p className="text-xs text-indigo-100">Tap anywhere to dismiss</p>
+                <p className="text-xs text-indigo-100">{t("components.tooltip.dismissHint")}</p>
               </div>
             </div>
           </motion.div>

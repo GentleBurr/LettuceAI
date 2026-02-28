@@ -7,6 +7,7 @@ import { useAvatar } from "../../../hooks/useAvatar";
 import { listen } from "@tauri-apps/api/event";
 import { Routes } from "../../../navigation";
 import { cn } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ChatHeaderProps {
   character: Character;
@@ -39,6 +40,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   const navigate = useNavigate();
   const { characterId } = useParams<{ characterId: string }>();
+  const { t } = useI18n();
   const avatarUrl = useAvatar(
     swapPlaces ? "persona" : "character",
     swapPlaces ? persona?.id : character?.id,
@@ -150,7 +152,7 @@ export function ChatHeader({
           <button
             onClick={() => navigate("/chat")}
             className="flex px-[0.6em] py-[0.3em] shrink-0 items-center justify-center -ml-2 text-white transition hover:text-white/80"
-            aria-label="Back"
+            aria-label={t("chats.header.back")}
           >
             <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
@@ -161,7 +163,7 @@ export function ChatHeader({
               navigate(Routes.chatSettingsSession(characterId, sessionId));
             }}
             className="min-w-0 flex-1 text-left truncate text-xl font-bold text-white/90 p-0 hover:opacity-80 transition-opacity"
-            aria-label="Open chat settings"
+            aria-label={t("chats.header.openSettings")}
           >
             {headerTitle}
           </button>
@@ -187,7 +189,7 @@ export function ChatHeader({
                       );
                     }}
                     className="relative flex px-[0.6em] py-[0.3em] h-10 w-10 items-center justify-center text-white/80 transition hover:text-white"
-                    aria-label="Manage memories"
+                    aria-label={t("chats.header.manageMemories")}
                   >
                     {isBusy ? (
                       <Loader2
@@ -217,7 +219,7 @@ export function ChatHeader({
                   navigate(Routes.chatSearch(characterId, sessionId));
                 }}
                 className="flex items-center px-[0.6em] py-[0.3em] justify-center text-white/80 transition hover:text-white"
-                aria-label="Search messages"
+                aria-label={t("chats.header.searchMessages")}
               >
                 <Search size={18} strokeWidth={2.5} />
               </button>
@@ -230,7 +232,7 @@ export function ChatHeader({
                 navigate(Routes.characterLorebook(characterId));
               }}
               className="flex items-center px-[0.6em] py-[0.3em] justify-center text-white/80 transition hover:text-white"
-              aria-label="Manage lorebooks"
+              aria-label={t("chats.header.manageLorebooks")}
             >
               <BookOpen size={18} strokeWidth={2.5} />
             </button>
@@ -249,7 +251,7 @@ export function ChatHeader({
                 minHeight: "36px",
                 flexShrink: 0,
               }}
-              aria-label="Conversation settings"
+              aria-label={t("chats.header.conversationSettings")}
             >
               {avatarImageUrl ? (
                 <AvatarImage

@@ -9,6 +9,7 @@ import { SettingsStep } from "./steps/SettingsStep";
 import { readSettings } from "../../../core/storage/repo";
 import { useNavigationManager } from "../../navigation";
 import type { ProviderCredential } from "../../../core/storage/schemas";
+import { useI18n } from "../../../core/i18n/context";
 
 const STEP_ORDER = ["welcome", "providers", "settings", "done"] as const;
 
@@ -34,6 +35,7 @@ function StepIndicator({ current }: { current: number }) {
 export function EngineSetupWizard() {
   const { credentialId } = useParams<{ credentialId: string }>();
   const { back } = useNavigationManager();
+  const { t } = useI18n();
   const [credential, setCredential] = useState<ProviderCredential | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,12 +68,12 @@ export function EngineSetupWizard() {
   if (!credential) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-        <p className="text-sm text-white/60">Engine provider not found.</p>
+        <p className="text-sm text-white/60">{t("engine.errors.providerNotFound")}</p>
         <button
           onClick={back}
           className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10"
         >
-          Go Back
+          {t("common.buttons.goBack")}
         </button>
       </div>
     );
@@ -81,6 +83,7 @@ export function EngineSetupWizard() {
 }
 
 function WizardInner({ credential }: { credential: ProviderCredential }) {
+  const { t } = useI18n();
   const baseUrl = credential.baseUrl || "";
   const apiKey = credential.apiKey || "";
 
@@ -137,15 +140,15 @@ function WizardInner({ credential }: { credential: ProviderCredential }) {
             <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-emerald-400/30 bg-emerald-500/15">
               <Check className="h-10 w-10 text-emerald-300" />
             </div>
-            <h2 className="mt-6 text-xl font-bold text-white">Setup Complete!</h2>
+            <h2 className="mt-6 text-xl font-bold text-white">{t("engine.setup.complete")}</h2>
             <p className="mt-2 text-center text-sm text-white/60">
-              Your Lettuce Engine is configured and ready to go.
+              {t("engine.setup.completeMessage")}
             </p>
             <button
               onClick={finishWizard}
               className="mt-8 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-8 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-400/60 hover:bg-emerald-500/30 active:scale-[0.98]"
             >
-              Open Dashboard
+              {t("engine.setup.openDashboard")}
             </button>
           </div>
         )}

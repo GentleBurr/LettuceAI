@@ -2,6 +2,7 @@ import { useEffect, useState, memo, useRef } from "react";
 import { Rocket, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { useI18n } from "../../../../../core/i18n/context";
 import type { GroupSessionPreview, Character } from "../../../../../core/storage/schemas";
 import { typography, radius, spacing, interactive, cn } from "../../../../design-tokens";
 import { useAvatar } from "../../../../hooks/useAvatar";
@@ -75,6 +76,7 @@ export function GroupSessionSkeleton() {
 }
 
 export function EmptyState() {
+  const { t } = useI18n();
   const rocket = useRocketEasterEgg();
   return (
     <div
@@ -95,11 +97,10 @@ export function EmptyState() {
       <div className={spacing.field}>
         <Users className="mx-auto h-12 w-12 text-fg/30 mb-4" />
         <h3 className={cn(typography.h3.size, typography.h3.weight, "text-fg")}>
-          No group chats yet
+          {t("groupChats.list.noGroupChatsYet")}
         </h3>
         <p className={cn(typography.body.size, typography.body.lineHeight, "text-fg/50")}>
-          Create your first group chat from the + button below to have conversations with multiple
-          characters at once
+          {t("groupChats.list.noGroupChatsDesc")}
         </p>
       </div>
     </div>

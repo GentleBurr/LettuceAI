@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getEmbeddingModelInfo } from "../../core/storage/repo";
+import { useI18n } from "../../core/i18n/context";
 
 /**
  * A toast that appears once on app launch if v1 embedding model is detected.
  * Prompts user to upgrade to v3.
  */
 export function V1UpgradeToast() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -63,10 +65,10 @@ export function V1UpgradeToast() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="font-semibold text-amber-200 text-sm">
-                      Memory Model v3 Available
+                      {t("components.v1UpgradeToast.title")}
                     </h3>
                     <p className="mt-1 text-xs text-amber-200/70">
-                      Upgrade for better memory quality and long-context support.
+                      {t("components.v1UpgradeToast.message")}
                     </p>
                   </div>
                   <button
@@ -82,14 +84,14 @@ export function V1UpgradeToast() {
                     onClick={handleUpgrade}
                     className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-black transition-all hover:bg-amber-400"
                   >
-                    Upgrade
+                    {t("components.v1UpgradeToast.upgrade")}
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={handleDismiss}
                     className="px-3 py-1.5 text-xs text-amber-200/60 hover:text-amber-200 transition-colors"
                   >
-                    Later
+                    {t("components.v1UpgradeToast.dismiss")}
                   </button>
                 </div>
               </div>

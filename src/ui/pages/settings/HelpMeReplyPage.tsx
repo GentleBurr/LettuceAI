@@ -15,10 +15,12 @@ import type { Model } from "../../../core/storage/schemas";
 import { cn, colors } from "../../design-tokens";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { BottomMenu } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 type ReplyStyle = "conversational" | "roleplay";
 
 export function HelpMeReplyPage() {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
   const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
@@ -139,7 +141,7 @@ export function HelpMeReplyPage() {
             {/* Left Column - Model Configuration */}
             <div className="space-y-4">
               <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
-                Model Configuration
+                {t("helpMeReply.sectionTitles.modelConfiguration")}
               </h3>
 
               {/* Model Selector */}
@@ -273,7 +275,7 @@ export function HelpMeReplyPage() {
             {/* Right Column - Response Style */}
             <div className="space-y-4">
               <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
-                Response Style
+                {t("helpMeReply.sectionTitles.responseStyle")}
               </h3>
 
               <div className="grid grid-cols-2 gap-3">
@@ -309,10 +311,10 @@ export function HelpMeReplyPage() {
                         replyStyle === "conversational" ? "text-accent/90" : "text-fg/70",
                       )}
                     >
-                      Conversational
+                      {t("helpMeReply.responseStyle.conversational")}
                     </span>
                     <span className="text-[10px] text-fg/40 mt-1 block">
-                      Natural, casual tone
+                      {t("helpMeReply.responseStyle.conversationalDesc")}
                     </span>
                   </div>
                   {replyStyle === "conversational" && (
@@ -354,10 +356,10 @@ export function HelpMeReplyPage() {
                         replyStyle === "roleplay" ? "text-danger" : "text-fg/70",
                       )}
                     >
-                      Roleplay
+                      {t("helpMeReply.responseStyle.roleplay")}
                     </span>
                     <span className="text-[10px] text-fg/40 mt-1 block">
-                      In-character actions
+                      {t("helpMeReply.responseStyle.roleplayDesc")}
                     </span>
                   </div>
                   {replyStyle === "roleplay" && (

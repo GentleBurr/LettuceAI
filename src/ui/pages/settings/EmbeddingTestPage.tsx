@@ -15,6 +15,7 @@ import {
 import { storageBridge } from "../../../core/storage/files";
 import { cn, interactive } from "../../design-tokens";
 import { listen } from "@tauri-apps/api/event";
+import { useI18n } from "../../../core/i18n/context";
 
 type TestStatus = "idle" | "testing" | "passed" | "failed";
 
@@ -231,6 +232,7 @@ function TestResultCard({
 }
 
 export function EmbeddingTestPage() {
+  const { t } = useI18n();
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [testResults, setTestResults] = useState<TestResults | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -399,14 +401,14 @@ export function EmbeddingTestPage() {
                 <div className="flex items-center gap-4 mt-2 mb-3">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle className="h-4 w-4 text-accent/80" />
-                    <span className="text-sm text-accent/80 font-medium">
-                      {passedCount} passed
-                    </span>
+                    <span className="text-sm text-accent/80 font-medium">{passedCount} passed</span>
                   </div>
                   {failedCount > 0 && (
                     <div className="flex items-center gap-1.5">
                       <XCircle className="h-4 w-4 text-danger/80" />
-                      <span className="text-sm text-danger/80 font-medium">{failedCount} failed</span>
+                      <span className="text-sm text-danger/80 font-medium">
+                        {failedCount} failed
+                      </span>
                     </div>
                   )}
                 </div>
@@ -453,7 +455,7 @@ export function EmbeddingTestPage() {
                   )}
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Run Tests Again
+                  {t("common.buttons.retry")}
                 </button>
               )}
             </div>

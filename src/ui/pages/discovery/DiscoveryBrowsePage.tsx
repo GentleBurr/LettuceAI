@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, TrendingUp, Flame, Clock, AlertCircle, ArrowUpDown, Check } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
 import { resolveBackTarget, Routes, useNavigationManager } from "../../navigation";
 import {
@@ -21,49 +22,50 @@ interface SectionConfig {
   defaultSort: SortOption;
 }
 
-const SECTION_CONFIGS: Record<CardType, SectionConfig> = {
-  trending: {
-    title: "Trending",
-    subtitle: "Hot this week",
-    icon: TrendingUp,
-    accentColor: "from-accent to-accent/80",
-    defaultSort: "updated",
-  },
-  popular: {
-    title: "Popular",
-    subtitle: "Community favorites",
-    icon: Flame,
-    accentColor: "from-accent/80 to-accent/80",
-    defaultSort: "likes",
-  },
-  newest: {
-    title: "New Arrivals",
-    subtitle: "Fresh characters",
-    icon: Clock,
-    accentColor: "from-accent to-info/80",
-    defaultSort: "created",
-  },
-};
-
 interface SortOptionItem {
   value: SortOption;
   label: string;
 }
 
-const SORT_OPTIONS: SortOptionItem[] = [
-  { value: "likes", label: "Most Liked" },
-  { value: "downloads", label: "Most Downloaded" },
-  { value: "views", label: "Most Viewed" },
-  { value: "messages", label: "Most Messages" },
-  { value: "created", label: "Newest First" },
-  { value: "updated", label: "Recently Updated" },
-  { value: "name", label: "Name (A-Z)" },
-];
-
 export function DiscoveryBrowsePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const { t } = useI18n();
+
+  const SECTION_CONFIGS: Record<CardType, SectionConfig> = {
+    trending: {
+      title: t("discovery.tabs.trending"),
+      subtitle: t("discovery.sections.trendingSubtitle"),
+      icon: TrendingUp,
+      accentColor: "from-accent to-accent/80",
+      defaultSort: "updated",
+    },
+    popular: {
+      title: t("discovery.tabs.popular"),
+      subtitle: t("discovery.sections.popularSubtitle"),
+      icon: Flame,
+      accentColor: "from-accent/80 to-accent/80",
+      defaultSort: "likes",
+    },
+    newest: {
+      title: t("discovery.browse.newArrivals"),
+      subtitle: t("discovery.browse.freshCharacters"),
+      icon: Clock,
+      accentColor: "from-accent to-info/80",
+      defaultSort: "created",
+    },
+  };
+
+  const SORT_OPTIONS: SortOptionItem[] = [
+    { value: "likes", label: t("discovery.sort.mostLiked") },
+    { value: "downloads", label: t("discovery.sort.mostDownloaded") },
+    { value: "views", label: t("discovery.sort.mostViewed") },
+    { value: "messages", label: t("discovery.sort.mostMessages") },
+    { value: "created", label: t("discovery.sort.newestFirst") },
+    { value: "updated", label: t("discovery.sort.recentlyUpdated") },
+    { value: "name", label: t("discovery.sort.nameAZ") },
+  ];
   const [searchParams] = useSearchParams();
 
   const sectionParam = searchParams.get("section") as CardType | null;
@@ -120,7 +122,7 @@ export function DiscoveryBrowsePage() {
     setShowSortMenu(false);
   };
 
-  const currentSortLabel = SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label || "Sort";
+  const currentSortLabel = SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label || t("discovery.sortBy");
 
   return (
     <div className="flex h-full flex-col bg-surface">
@@ -143,7 +145,7 @@ export function DiscoveryBrowsePage() {
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Go back"
+              aria-label={t("common.buttons.goBack")}
             >
               <ArrowLeft size={20} strokeWidth={2.5} />
             </button>
@@ -176,7 +178,7 @@ export function DiscoveryBrowsePage() {
         {/* Results count */}
         {!loading && cards.length > 0 && (
           <div className="mx-auto mt-3 max-w-md px-4 lg:max-w-none lg:px-8">
-            <p className="text-xs text-fg/50">{cards.length} characters</p>
+            <p className="text-xs text-fg/50">{cards.length} {t("discovery.resultsUnit")}</p>
           </div>
         )}
       </header>
@@ -198,13 +200,13 @@ export function DiscoveryBrowsePage() {
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-danger/30 bg-danger/10">
               <AlertCircle className="h-8 w-8 text-danger" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-fg">Something went wrong</h3>
+            <h3 className="mb-2 text-lg font-semibold text-fg">{t("discovery.errorTitle")}</h3>
             <p className="mb-6 text-center text-sm text-fg/50">{error}</p>
             <button
               onClick={loadCards}
               className="flex items-center gap-2 rounded-xl border border-fg/20 bg-fg/10 px-5 py-2.5 text-sm font-medium text-fg transition-all hover:bg-fg/15 active:scale-95"
             >
-              Try Again
+              {t("common.buttons.retry")}
             </button>
           </motion.div>
         )}
@@ -238,14 +240,14 @@ export function DiscoveryBrowsePage() {
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5">
               <config.icon className="h-8 w-8 text-fg/30" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-fg">No characters found</h3>
-            <p className="text-sm text-fg/50">Check back later for new content</p>
+            <h3 className="mb-2 text-lg font-semibold text-fg">{t("discovery.browse.noCharactersFound")}</h3>
+            <p className="text-sm text-fg/50">{t("discovery.browse.noCharactersSubtitle")}</p>
           </div>
         )}
       </main>
 
       {/* Sort Menu */}
-      <BottomMenu isOpen={showSortMenu} onClose={() => setShowSortMenu(false)} title="Sort By">
+      <BottomMenu isOpen={showSortMenu} onClose={() => setShowSortMenu(false)} title={t("discovery.sortBy")}>
         <div className="space-y-1">
           {SORT_OPTIONS.map((option) => {
             const isSelected = sortBy === option.value;

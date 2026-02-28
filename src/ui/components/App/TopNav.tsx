@@ -339,14 +339,14 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
   const ensureUnsavedToast = useCallback(() => {
     if (!toast.isVisible("unsaved-changes")) {
       toast.warningSticky(
-        "Unsaved changes",
-        "Save or discard your changes before leaving.",
-        "Discard",
+        t("topNav.unsavedChangesTitle"),
+        t("topNav.unsavedChangesMessage"),
+        t("common.buttons.discard"),
         () => window.dispatchEvent(new CustomEvent("unsaved:discard")),
         "unsaved-changes",
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isUnsaved) {
@@ -452,7 +452,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                     interactive.transition.fast,
                     interactive.active.scale,
                   )}
-                  aria-label="Go back"
+                  aria-label={t("topNav.goBack")}
                 >
                   <ArrowLeft size={20} strokeWidth={2.5} />
                 </motion.button>
@@ -485,7 +485,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Change layout"
+              aria-label={t("topNav.changeLayout")}
             >
               <LayoutToggleIcon size={20} strokeWidth={2.5} className="text-fg" />
             </button>
@@ -499,7 +499,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Search"
+              aria-label={t("topNav.search")}
             >
               <Search size={20} strokeWidth={2.5} className="text-fg" />
             </button>
@@ -513,7 +513,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Settings"
+              aria-label={t("topNav.settings")}
             >
               <Settings size={20} strokeWidth={2.5} className="text-fg" />
             </button>
@@ -527,7 +527,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Help"
+              aria-label={t("topNav.help")}
             >
               <HelpCircle size={20} strokeWidth={2.5} className="text-fg/50" />
             </button>
@@ -541,7 +541,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Add"
+              aria-label={t("topNav.add")}
             >
               <Plus size={20} strokeWidth={2.5} className="text-fg" />
             </button>
@@ -555,7 +555,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                 interactive.transition.fast,
                 interactive.active.scale,
               )}
-              aria-label="Open filters"
+              aria-label={t("topNav.openFilters")}
             >
               <Filter size={20} strokeWidth={2.5} className="text-fg" />
             </button>
@@ -597,10 +597,10 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
                   ? "bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30"
                   : "bg-fg/5 border border-fg/10 text-fg/40 cursor-not-allowed",
               )}
-              aria-label="Save"
+              aria-label={t("topNav.save")}
             >
               {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              <span className="text-xs font-medium">Save</span>
+              <span className="text-xs font-medium">{t("topNav.save")}</span>
             </button>
           )}
           {rightAction}

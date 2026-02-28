@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BottomMenu } from "./BottomMenu";
 import { cn, radius } from "../design-tokens";
+import { useI18n } from "../../core/i18n/context";
 
 type ConfirmOptions = {
   title: string;
@@ -28,6 +29,7 @@ export function confirmBottomMenu(options: ConfirmOptions): Promise<boolean> {
 }
 
 export function ConfirmBottomMenuHost() {
+  const { t } = useI18n();
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
   useEffect(() => {
@@ -45,14 +47,14 @@ export function ConfirmBottomMenuHost() {
   };
 
   const options = request?.options;
-  const confirmLabel = options?.confirmLabel ?? "Confirm";
-  const cancelLabel = options?.cancelLabel ?? "Cancel";
+  const confirmLabel = options?.confirmLabel ?? t("components.confirmDialog.defaultLabel");
+  const cancelLabel = options?.cancelLabel ?? t("common.buttons.cancel");
 
   return (
     <BottomMenu
       isOpen={Boolean(request)}
       onClose={() => close(false)}
-      title={options?.title ?? "Confirm"}
+      title={options?.title ?? t("components.confirmDialog.defaultTitle")}
     >
       <div className="space-y-4">
         <p className="text-sm text-white/70">{options?.message}</p>

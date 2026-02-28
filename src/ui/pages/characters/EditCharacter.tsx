@@ -31,6 +31,7 @@ import { BackgroundPositionModal } from "../../components/BackgroundPositionModa
 import { CharacterExportMenu } from "../../components/CharacterExportMenu";
 import { cn, radius, colors, interactive } from "../../design-tokens";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
+import { useI18n } from "../../../core/i18n/context";
 import type { CharacterFileFormat } from "../../../core/storage/characterTransfer";
 import {
   listAudioProviders,
@@ -49,6 +50,7 @@ const wordCount = (text: string) => {
 };
 
 export function EditCharacterPage() {
+  const { t } = useI18n();
   const { characterId } = useParams();
   const navigate = useNavigate();
   const { state, actions, computed } = useEditCharacterForm(characterId);
@@ -297,13 +299,13 @@ export function EditCharacterPage() {
                         setFields({ avatarPath: "", avatarCrop: null, avatarRoundPath: null })
                       }
                       className="absolute -top-1 -left-1 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-fg/10 bg-surface-el text-fg/60 transition hover:bg-danger/80 hover:border-danger/50 hover:text-fg active:scale-95"
-                      aria-label="Remove avatar"
+                      aria-label={t("common.buttons.remove")}
                     >
                       <X size={14} strokeWidth={2.5} />
                     </button>
                   )}
                 </div>
-                <p className="mt-3 text-xs text-fg/40">Tap to add or generate avatar</p>
+                <p className="mt-3 text-xs text-fg/40">{t("common.buttons.add")}</p>
               </div>
 
               {/* Name Input */}
@@ -710,20 +712,17 @@ export function EditCharacterPage() {
                   <span>{wordCount(definition)} words</span>
                 </div>
                 <div className="rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-3">
-                  <div className="text-[11px] font-medium text-warning">
-                    Available Placeholders
-                  </div>
+                  <div className="text-[11px] font-medium text-warning">Available Placeholders</div>
                   <div className="mt-2 space-y-1 text-xs text-fg/60">
                     <div>
                       <code className="text-accent">{"{{char}}"}</code> - Character name
                     </div>
                     <div>
-                      <code className="text-accent">{"{{user}}"}</code> - Persona name
-                      (preferred, empty if none)
+                      <code className="text-accent">{"{{user}}"}</code> - Persona name (preferred,
+                      empty if none)
                     </div>
                     <div>
-                      <code className="text-accent">{"{{persona}}"}</code> - Persona name
-                      (alias)
+                      <code className="text-accent">{"{{persona}}"}</code> - Persona name (alias)
                     </div>
                   </div>
                 </div>
@@ -760,18 +759,14 @@ export function EditCharacterPage() {
                             exit={{ opacity: 0, scale: 0.9, x: -20 }}
                             transition={{ duration: 0.15 }}
                             className={`overflow-hidden rounded-xl border ${
-                              isDefault
-                                ? "border-accent/40 bg-accent/10"
-                                : "border-fg/15 bg-fg/8"
+                              isDefault ? "border-accent/40 bg-accent/10" : "border-fg/15 bg-fg/8"
                             }`}
                           >
                             {/* Scene Header - clickable to expand/collapse */}
                             <button
                               onClick={() => setExpandedSceneId(isExpanded ? null : scene.id)}
                               className={`flex w-full items-center gap-2 border-b px-3.5 py-2.5 text-left ${
-                                isDefault
-                                  ? "border-accent/30 bg-accent/15"
-                                  : "border-fg/15 bg-fg/8"
+                                isDefault ? "border-accent/30 bg-accent/15" : "border-fg/15 bg-fg/8"
                               }`}
                             >
                               {/* Scene number badge */}
@@ -946,15 +941,11 @@ export function EditCharacterPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate(`/settings/characters/${characterId}/templates`)
-                  }
+                  onClick={() => navigate(`/settings/characters/${characterId}/templates`)}
                   className="flex w-full items-center gap-3 rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-left transition active:bg-surface-el/40"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-fg">
-                      Manage Templates
-                    </div>
+                    <div className="text-sm font-medium text-fg">Manage Templates</div>
                     <p className="mt-0.5 text-xs text-fg/50">
                       {(chatTemplates?.length ?? 0) > 0
                         ? `${chatTemplates?.length} template${(chatTemplates?.length ?? 0) !== 1 ? "s" : ""} — multi-message conversation starters`
@@ -999,9 +990,7 @@ export function EditCharacterPage() {
                       ) : (
                         <Cpu className="h-5 w-5 text-fg/40" />
                       )}
-                      <span
-                        className={`text-sm ${selectedModelId ? "text-fg" : "text-fg/50"}`}
-                      >
+                      <span className={`text-sm ${selectedModelId ? "text-fg" : "text-fg/50"}`}>
                         {selectedModelId
                           ? models.find((m) => m.id === selectedModelId)?.displayName ||
                             "Selected Model"
@@ -1130,9 +1119,7 @@ export function EditCharacterPage() {
                   >
                     <div className="flex items-center gap-2">
                       <Volume2 className="h-5 w-5 text-fg/40" />
-                      <span
-                        className={`text-sm ${voiceSelectionValue ? "text-fg" : "text-fg/50"}`}
-                      >
+                      <span className={`text-sm ${voiceSelectionValue ? "text-fg" : "text-fg/50"}`}>
                         {voiceSelectionValue
                           ? (() => {
                               if (voiceConfig?.source === "user") {
@@ -1213,7 +1200,9 @@ export function EditCharacterPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate(`/settings/accessibility/chat?characterId=${characterId}`)}
+                  onClick={() =>
+                    navigate(`/settings/accessibility/chat?characterId=${characterId}`)
+                  }
                   className={cn(
                     "group flex w-full items-center justify-between rounded-xl border px-3.5 py-3",
                     "border-fg/10 bg-surface-el/20",
@@ -1249,7 +1238,11 @@ export function EditCharacterPage() {
                         : "border-fg/15 bg-surface-el/20 hover:border-fg/20 hover:bg-surface-el/30"
                     }`}
                   >
-                    <p className={`text-sm font-semibold ${memoryType === "manual" ? "text-fg" : "text-fg/70"}`}>Manual Memory</p>
+                    <p
+                      className={`text-sm font-semibold ${memoryType === "manual" ? "text-fg" : "text-fg/70"}`}
+                    >
+                      Manual Memory
+                    </p>
                     <p className="mt-1 text-xs text-fg/50">
                       Manage notes yourself (current system).
                     </p>
@@ -1264,7 +1257,11 @@ export function EditCharacterPage() {
                         : "border-fg/15 bg-surface-el/15"
                     } ${!dynamicMemoryEnabled ? "cursor-not-allowed opacity-50" : "hover:border-fg/20 hover:bg-surface-el/25"}`}
                   >
-                    <p className={`text-sm font-semibold ${memoryType === "dynamic" && dynamicMemoryEnabled ? "text-fg" : "text-fg/70"}`}>Dynamic Memory</p>
+                    <p
+                      className={`text-sm font-semibold ${memoryType === "dynamic" && dynamicMemoryEnabled ? "text-fg" : "text-fg/70"}`}
+                    >
+                      Dynamic Memory
+                    </p>
                     <p className="mt-1 text-xs text-fg/50">
                       Automatic summaries when enabled globally.
                     </p>
@@ -1337,9 +1334,7 @@ export function EditCharacterPage() {
                 radius.md,
                 "px-3 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2",
                 interactive.active.scale,
-                activeTab === id
-                  ? "bg-fg/10 text-fg"
-                  : cn(colors.text.tertiary, "hover:text-fg"),
+                activeTab === id ? "bg-fg/10 text-fg" : cn(colors.text.tertiary, "hover:text-fg"),
               )}
             >
               <Icon size={16} className="block" />
@@ -1791,9 +1786,7 @@ export function EditCharacterPage() {
                         <User className="h-5 w-5 text-fg/40" />
                         <div className="flex-1 min-w-0">
                           <span className="block truncate text-sm text-fg">{voice.name}</span>
-                          <span className="block truncate text-xs text-fg/40">
-                            {providerLabel}
-                          </span>
+                          <span className="block truncate text-xs text-fg/40">{providerLabel}</span>
                         </div>
                         {isSelected && <Check className="h-4 w-4 shrink-0 text-accent" />}
                       </button>

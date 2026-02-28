@@ -6,11 +6,13 @@ import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { useModelsController } from "./hooks/useModelsController";
 import { useNavigationManager } from "../../navigation";
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 
 type SortMode = "alphabetical" | "provider";
 const SORT_STORAGE_KEY = "lettuce.models.sortMode";
 
 export function ModelsPage() {
+  const { t } = useI18n();
   const [selectedModel, setSelectedModel] = useState<any | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     if (typeof window === "undefined") return "alphabetical";
@@ -28,15 +30,15 @@ export function ModelsPage() {
   const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
     <div className="flex h-64 flex-col items-center justify-center">
       <EthernetPort className="mb-3 h-12 w-12 text-fg/20" />
-      <h3 className="mb-1 text-lg font-medium text-fg">No Models yet</h3>
+      <h3 className="mb-1 text-lg font-medium text-fg">{t("models.empty.title")}</h3>
       <p className="mb-4 text-center text-sm text-fg/50">
-        Add and manage AI models from different providers
+        {t("models.empty.description")}
       </p>
       <button
         onClick={onCreate}
         className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
       >
-        Add Model
+        {t("models.empty.addButton")}
       </button>
     </div>
   );
@@ -263,7 +265,7 @@ export function ModelsPage() {
         <div className="space-y-3">
           <MenuButton
             icon={sortMode === "alphabetical" ? Check : StarOff}
-            title="Alphabetical"
+            title={t("models.sort.alphabetical")}
             description="Sort by model name"
             onClick={() => {
               setSortMode("alphabetical");
@@ -273,7 +275,7 @@ export function ModelsPage() {
           />
           <MenuButton
             icon={sortMode === "provider" ? Check : StarOff}
-            title="By Provider"
+            title={t("models.sort.byProvider")}
             description="Group models by provider"
             onClick={() => {
               setSortMode("provider");

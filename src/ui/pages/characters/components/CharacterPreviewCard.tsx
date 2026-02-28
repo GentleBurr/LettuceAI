@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { User, MessageSquare, Sparkles } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface DraftScene {
   id: string;
@@ -37,6 +38,7 @@ export function CharacterPreviewCard({
   compact = false,
   sessionId,
 }: CharacterPreviewCardProps) {
+  const { t } = useI18n();
   const hasAvatar = draft.avatarPath && draft.avatarPath.length > 0;
   const defaultScene = draft.scenes.find((s) => s.id === draft.defaultSceneId) || draft.scenes[0];
   const previewDescription = draft.description || draft.definition || null;
@@ -123,20 +125,20 @@ export function CharacterPreviewCard({
           {/* Name + Stats */}
           <div className="flex-1 min-w-0">
             <h3 className={cn(typography.h2.size, typography.h2.weight, "text-fg truncate")}>
-              {draft.name || "Unnamed Character"}
+              {draft.name || t("characters.preview.unnamedCharacter")}
             </h3>
 
             <div className="flex items-center gap-3 mt-1">
               {draft.scenes.length > 0 && (
                 <span className="flex items-center gap-1 text-xs text-fg/50">
                   <MessageSquare className="h-3 w-3" />
-                  {draft.scenes.length} scene{draft.scenes.length !== 1 ? "s" : ""}
+                  {t("characters.preview.sceneCount", { count: draft.scenes.length })}
                 </span>
               )}
               {draft.promptTemplateId && (
                 <span className="flex items-center gap-1 text-xs text-fg/50">
                   <Sparkles className="h-3 w-3" />
-                  Custom prompt
+                  {t("characters.preview.customPrompt")}
                 </span>
               )}
             </div>
@@ -146,7 +148,7 @@ export function CharacterPreviewCard({
         {/* Description Preview */}
         {!compact && previewDescription && (
           <div className="mt-4">
-            <p className="text-xs text-fg/40 uppercase tracking-wider mb-1">Description</p>
+            <p className="text-xs text-fg/40 uppercase tracking-wider mb-1">{t("characters.preview.description")}</p>
             <p className="text-sm text-fg/70 line-clamp-3">{previewDescription}</p>
           </div>
         )}
@@ -154,7 +156,7 @@ export function CharacterPreviewCard({
         {/* Scene Preview */}
         {!compact && defaultScene && (
           <div className="mt-4">
-            <p className="text-xs text-fg/40 uppercase tracking-wider mb-1">Starting Scene</p>
+            <p className="text-xs text-fg/40 uppercase tracking-wider mb-1">{t("characters.preview.startingScene")}</p>
             <p className="text-sm text-fg/60 italic line-clamp-2">
               "{defaultScene.content.slice(0, 150)}
               {defaultScene.content.length > 150 ? "..." : ""}"
@@ -167,12 +169,12 @@ export function CharacterPreviewCard({
           <div className="mt-4 flex flex-wrap gap-1.5">
             {!draft.disableAvatarGradient && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-fg/5 border border-fg/10 text-fg/50">
-                Gradient enabled
+                {t("characters.preview.gradientEnabled")}
               </span>
             )}
             {draft.defaultModelId && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-fg/5 border border-fg/10 text-fg/50">
-                Custom model
+                {t("characters.preview.customModel")}
               </span>
             )}
           </div>

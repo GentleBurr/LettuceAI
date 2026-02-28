@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useI18n } from "../../../../core/i18n";
 
 interface AvatarPreviewProps {
   avatarPath: string;
@@ -6,6 +7,8 @@ interface AvatarPreviewProps {
 }
 
 export function AvatarPreview({ avatarPath, name }: AvatarPreviewProps) {
+  const { t } = useI18n();
+
   const preview = useMemo(() => {
     if (!avatarPath) {
       const initial = name.trim().charAt(0) || "?";
@@ -16,8 +19,14 @@ export function AvatarPreview({ avatarPath, name }: AvatarPreviewProps) {
       );
     }
 
-    return <img src={avatarPath} alt="Character avatar" className="h-full w-full object-cover" />;
-  }, [avatarPath, name]);
+    return (
+      <img
+        src={avatarPath}
+        alt={t("characters.preview.avatarAlt")}
+        className="h-full w-full object-cover"
+      />
+    );
+  }, [avatarPath, name, t]);
 
   return <>{preview}</>;
 }

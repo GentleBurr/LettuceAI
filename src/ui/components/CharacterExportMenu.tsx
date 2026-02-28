@@ -6,6 +6,7 @@ import {
   type CharacterFileFormat,
   type CharacterFormatInfo,
 } from "../../core/storage/characterTransfer";
+import { useI18n } from "../../core/i18n/context";
 
 const FALLBACK_FORMATS: CharacterFormatInfo[] = [
   {
@@ -36,32 +37,32 @@ const FALLBACK_FORMATS: CharacterFormatInfo[] = [
 
 const FORMAT_META: Record<
   CharacterFileFormat,
-  { icon: typeof Package; color: string; description: string }
+  { icon: typeof Package; color: string; descKey: string }
 > = {
   uec: {
     icon: Package,
     color: "from-emerald-500 to-emerald-600",
-    description: "Unified Entity Card (.uec) format (recommended).",
+    descKey: "components.characterExport.formatUecDesc",
   },
   legacy_json: {
     icon: FileCode,
     color: "from-amber-500 to-orange-600",
-    description: "Legacy JSON (import-only).",
+    descKey: "components.characterExport.formatLegacyJsonDesc",
   },
   chara_card_v3: {
     icon: FileCode,
     color: "from-indigo-500 to-blue-600",
-    description: "Character Card V3 JSON (latest spec).",
+    descKey: "components.characterExport.formatV3Desc",
   },
   chara_card_v2: {
     icon: FileCode,
     color: "from-blue-500 to-cyan-600",
-    description: "Character Card V2 JSON (Tavern spec).",
+    descKey: "components.characterExport.formatV2Desc",
   },
   chara_card_v1: {
     icon: FileCode,
     color: "from-amber-500 to-amber-600",
-    description: "Character Card V1 (import-only).",
+    descKey: "components.characterExport.formatV1Desc",
   },
 };
 
@@ -78,6 +79,7 @@ export function CharacterExportMenu({
   onSelect,
   exporting = false,
 }: CharacterExportMenuProps) {
+  const { t } = useI18n();
   const [formats, setFormats] = useState<CharacterFormatInfo[]>(FALLBACK_FORMATS);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -150,14 +152,14 @@ export function CharacterExportMenu({
   );
 
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title="Export Format">
+    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("components.characterExport.title")}>
       <div className="space-y-4">
-        <MenuLabel>Select a format</MenuLabel>
+        <MenuLabel>{t("components.characterExport.selectFormat")}</MenuLabel>
         <MenuButtonGroup>
           {loading && (
             <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading formats...
+              {t("components.characterExport.loading")}
             </div>
           )}
           {!loading &&
@@ -169,7 +171,7 @@ export function CharacterExportMenu({
                   key={format.id}
                   icon={<Icon className="h-4 w-4" />}
                   title={format.label}
-                  description={meta?.description ?? `${format.extension} format`}
+                  description={meta ? t(meta.descKey as any) : `${format.extension} format`}
                   color={meta?.color ?? "from-blue-500 to-cyan-600"}
                   onClick={() => onSelect(format.id)}
                   disabled={exporting}

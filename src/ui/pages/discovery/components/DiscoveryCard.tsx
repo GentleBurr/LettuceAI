@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from "react";
 import { Heart, Download, Eye, MessageCircle, Shield, Sparkles, BookOpen } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 import { getCardImageUrl, formatCount } from "../../../../core/discovery";
 import type { DiscoveryCard as DiscoveryCardType } from "../../../../core/discovery";
 
@@ -25,6 +26,7 @@ export const DiscoveryCard = memo(function DiscoveryCard({
   onClick,
   variant = "default",
 }: DiscoveryCardProps) {
+  const { t } = useI18n();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -100,7 +102,7 @@ export const DiscoveryCard = memo(function DiscoveryCard({
         <div className="absolute inset-0 z-5 flex items-center justify-center bg-surface-el/40">
           <div className="flex flex-col items-center gap-1">
             <Shield className="h-8 w-8 text-danger" />
-            <span className="text-xs font-bold uppercase tracking-wider text-danger">NSFW</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-danger">{t("discovery.detail.nsfwBadge")}</span>
           </div>
         </div>
       )}
@@ -116,7 +118,7 @@ export const DiscoveryCard = memo(function DiscoveryCard({
           {card.isNsfw && (
             <span className="flex items-center gap-1 rounded-full bg-danger px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-fg shadow-lg shadow-red-600/40">
               <Shield className="h-2.5 w-2.5" />
-              NSFW
+              {t("discovery.detail.nsfwBadge")}
             </span>
           )}
 

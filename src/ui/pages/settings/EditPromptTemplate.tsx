@@ -21,6 +21,7 @@ import { cn, radius, interactive } from "../../design-tokens";
 import { MessageStructurePreview } from "./components/MessageStructurePreview";
 import { BottomMenu } from "../../components";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 import { useNavigationManager } from "../../navigation";
 import {
   createPromptTemplate,
@@ -210,6 +211,7 @@ function PromptEntryCard({
   onTextareaRef: (id: string, el: HTMLTextAreaElement | null) => void;
   onTextareaFocus: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const controls = useDragControls();
   const toggleId = `prompt-entry-${entry.id}`;
 
@@ -310,7 +312,7 @@ function PromptEntryCard({
                 "rounded-lg border border-fg/10 p-2 text-fg/40",
                 "hover:border-danger/40 hover:bg-danger/10 hover:text-danger/80",
               )}
-              title="Delete entry"
+              title={t("common.buttons.delete")}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -376,9 +378,7 @@ function PromptEntryCard({
               </div>
             )}
           </div>
-          <p className="text-[11px] text-fg/50">
-            {getInjectionModeHint(entry.injectionPosition)}
-          </p>
+          <p className="text-[11px] text-fg/50">{getInjectionModeHint(entry.injectionPosition)}</p>
 
           {entry.injectionPosition === "conditional" && (
             <div className="space-y-1">
@@ -444,6 +444,7 @@ function PromptEntryListItem({
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const controls = useDragControls();
   const dragTimeoutRef = useRef<number | null>(null);
   const draggingRef = useRef(false);
@@ -631,7 +632,7 @@ function PromptEntryListItem({
               "hover:bg-fg/10 hover:text-fg",
             )}
           >
-            Edit
+            {t("common.buttons.edit")}
           </button>
 
           {!entry.systemPrompt && (
@@ -641,7 +642,7 @@ function PromptEntryListItem({
                 "rounded-lg border border-fg/10 p-2 text-fg/40",
                 "hover:border-danger/40 hover:bg-danger/10 hover:text-danger/80",
               )}
-              title="Delete entry"
+              title={t("common.buttons.delete")}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -650,7 +651,7 @@ function PromptEntryListItem({
       </div>
 
       <p className="text-xs text-fg/50 line-clamp-2">
-        {entry.content?.trim() || "No content yet"}
+        {entry.content?.trim() || t("common.labels.none")}
       </p>
     </Reorder.Item>
   );
@@ -1279,9 +1280,7 @@ export function EditPromptTemplate() {
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5",
             radius.md,
             "text-xs font-medium transition",
-            previewMode === "raw"
-              ? "bg-accent/20 text-accent/80"
-              : "text-fg/50 hover:text-fg/70",
+            previewMode === "raw" ? "bg-accent/20 text-accent/80" : "text-fg/50 hover:text-fg/70",
           )}
         >
           <Code2 className="h-3.5 w-3.5" />
@@ -1561,9 +1560,7 @@ export function EditPromptTemplate() {
                           )}
                         />
                       </label>
-                      <span className="text-xs text-fg/70">
-                        Send entries as one system message
-                      </span>
+                      <span className="text-xs text-fg/70">Send entries as one system message</span>
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
@@ -1776,7 +1773,6 @@ export function EditPromptTemplate() {
                   )}
                 </AnimatePresence>
               </div>
-
             </div>
 
             {/* Desktop Sidebar - Quick Insert */}
@@ -1887,7 +1883,9 @@ export function EditPromptTemplate() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         {isRequired && (
-                          <span className={isMissing ? "text-danger/80" : "text-warning/80"}>★</span>
+                          <span className={isMissing ? "text-danger/80" : "text-warning/80"}>
+                            ★
+                          </span>
                         )}
                         <code
                           className={cn(

@@ -55,6 +55,7 @@ import {
 } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
 import { BottomMenu, MenuSection } from "../../components/BottomMenu";
+import { useI18n } from "../../../core/i18n/context";
 
 type MemoryToolEvent = NonNullable<Session["memoryToolEvents"]>[number];
 const MEMORY_CATEGORY_OPTIONS = [
@@ -702,6 +703,7 @@ function CycleCard({ event, defaultOpen }: { event: MemoryToolEvent; defaultOpen
 }
 
 function ToolLog({ events }: { events: MemoryToolEvent[] }) {
+  const { t } = useI18n();
   if (!events.length) {
     return (
       <motion.div
@@ -713,9 +715,11 @@ function ToolLog({ events }: { events: MemoryToolEvent[] }) {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 mb-4">
           <Clock className="h-7 w-7 text-white/20" />
         </div>
-        <h3 className="mb-1 text-base font-semibold text-white">No activity yet</h3>
+        <h3 className="mb-1 text-base font-semibold text-white">
+          {t("groupChats.memories.noActivityYet")}
+        </h3>
         <p className={cn("text-center text-sm max-w-60", colors.text.tertiary)}>
-          Tool calls appear when AI manages memories in dynamic mode
+          {t("groupChats.memories.noActivityDesc")}
         </p>
       </motion.div>
     );
@@ -731,6 +735,7 @@ function ToolLog({ events }: { events: MemoryToolEvent[] }) {
 }
 
 export function ChatMemoriesPage() {
+  const { t } = useI18n();
   const { go, backOrReplace } = useNavigationManager();
   const { characterId } = useParams();
   const [searchParams] = useSearchParams();
@@ -1069,14 +1074,14 @@ export function ChatMemoriesPage() {
 
   const tabs = useMemo(() => {
     if (!isDynamic) {
-      return [{ id: "memories" as const, icon: Bot, label: "Memories" }];
+      return [{ id: "memories" as const, icon: Bot, label: t("groupChats.memories.tabMemories") }];
     }
     return [
-      { id: "memories" as const, icon: Bot, label: "Memories" },
-      { id: "pinned" as const, icon: Pin, label: "Pinned" },
-      { id: "tools" as const, icon: Clock, label: "Activity" },
+      { id: "memories" as const, icon: Bot, label: t("groupChats.memories.tabMemories") },
+      { id: "pinned" as const, icon: Pin, label: t("groupChats.memories.tabPinned") },
+      { id: "tools" as const, icon: Clock, label: t("groupChats.memories.tabActivity") },
     ];
-  }, [isDynamic]);
+  }, [isDynamic, t]);
 
   const handleRetryWithModel = useCallback(
     async (modelId?: string) => {
@@ -1147,7 +1152,9 @@ export function ChatMemoriesPage() {
           colors.surface.base,
         )}
       >
-        <p className={cn("text-sm", colors.text.secondary)}>{error || "Session not found"}</p>
+        <p className={cn("text-sm", colors.text.secondary)}>
+          {error || t("groupChats.memories.sessionNotFound")}
+        </p>
         <button
           onClick={() =>
             backOrReplace(characterId ? Routes.chatSession(characterId, sessionId) : Routes.chat)
@@ -1158,7 +1165,7 @@ export function ChatMemoriesPage() {
             "bg-white/5 text-white hover:bg-white/10",
           )}
         >
-          Go back
+          {t("common.buttons.goBack")}
         </button>
       </div>
     );
@@ -1188,7 +1195,7 @@ export function ChatMemoriesPage() {
                 interactive.transition.fast,
                 "hover:text-white/80",
               )}
-              aria-label="Go back"
+              aria-label={t("common.buttons.goBack")}
             >
               <ArrowLeft size={14} strokeWidth={2.5} />
             </button>
@@ -1201,7 +1208,7 @@ export function ChatMemoriesPage() {
                   colors.text.primary,
                 )}
               >
-                Memories
+                {t("groupChats.memories.tabMemories")}
               </span>
               <span className={cn("truncate text-sm font-medium", colors.text.tertiary)}>
                 {character.name}
@@ -1221,7 +1228,7 @@ export function ChatMemoriesPage() {
                   "border-blue-500/30 bg-blue-500/15 text-blue-200",
                 )}
               >
-                Processing
+                {t("groupChats.memories.processing")}
               </div>
             )}
           </div>
@@ -1424,8 +1431,8 @@ export function ChatMemoriesPage() {
                     )}
                   >
                     {ui.searchTerm.trim()
-                      ? `Results (${filteredMemories.length})`
-                      : "Saved Memories"}
+                      ? t("groupChats.memories.resultsCount", { count: filteredMemories.length })
+                      : t("groupChats.memories.savedMemories")}
                   </span>
                   <span className={cn("text-[10px] text-white/30 ml-auto")}>
                     {stats.ai} AI · {stats.user} You
@@ -1445,7 +1452,7 @@ export function ChatMemoriesPage() {
                       type="text"
                       value={ui.searchTerm}
                       onChange={(e) => dispatch({ type: "SET_SEARCH", value: e.target.value })}
-                      placeholder="Search memories..."
+                      placeholder={t("groupChats.memories.searchPlaceholder")}
                       className={cn(
                         "w-full pl-10 pr-10 py-2.5",
                         components.input.base,
@@ -1463,7 +1470,7 @@ export function ChatMemoriesPage() {
                           "hover:text-white",
                           interactive.transition.fast,
                         )}
-                        aria-label="Clear search"
+                        aria-label={t("common.buttons.clearSearch")}
                       >
                         <X size={16} />
                       </button>
@@ -1479,7 +1486,7 @@ export function ChatMemoriesPage() {
                       "hover:bg-white/8 hover:text-white/70",
                       "transition-all active:scale-95",
                     )}
-                    aria-label="Add memory"
+                    aria-label={t("groupChats.memories.addMemory")}
                   >
                     <Plus size={18} />
                   </button>
@@ -1539,12 +1546,14 @@ export function ChatMemoriesPage() {
                       )}
                     </div>
                     <h3 className="mb-1 text-base font-semibold text-white">
-                      {ui.searchTerm ? "No matching memories" : "No memories yet"}
+                      {ui.searchTerm
+                        ? t("groupChats.memories.noMatchingMemories")
+                        : t("groupChats.memories.noMemoriesYet")}
                     </h3>
                     <p className="text-center text-sm text-white/40 max-w-60">
                       {ui.searchTerm
-                        ? "Try a different search term"
-                        : "Tap the Add button above to create one"}
+                        ? t("groupChats.memories.noMatchingDesc")
+                        : t("groupChats.memories.noMemoriesDesc")}
                     </p>
                   </motion.div>
                 ) : (
@@ -1712,7 +1721,7 @@ export function ChatMemoriesPage() {
             >
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[12px] font-semibold uppercase tracking-wider text-white/50">
-                  Activity Log
+                  {t("groupChats.memories.activityLog")}
                 </span>
                 <span className="text-[10px] text-white/20 ml-auto">
                   {(session.memoryToolEvents?.length ?? 0).toLocaleString()} events

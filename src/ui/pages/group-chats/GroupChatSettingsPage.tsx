@@ -32,11 +32,13 @@ import { storageBridge } from "../../../core/storage/files";
 import { useAvatar } from "../../hooks/useAvatar";
 import { AvatarImage } from "../../components/AvatarImage";
 import React, { useState } from "react";
+import { useI18n } from "../../../core/i18n/context";
 
 // Main Component
 // ============================================================================
 
 export function GroupChatSettingsPage() {
+  const { t } = useI18n();
   const { groupSessionId } = useParams<{ groupSessionId: string }>();
   const navigate = useNavigate();
   const { backOrReplace } = useNavigationManager();
@@ -310,7 +312,7 @@ export function GroupChatSettingsPage() {
   if (error || !session) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-fg p-8">
-        <p className="text-lg font-medium text-danger">{error || "Not found"}</p>
+        <p className="text-lg font-medium text-danger">{error || t("common.labels.untitled")}</p>
         <button
           onClick={() => navigate(Routes.groupChats)}
           className="mt-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-2 text-sm"
@@ -364,7 +366,7 @@ export function GroupChatSettingsPage() {
             <ArrowLeft size={14} strokeWidth={2.5} />
           </button>
           <div className="min-w-0 flex-1 text-left">
-            <p className="truncate text-xl font-bold text-fg/90">Group Settings</p>
+            <p className="truncate text-xl font-bold text-fg/90">{t("common.nav.settings")}</p>
             <p className="mt-0.5 truncate text-xs text-fg/50">Manage group chat preferences</p>
           </div>
         </div>

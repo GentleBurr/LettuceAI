@@ -6,6 +6,7 @@ import { createPromptTemplate, updatePromptTemplate } from "../../core/prompts/s
 import { renderPromptPreview } from "../../core/prompts/service";
 import { listCharacters, listPersonas } from "../../core/storage";
 import type { SystemPromptTemplate, Character, Persona } from "../../core/storage/schemas";
+import { useI18n } from "../../core/i18n/context";
 
 interface PromptTemplateEditorProps {
   template?: SystemPromptTemplate;
@@ -14,6 +15,7 @@ interface PromptTemplateEditorProps {
 }
 
 export function PromptTemplateEditor({ template, onClose, onSave }: PromptTemplateEditorProps) {
+  const { t } = useI18n();
   const isEditing = !!template;
 
   const [name, setName] = useState(template?.name || "");
@@ -50,7 +52,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
 
   async function handleSave() {
     if (!name.trim() || !content.trim()) {
-      alert("Name and content are required");
+      alert(t("components.promptTemplate.nameContentRequired"));
       return;
     }
 
@@ -69,7 +71,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
       onClose();
     } catch (error) {
       console.error("Failed to save template:", error);
-      alert("Failed to save template");
+      alert(t("components.promptTemplate.saveError"));
     } finally {
       setSaving(false);
     }
@@ -105,14 +107,14 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
         "text-white/40";
 
   const variables = [
-    { var: "{{char.name}}", label: "Character Name", desc: "Character's name" },
-    { var: "{{char.desc}}", label: "Character Desc", desc: "Character description" },
-    { var: "{{scene}}", label: "Scene", desc: "Starting scene/scenario" },
-    { var: "{{persona.name}}", label: "User Name", desc: "User persona name" },
-    { var: "{{persona.desc}}", label: "User Desc", desc: "User persona description" },
-    { var: "{{rules}}", label: "Rules", desc: "Character behavioral rules" },
-    { var: "{{context_summary}}", label: "Context Summary", desc: "Dynamic conversation summary" },
-    { var: "{{key_memories}}", label: "Key Memories", desc: "List of relevant memories" },
+    { var: "{{char.name}}", label: t("components.promptTemplate.variables.charName"), desc: t("components.promptTemplate.variables.charNameDesc") },
+    { var: "{{char.desc}}", label: t("components.promptTemplate.variables.charDesc"), desc: t("components.promptTemplate.variables.charDescDesc") },
+    { var: "{{scene}}", label: t("components.promptTemplate.variables.scene"), desc: t("components.promptTemplate.variables.sceneDesc") },
+    { var: "{{persona.name}}", label: t("components.promptTemplate.variables.userName"), desc: t("components.promptTemplate.variables.userNameDesc") },
+    { var: "{{persona.desc}}", label: t("components.promptTemplate.variables.userDesc"), desc: t("components.promptTemplate.variables.userDescDesc") },
+    { var: "{{rules}}", label: t("components.promptTemplate.variables.rules"), desc: t("components.promptTemplate.variables.rulesDesc") },
+    { var: "{{context_summary}}", label: t("components.promptTemplate.variables.contextSummary"), desc: t("components.promptTemplate.variables.contextSummaryDesc") },
+    { var: "{{key_memories}}", label: t("components.promptTemplate.variables.keyMemories"), desc: t("components.promptTemplate.variables.keyMemoriesDesc") },
   ];
 
   return (
@@ -122,7 +124,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
             <h2 className="text-lg font-semibold text-white">
-              {isEditing ? "Edit Prompt" : "Create Prompt"}
+              {isEditing ? t("components.promptTemplate.editTitle") : t("components.promptTemplate.createTitle")}
             </h2>
             <button
               onClick={onClose}
@@ -137,13 +139,13 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
             {/* Name Input */}
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                Name
+                {t("components.promptTemplate.name")}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Roleplay Master"
+                placeholder={t("components.promptTemplate.namePlaceholder")}
                 className="w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-white placeholder-white/30 transition focus:border-blue-400/40 focus:bg-black/40 focus:outline-none"
               />
             </div>
@@ -152,14 +154,14 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                  Content
+                  {t("components.promptTemplate.content")}
                 </label>
                 <button
                   onClick={() => setShowVariables(true)}
                   className="flex items-center gap-1.5 rounded-lg border border-purple-400/30 bg-purple-400/10 px-2.5 py-1.5 text-xs font-medium text-purple-200 transition active:scale-95"
                 >
                   <BookTemplate className="h-3 w-3" />
-                  Variables
+                  {t("components.promptTemplate.variablesButton")}
                 </button>
               </div>
 
@@ -180,7 +182,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                  Preview
+                  {t("components.promptTemplate.preview")}
                 </label>
                 <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 p-0.5">
                   <button
@@ -212,7 +214,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
                       onChange={(e) => setPreviewCharacterId(e.target.value || null)}
                       className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition focus:border-blue-400/40 focus:outline-none"
                     >
-                      <option value="">Character…</option>
+                      <option value="">{t("components.promptTemplate.characterPlaceholder")}</option>
                       {characters.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -223,7 +225,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
                       onChange={(e) => setPreviewPersonaId(e.target.value || null)}
                       className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition focus:border-blue-400/40 focus:outline-none"
                     >
-                      <option value="">Persona…</option>
+                      <option value="">{t("components.promptTemplate.personaPlaceholder")}</option>
                       {personas.map((p) => (
                         <option key={p.id} value={p.id}>{p.title}</option>
                       ))}
@@ -240,7 +242,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
                         : "border-blue-400/40 bg-blue-400/15 text-blue-100 hover:bg-blue-400/25 active:scale-[0.99]"
                     )}
                   >
-                    {previewing ? "Rendering…" : "Generate"}
+                    {previewing ? t("components.promptTemplate.rendering") : t("common.buttons.generate")}
                   </button>
                 </>
               )}
@@ -264,7 +266,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
 
               {!preview && previewMode === "rendered" && (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center">
-                  <p className="text-sm text-white/50">No preview yet</p>
+                  <p className="text-sm text-white/50">{t("components.promptTemplate.noPreview")}</p>
                 </div>
               )}
             </div>
@@ -282,14 +284,14 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
                   : "border-emerald-400/40 bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/30 active:scale-[0.99]"
               )}
             >
-              {saving ? "Saving..." : isEditing ? "Update" : "Create"}
+              {saving ? t("components.promptTemplate.saving") : isEditing ? t("components.promptTemplate.update") : t("components.promptTemplate.create")}
             </button>
             <button
               onClick={onClose}
               disabled={saving}
               className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/10 active:scale-[0.99] disabled:opacity-50"
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
           </div>
         </div>
@@ -299,9 +301,9 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
       <BottomMenu
         isOpen={showVariables}
         onClose={() => setShowVariables(false)}
-        title="Template Variables"
+        title={t("components.promptTemplate.variablesTitle")}
       >
-        <p className="mb-4 text-xs text-white/50">Tap to copy to clipboard</p>
+        <p className="mb-4 text-xs text-white/50">{t("components.promptTemplate.variablesCopyHint")}</p>
         <div className="max-h-[50vh] space-y-2 overflow-y-auto">
           {variables.map((item) => (
             <button
@@ -316,7 +318,7 @@ export function PromptTemplateEditor({ template, onClose, onSave }: PromptTempla
                     {copiedVar === item.var && (
                       <span className="flex items-center gap-1 text-xs text-emerald-400">
                         <Check className="h-3 w-3" />
-                        Copied
+                        {t("components.promptTemplate.variablesCopied")}
                       </span>
                     )}
                   </div>

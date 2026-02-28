@@ -16,8 +16,10 @@ import { useModelController } from "./hooks/useModelController";
 import { getPlatform } from "../../../core/utils/platform";
 import { BottomMenu, MenuButton, MenuSection } from "../../components/BottomMenu";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
+import { useI18n } from "../../../core/i18n/context";
 
 export function ModelSetupPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const platform = getPlatform();
   const isDesktop = platform.type === "desktop";
@@ -109,7 +111,7 @@ export function ModelSetupPage() {
       <div className="flex h-full items-center justify-center rounded-3xl border border-white/5 bg-black/40 text-gray-300">
         <div className="flex items-center gap-3 text-sm">
           <Loader size={20} className="animate-spin" />
-          Loading providers...
+          {t("onboarding.loading")}
         </div>
       </div>
     );

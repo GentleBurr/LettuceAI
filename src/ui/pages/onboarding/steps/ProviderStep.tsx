@@ -4,6 +4,7 @@ import type { TestResult } from "../hooks/onboardingReducer";
 import { ProviderCard } from "../components/ProviderCard";
 import { ProviderConfigForm } from "../components/ConfigForm";
 import { getPlatform } from "../../../../core/utils/platform";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ProviderStepProps {
   capabilities: ProviderCapabilitiesCamel[];
@@ -46,6 +47,7 @@ export function ProviderStep({
   onTestConnection,
   onSave,
 }: ProviderStepProps) {
+  const { t } = useI18n();
   const platform = getPlatform();
   const isDesktop = platform.type === "desktop";
   const visibleCapabilities = isDesktop
@@ -80,7 +82,9 @@ export function ProviderStep({
         {/* Left Panel - Provider Grid */}
         <div className="flex-1 flex flex-col border-r border-white/10">
           <div className="p-6 pb-3">
-            <h2 className="text-sm font-medium text-white/70">Available Providers</h2>
+            <h2 className="text-sm font-medium text-white/70">
+              {t("onboarding.provider.availableProviders")}
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">Click to select a provider</p>
           </div>
           <div className="flex-1 overflow-y-auto px-6">
@@ -108,7 +112,9 @@ export function ProviderStep({
         <div className="w-100 shrink-0 p-8 overflow-y-auto">
           <div className="space-y-1 mb-6">
             <h1 className="text-xl font-bold text-white">
-              {selectedProvider ? `Configure ${selectedProvider.name}` : "Choose a provider"}
+              {selectedProvider
+                ? `Configure ${selectedProvider.name}`
+                : t("onboarding.provider.chooseProvider")}
             </h1>
             <p className="text-sm text-gray-400 leading-relaxed">
               {selectedProvider

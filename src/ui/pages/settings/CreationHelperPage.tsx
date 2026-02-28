@@ -24,6 +24,7 @@ import type { Model } from "../../../core/storage/schemas";
 import { cn, colors } from "../../design-tokens";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { BottomMenu } from "../../components/BottomMenu";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 
 // Tool definitions matching the Rust backend
 const CREATION_HELPER_TOOLS = [
@@ -278,7 +279,153 @@ const TOOL_PRESETS = [
   },
 ] as const;
 
+const TOOL_TEXT_KEYS: Record<string, { name: TranslationKey; desc: TranslationKey }> = {
+  set_character_name: {
+    name: "creationHelper.tools.set_character_name.name",
+    desc: "creationHelper.tools.set_character_name.desc",
+  },
+  set_character_definition: {
+    name: "creationHelper.tools.set_character_definition.name",
+    desc: "creationHelper.tools.set_character_definition.desc",
+  },
+  add_scene: {
+    name: "creationHelper.tools.add_scene.name",
+    desc: "creationHelper.tools.add_scene.desc",
+  },
+  update_scene: {
+    name: "creationHelper.tools.update_scene.name",
+    desc: "creationHelper.tools.update_scene.desc",
+  },
+  toggle_avatar_gradient: {
+    name: "creationHelper.tools.toggle_avatar_gradient.name",
+    desc: "creationHelper.tools.toggle_avatar_gradient.desc",
+  },
+  set_default_model: {
+    name: "creationHelper.tools.set_default_model.name",
+    desc: "creationHelper.tools.set_default_model.desc",
+  },
+  set_system_prompt: {
+    name: "creationHelper.tools.set_system_prompt.name",
+    desc: "creationHelper.tools.set_system_prompt.desc",
+  },
+  get_system_prompt_list: {
+    name: "creationHelper.tools.get_system_prompt_list.name",
+    desc: "creationHelper.tools.get_system_prompt_list.desc",
+  },
+  get_model_list: {
+    name: "creationHelper.tools.get_model_list.name",
+    desc: "creationHelper.tools.get_model_list.desc",
+  },
+  use_uploaded_image_as_avatar: {
+    name: "creationHelper.tools.use_uploaded_image_as_avatar.name",
+    desc: "creationHelper.tools.use_uploaded_image_as_avatar.desc",
+  },
+  use_uploaded_image_as_chat_background: {
+    name: "creationHelper.tools.use_uploaded_image_as_chat_background.name",
+    desc: "creationHelper.tools.use_uploaded_image_as_chat_background.desc",
+  },
+  generate_image: {
+    name: "creationHelper.tools.generate_image.name",
+    desc: "creationHelper.tools.generate_image.desc",
+  },
+  show_preview: {
+    name: "creationHelper.tools.show_preview.name",
+    desc: "creationHelper.tools.show_preview.desc",
+  },
+  request_confirmation: {
+    name: "creationHelper.tools.request_confirmation.name",
+    desc: "creationHelper.tools.request_confirmation.desc",
+  },
+  list_personas: {
+    name: "creationHelper.tools.list_personas.name",
+    desc: "creationHelper.tools.list_personas.desc",
+  },
+  upsert_persona: {
+    name: "creationHelper.tools.upsert_persona.name",
+    desc: "creationHelper.tools.upsert_persona.desc",
+  },
+  use_uploaded_image_as_persona_avatar: {
+    name: "creationHelper.tools.use_uploaded_image_as_persona_avatar.name",
+    desc: "creationHelper.tools.use_uploaded_image_as_persona_avatar.desc",
+  },
+  delete_persona: {
+    name: "creationHelper.tools.delete_persona.name",
+    desc: "creationHelper.tools.delete_persona.desc",
+  },
+  get_default_persona: {
+    name: "creationHelper.tools.get_default_persona.name",
+    desc: "creationHelper.tools.get_default_persona.desc",
+  },
+  list_lorebooks: {
+    name: "creationHelper.tools.list_lorebooks.name",
+    desc: "creationHelper.tools.list_lorebooks.desc",
+  },
+  upsert_lorebook: {
+    name: "creationHelper.tools.upsert_lorebook.name",
+    desc: "creationHelper.tools.upsert_lorebook.desc",
+  },
+  delete_lorebook: {
+    name: "creationHelper.tools.delete_lorebook.name",
+    desc: "creationHelper.tools.delete_lorebook.desc",
+  },
+  list_lorebook_entries: {
+    name: "creationHelper.tools.list_lorebook_entries.name",
+    desc: "creationHelper.tools.list_lorebook_entries.desc",
+  },
+  get_lorebook_entry: {
+    name: "creationHelper.tools.get_lorebook_entry.name",
+    desc: "creationHelper.tools.get_lorebook_entry.desc",
+  },
+  upsert_lorebook_entry: {
+    name: "creationHelper.tools.upsert_lorebook_entry.name",
+    desc: "creationHelper.tools.upsert_lorebook_entry.desc",
+  },
+  delete_lorebook_entry: {
+    name: "creationHelper.tools.delete_lorebook_entry.name",
+    desc: "creationHelper.tools.delete_lorebook_entry.desc",
+  },
+  create_blank_lorebook_entry: {
+    name: "creationHelper.tools.create_blank_lorebook_entry.name",
+    desc: "creationHelper.tools.create_blank_lorebook_entry.desc",
+  },
+  reorder_lorebook_entries: {
+    name: "creationHelper.tools.reorder_lorebook_entries.name",
+    desc: "creationHelper.tools.reorder_lorebook_entries.desc",
+  },
+  list_character_lorebooks: {
+    name: "creationHelper.tools.list_character_lorebooks.name",
+    desc: "creationHelper.tools.list_character_lorebooks.desc",
+  },
+  set_character_lorebooks: {
+    name: "creationHelper.tools.set_character_lorebooks.name",
+    desc: "creationHelper.tools.set_character_lorebooks.desc",
+  },
+};
+
+const CATEGORY_LABEL_KEYS: Record<string, TranslationKey> = {
+  basic: "creationHelper.categories.basic",
+  content: "creationHelper.categories.content",
+  visual: "creationHelper.categories.visual",
+  settings: "creationHelper.categories.settings",
+  flow: "creationHelper.categories.flow",
+  persona: "creationHelper.categories.persona",
+  lorebook: "creationHelper.categories.lorebook",
+};
+
+const PRESET_TEXT_KEYS: Record<string, { name: TranslationKey; desc: TranslationKey }> = {
+  all: { name: "creationHelper.presets.all.name", desc: "creationHelper.presets.all.desc" },
+  essential: {
+    name: "creationHelper.presets.essential.name",
+    desc: "creationHelper.presets.essential.desc",
+  },
+  minimal: {
+    name: "creationHelper.presets.minimal.name",
+    desc: "creationHelper.presets.minimal.desc",
+  },
+};
+
 export function CreationHelperPage() {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
   const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
@@ -467,9 +614,7 @@ export function CreationHelperPage() {
                       ) : (
                         <Cpu className="h-5 w-5 text-fg/40" />
                       )}
-                      <span
-                        className={`text-sm ${selectedModelId ? "text-fg" : "text-fg/50"}`}
-                      >
+                      <span className={`text-sm ${selectedModelId ? "text-fg" : "text-fg/50"}`}>
                         {selectedModelId
                           ? selectedModel?.displayName || "Selected Model"
                           : `Use app default${defaultModel ? ` (${defaultModel.displayName})` : ""}`}
@@ -496,9 +641,7 @@ export function CreationHelperPage() {
                     </div>
                     <div>
                       <span className="text-sm font-medium text-fg">Streaming Output</span>
-                      <p className="text-[11px] text-fg/45">
-                        Show responses as they're generated
-                      </p>
+                      <p className="text-[11px] text-fg/45">Show responses as they're generated</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -629,7 +772,11 @@ export function CreationHelperPage() {
                               : "border-fg/10 bg-fg/5 text-fg/60 hover:border-fg/20",
                           )}
                         >
-                          <span className="text-xs font-medium">{preset.name}</span>
+                          <span className="text-xs font-medium">
+                            {PRESET_TEXT_KEYS[preset.id]
+                              ? t(PRESET_TEXT_KEYS[preset.id].name)
+                              : preset.name}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -678,7 +825,9 @@ export function CreationHelperPage() {
                                 categoryColors.badge,
                               )}
                             >
-                              {categoryInfo.label}
+                              {CATEGORY_LABEL_KEYS[category]
+                                ? t(CATEGORY_LABEL_KEYS[category])
+                                : categoryInfo.label}
                             </span>
                           </div>
 
@@ -699,9 +848,7 @@ export function CreationHelperPage() {
                                   <div
                                     className={cn(
                                       "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-                                      isEnabled
-                                        ? "border-fg/20 bg-fg/10"
-                                        : "border-fg/10 bg-fg/5",
+                                      isEnabled ? "border-fg/20 bg-fg/10" : "border-fg/10 bg-fg/5",
                                     )}
                                   >
                                     <Icon
@@ -718,10 +865,14 @@ export function CreationHelperPage() {
                                         isEnabled ? "text-fg" : "text-fg/50",
                                       )}
                                     >
-                                      {tool.name}
+                                      {TOOL_TEXT_KEYS[tool.id]
+                                        ? t(TOOL_TEXT_KEYS[tool.id].name)
+                                        : tool.name}
                                     </span>
                                     <p className="text-[11px] text-fg/40 truncate">
-                                      {tool.description}
+                                      {TOOL_TEXT_KEYS[tool.id]
+                                        ? t(TOOL_TEXT_KEYS[tool.id].desc)
+                                        : tool.description}
                                     </p>
                                   </div>
                                   <div
@@ -758,8 +909,8 @@ export function CreationHelperPage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-fg/30" />
             <div className="text-[11px] leading-relaxed text-fg/45">
               <p>
-                When <strong className="text-fg/60">Smart Tool Selection</strong> is enabled, the
-                AI decides which tools to use based on context. Disable it to manually control which
+                When <strong className="text-fg/60">Smart Tool Selection</strong> is enabled, the AI
+                decides which tools to use based on context. Disable it to manually control which
                 tools are available.
               </p>
             </div>

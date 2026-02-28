@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ZoomIn, ZoomOut, Check, RotateCcw } from "lucide-react";
 import { cn, typography, radius, interactive, shadows } from "../design-tokens";
+import { useI18n } from "../../core/i18n/context";
 
 interface Position {
     x: number;
@@ -27,6 +28,7 @@ export function BackgroundPositionModal({
     imageSrc,
     onConfirm,
 }: BackgroundPositionModalProps) {
+    const { t } = useI18n();
     const [scale, setScale] = useState(1);
     const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -333,7 +335,7 @@ export function BackgroundPositionModal({
                         {/* Header */}
                         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                             <h3 className={cn(typography.h3.size, typography.h3.weight, "text-white")}>
-                                Position Background
+                                {t("components.backgroundPosition.title")}
                             </h3>
                             <button
                                 onClick={onClose}
@@ -351,7 +353,7 @@ export function BackgroundPositionModal({
                         {/* Image Area with Portrait Rectangle Guide */}
                         <div className="relative px-5 py-6">
                             <p className={cn(typography.bodySmall.size, "mb-4 text-center text-white/50")}>
-                                Drag to position • Pinch or scroll to zoom
+                                {t("components.backgroundPosition.instructions")}
                             </p>
 
                             {/* Full image container */}
@@ -531,7 +533,7 @@ export function BackgroundPositionModal({
                                     "hover:bg-white/10 hover:text-white active:scale-[0.98]"
                                 )}
                             >
-                                Cancel
+                                {t("common.buttons.cancel")}
                             </button>
                             <button
                                 onClick={handleConfirm}
@@ -547,7 +549,7 @@ export function BackgroundPositionModal({
                                 )}
                             >
                                 <Check size={18} />
-                                Confirm
+                                {t("common.buttons.confirm")}
                             </button>
                         </div>
 

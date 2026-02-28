@@ -22,8 +22,10 @@ import { storageBridge } from "../../../core/storage/files";
 import logoSvg from "../../../assets/logo.svg";
 import { typography, radius, spacing, interactive, shadows, colors, cn } from "../../design-tokens";
 import { getPlatform } from "../../../core/utils/platform";
+import { useI18n } from "../../../core/i18n/context";
 
 export function WelcomePage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [showSkipWarning, setShowSkipWarning] = useState(false);
   const [showRestoreBackup, setShowRestoreBackup] = useState(false);
@@ -79,7 +81,11 @@ export function WelcomePage() {
                 shadows.xl,
               )}
             >
-              <img src={logoSvg} alt="LettuceAI" className="h-14 w-14 lg:h-20 lg:w-20" />
+              <img
+                src={logoSvg}
+                alt={t("onboarding.welcome.appName")}
+                className="h-14 w-14 lg:h-20 lg:w-20"
+              />
             </div>
           </div>
 
@@ -93,7 +99,7 @@ export function WelcomePage() {
               colors.effects.gradient.text,
             )}
           >
-            LettuceAI
+            {t("onboarding.welcome.appName")}
           </h1>
 
           {/* Tagline */}
@@ -105,7 +111,7 @@ export function WelcomePage() {
               "text-center lg:text-left text-white/60",
             )}
           >
-            Your personal AI companion. Private, secure, and always on-device.
+            {t("onboarding.welcome.tagline")}
           </p>
 
           {/* Feature Pills */}
@@ -144,7 +150,7 @@ export function WelcomePage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.5 }}
           >
-            Setup takes less than 2 minutes
+            {t("onboarding.welcome.setupTime")}
           </motion.p>
         </motion.div>
 
@@ -199,7 +205,7 @@ export function WelcomePage() {
               )}
               onClick={handleAddProvider}
             >
-              <span>Get Started</span>
+              <span>{t("onboarding.welcome.getStarted")}</span>
               <ArrowRight
                 size={18}
                 className="transition-transform group-hover:translate-x-0.5"
@@ -219,7 +225,7 @@ export function WelcomePage() {
               )}
               onClick={() => setShowSkipWarning(true)}
             >
-              Skip for now
+              {t("onboarding.welcome.skipForNow")}
             </button>
 
             <button
@@ -235,7 +241,7 @@ export function WelcomePage() {
               onClick={() => setShowRestoreBackup(true)}
             >
               <Upload size={16} />
-              Restore from Backup
+              {t("onboarding.welcome.restoreFromBackup")}
             </button>
           </div>
 

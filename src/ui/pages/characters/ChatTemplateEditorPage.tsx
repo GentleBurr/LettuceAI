@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { listCharacters, saveCharacter } from "../../../core/storage/repo";
 import { listPromptTemplates } from "../../../core/prompts/service";
+import { useI18n } from "../../../core/i18n/context";
 import {
   APP_DYNAMIC_SUMMARY_TEMPLATE_ID,
   APP_DYNAMIC_MEMORY_TEMPLATE_ID,
@@ -39,10 +40,14 @@ const noop = () => {};
 const noopAsync = async () => {};
 const noVariants = () => ({ total: 0, selectedIndex: -1 });
 
-function formatSceneLabel(scene: { direction?: string; content?: string } | null): string {
-  if (!scene) return "No scene";
+function formatSceneLabel(
+  scene: { direction?: string; content?: string } | null,
+  noSceneLabel: string,
+  untitledLabel: string,
+): string {
+  if (!scene) return noSceneLabel;
   const raw = (scene.direction || scene.content || "").trim();
-  if (!raw) return "Untitled";
+  if (!raw) return untitledLabel;
   return raw.replace(/\s+/g, " ").replace(/^[*\-+#>\s]+/, "");
 }
 
@@ -70,6 +75,7 @@ function DraggableMessage({
   onDelete: () => void;
   character: Character;
 }) {
+  const { t } = useI18n();
   const controls = useDragControls();
 
   return (
@@ -114,7 +120,7 @@ function DraggableMessage({
             onPointerDown={(e) => controls.start(e)}
             className="flex h-6 w-6 cursor-grab items-center justify-center rounded bg-surface/80 text-fg/40 backdrop-blur-sm transition active:cursor-grabbing active:text-fg/70"
             style={{ touchAction: "none" }}
-            aria-label="Drag message"
+            aria-label={t("characters.templateEditor.dragMessage")}
           >
             <GripVertical className="h-3.5 w-3.5" />
           </button>
@@ -122,7 +128,7 @@ function DraggableMessage({
             type="button"
             onClick={onEdit}
             className="flex h-6 w-6 items-center justify-center rounded bg-surface/80 text-fg/40 backdrop-blur-sm transition hover:text-fg/70"
-            aria-label="Edit message"
+            aria-label={t("characters.templateEditor.editMessage")}
           >
             <Edit2 className="h-3 w-3" />
           </button>
@@ -130,7 +136,7 @@ function DraggableMessage({
             type="button"
             onClick={onDelete}
             className="flex h-6 w-6 items-center justify-center rounded bg-surface/80 text-fg/40 backdrop-blur-sm transition hover:text-error"
-            aria-label="Delete message"
+            aria-label={t("characters.templateEditor.deleteMessage")}
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -161,6 +167,8 @@ function EditingForm({
   onCancel: () => void;
   characterName: string;
 }) {
+  const { t } = useI18n();
+
   return (
     <motion.div layout className="space-y-2 px-2">
       <div className="flex items-center gap-2">
@@ -178,7 +186,7 @@ function EditingForm({
         value={editContent}
         onChange={(e) => setEditContent(e.target.value)}
         rows={4}
-        placeholder="Write message content..."
+        placeholder={t("characters.templateEditor.writeMessagePlaceholder")}
         className="w-full resize-none rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-2.5 text-sm text-fg outline-none placeholder:text-fg/30 focus:border-accent/50"
       />
       <div className="flex gap-2">
@@ -211,6 +219,7 @@ export default function ChatTemplateEditorPage() {
     templateId: string;
   }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const isNew = templateId === "new";
 
   const [character, setCharacter] = useState<Character | null>(null);
@@ -456,13 +465,19 @@ export default function ChatTemplateEditorPage() {
 
   if (!character) {
     return (
-      <div className="flex h-full items-center justify-center text-fg/50">Character not found</div>
+      <div className="flex h-full items-center justify-center text-fg/50">
+        {t("characters.templateEditor.characterNotFound")}
+      </div>
     );
   }
 
   const scenes = character.scenes ?? [];
   const selectedScene = scenes.find((s) => s.id === selectedSceneId) ?? null;
-  const selectedSceneLabel = formatSceneLabel(selectedScene);
+  const selectedSceneLabel = formatSceneLabel(
+    selectedScene,
+    t("characters.templateEditor.noScene"),
+    t("characters.templateEditor.untitled"),
+  );
   const selectedPromptTemplate = promptTemplates.find(
     (template) => template.id === selectedPromptTemplateId,
   );
@@ -487,7 +502,7 @@ export default function ChatTemplateEditorPage() {
           <div className="mb-4">
             <div className="mb-1 flex items-center gap-1.5 px-2">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-fg/30">
-                Scene
+                {t("characters.templateEditor.scene")}
               </span>
             </div>
             <div className="relative">
@@ -517,9 +532,11 @@ export default function ChatTemplateEditorPage() {
             <div className="mb-3 rounded-2xl border border-fg/10 bg-fg/5 p-4">
               <MessageSquare className="h-8 w-8 text-fg/20" />
             </div>
-            <p className="text-sm font-medium text-fg/50">No messages yet</p>
+            <p className="text-sm font-medium text-fg/50">
+              {t("characters.templateEditor.noMessagesYet")}
+            </p>
             <p className="mt-1 max-w-[240px] text-xs text-fg/30">
-              Add messages to build a conversation starter with {character.name}.
+              {t("characters.templateEditor.addMessagesDesc", { name: character.name })}
             </p>
           </div>
         ) : (
@@ -577,7 +594,7 @@ export default function ChatTemplateEditorPage() {
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent/50 bg-accent/20 py-2 text-sm font-medium text-accent transition active:bg-accent/30"
           >
             <Plus className="h-4 w-4" />
-            Add Message
+            {t("characters.templateEditor.addMessage")}
           </motion.button>
         </div>
       </div>
@@ -591,13 +608,13 @@ export default function ChatTemplateEditorPage() {
       {/* Name */}
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-fg/40">
-          Name
+          {t("characters.templateEditor.name")}
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Casual Greeting"
+          placeholder={t("characters.templateEditor.nameExample")}
           className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg outline-none placeholder:text-fg/30 focus:border-accent/40"
         />
       </div>
@@ -606,7 +623,7 @@ export default function ChatTemplateEditorPage() {
       {scenes.length > 0 && (
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-fg/40">
-            Starting Scene
+            {t("characters.templateEditor.startingScene")}
           </label>
           <button
             type="button"
@@ -616,7 +633,7 @@ export default function ChatTemplateEditorPage() {
             <span className={selectedScene ? "text-fg" : "text-fg/40"}>
               {selectedScene
                 ? selectedSceneLabel.slice(0, 40) + (selectedSceneLabel.length > 40 ? "..." : "")
-                : "No scene"}
+                : t("characters.templateEditor.noScene")}
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-fg/40" />
           </button>
@@ -626,7 +643,7 @@ export default function ChatTemplateEditorPage() {
       {/* Prompt template selector */}
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-fg/40">
-          System Prompt
+          {t("characters.templateEditor.systemPrompt")}
         </label>
         <button
           type="button"
@@ -634,7 +651,7 @@ export default function ChatTemplateEditorPage() {
           className="flex w-full items-center justify-between rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-left text-sm text-fg transition hover:bg-fg/10"
         >
           <span className={selectedPromptTemplate ? "text-fg" : "text-fg/40"}>
-            {selectedPromptTemplate?.name ?? "Character default"}
+            {selectedPromptTemplate?.name ?? t("characters.templateEditor.characterDefault")}
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-fg/40" />
         </button>
@@ -643,7 +660,7 @@ export default function ChatTemplateEditorPage() {
       {/* Next role selector */}
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-fg/40">
-          Next message as
+          {t("characters.templateEditor.nextMessageAs")}
         </label>
         <div className="flex flex-col gap-1.5">
           <button
@@ -677,12 +694,12 @@ export default function ChatTemplateEditorPage() {
       {messages.length > 0 && (
         <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2.5">
           <div className="flex items-center justify-between text-xs text-fg/50">
-            <span>Messages</span>
+            <span>{t("characters.templateEditor.messages")}</span>
             <span className="font-medium text-fg/70">{messages.length}</span>
           </div>
           {messages.length > 0 && (
             <div className="mt-1.5 flex items-center justify-between text-xs text-fg/50">
-              <span>Roles</span>
+              <span>{t("characters.templateEditor.roles")}</span>
               <span className="font-medium text-fg/70">
                 {messages.filter((m) => m.role === "assistant").length} {character.name},{" "}
                 {messages.filter((m) => m.role === "user").length} You
@@ -694,8 +711,8 @@ export default function ChatTemplateEditorPage() {
 
       {/* Tips */}
       <div className="space-y-2 text-[11px] leading-relaxed text-fg/30">
-        <p>Hover messages to drag, edit, or delete.</p>
-        <p>Use the footer bar to add new messages to the conversation.</p>
+        <p>{t("characters.templateEditor.hoverTip")}</p>
+        <p>{t("characters.templateEditor.footerTip")}</p>
       </div>
     </div>
   );
@@ -722,7 +739,7 @@ export default function ChatTemplateEditorPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Template name..."
+                placeholder={t("characters.templateEditor.templateNamePlaceholder")}
                 className="min-w-0 flex-1 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg outline-none placeholder:text-fg/30 focus:border-accent/40"
               />
               <button
@@ -744,13 +761,13 @@ export default function ChatTemplateEditorPage() {
       <BottomMenu
         isOpen={showSceneMenu}
         onClose={() => setShowSceneMenu(false)}
-        title="Select Scene"
+        title={t("characters.templateEditor.selectScene")}
       >
         <MenuButtonGroup>
           <MenuButton
             icon={<X className="h-4 w-4" />}
-            title="No scene"
-            description="Start without a scene message"
+            title={t("characters.templateEditor.noScene")}
+            description={t("characters.templateEditor.startWithoutScene")}
             color="from-blue-500 to-cyan-600"
             rightElement={
               selectedSceneId === null ? <Check className="h-4 w-4 text-emerald-300" /> : undefined
@@ -761,7 +778,11 @@ export default function ChatTemplateEditorPage() {
             }}
           />
           {scenes.map((scene) => {
-            const sceneLabel = formatSceneLabel(scene);
+            const sceneLabel = formatSceneLabel(
+              scene,
+              t("characters.templateEditor.noScene"),
+              t("characters.templateEditor.untitled"),
+            );
             return (
               <MenuButton
                 key={scene.id}
@@ -787,13 +808,13 @@ export default function ChatTemplateEditorPage() {
       <BottomMenu
         isOpen={showPromptTemplateMenu}
         onClose={() => setShowPromptTemplateMenu(false)}
-        title="Select System Prompt"
+        title={t("characters.templateEditor.selectSystemPrompt")}
       >
         <MenuButtonGroup>
           <MenuButton
             icon={<X className="h-4 w-4" />}
-            title="Character default"
-            description="Use character-level system prompt"
+            title={t("characters.templateEditor.characterDefault")}
+            description={t("characters.templateEditor.useCharacterSystemPrompt")}
             color="from-blue-500 to-cyan-600"
             rightElement={
               selectedPromptTemplateId === null ? (

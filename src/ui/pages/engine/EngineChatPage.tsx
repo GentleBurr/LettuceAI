@@ -10,12 +10,14 @@ import type { EngineChatMessage } from "./hooks/engineChatReducer";
 import { MarkdownRenderer } from "../chats/components/MarkdownRenderer";
 import { radius, typography, interactive, shadows, cn } from "../../design-tokens";
 import { getPlatform } from "../../../core/utils/platform";
+import { useI18n } from "../../../core/i18n/context";
 
 // ── Page wrapper (credential loading) ───────────────────────────────────────
 
 export function EngineChatPage() {
   const { credentialId, slug } = useParams<{ credentialId: string; slug: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [credential, setCredential] = useState<ProviderCredential | null>(null);
   const [charName, setCharName] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -50,12 +52,12 @@ export function EngineChatPage() {
   if (!credential || !slug) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-        <p className="text-sm text-white/60">Engine provider not found.</p>
+        <p className="text-sm text-white/60">{t("engine.errors.providerNotFound")}</p>
         <button
           onClick={() => navigate(-1)}
           className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10"
         >
-          Go Back
+          {t("common.buttons.goBack")}
         </button>
       </div>
     );
@@ -249,6 +251,7 @@ function EngineChatFooter({
   sending: boolean;
   onSendMessage: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isDesktop = useMemo(() => getPlatform().type === "desktop", []);
@@ -319,7 +322,7 @@ function EngineChatFooter({
               "transition-opacity duration-150",
             )}
           >
-            Send a message...
+            {t("engine.chat.sendMessage")}
           </span>
         )}
 
@@ -338,8 +341,8 @@ function EngineChatFooter({
             !sending && !hasDraft && "hover:border-white/25 hover:bg-white/15",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
-          title={hasDraft ? "Send message" : "Type a message"}
-          aria-label={hasDraft ? "Send message" : "Type a message"}
+          title={hasDraft ? t("engine.chat.sendButton") : t("engine.chat.typeMessage")}
+          aria-label={hasDraft ? t("engine.chat.sendButton") : t("engine.chat.typeMessage")}
         >
           {sending ? (
             <span className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

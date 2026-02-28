@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { User, PenTool, Tag, FileText, Globe, AlertCircle } from "lucide-react";
 import { radius, interactive, typography, spacing, shadows, cn } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ExtrasStepProps {
   nickname: string;
@@ -33,6 +34,8 @@ export function ExtrasStep({
   saving,
   error,
 }: ExtrasStepProps) {
+  const { t } = useI18n();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -43,9 +46,9 @@ export function ExtrasStep({
     >
       <div className={spacing.tight}>
         <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-          Extra Details
+          {t("characters.extras.title")}
         </h2>
-        <p className={cn(typography.body.size, "text-fg/50")}>All fields are optional</p>
+        <p className={cn(typography.body.size, "text-fg/50")}>{t("characters.extras.subtitle")}</p>
       </div>
 
       {/* Nickname */}
@@ -58,13 +61,13 @@ export function ExtrasStep({
             "uppercase text-fg/70",
           )}
         >
-          Nickname
+          {t("characters.extras.nickname")}
         </label>
         <div className="relative">
           <input
             value={nickname}
             onChange={(e) => onNicknameChange(e.target.value)}
-            placeholder="What should the user call this character?"
+            placeholder={t("characters.extras.nicknamePlaceholder")}
             className={cn(
               "w-full border bg-surface-el/20 px-4 py-3.5 text-fg placeholder-fg/40 backdrop-blur-xl",
               radius.md,
@@ -87,7 +90,7 @@ export function ExtrasStep({
           )}
         </div>
         <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-          Alternative display name used in conversations
+          {t("characters.extras.nicknameDesc")}
         </p>
       </div>
 
@@ -102,13 +105,13 @@ export function ExtrasStep({
               "uppercase text-fg/70",
             )}
           >
-            Creator
+            {t("characters.extras.creator")}
           </label>
           <div className="relative">
             <input
               value={creator}
               onChange={(e) => onCreatorChange(e.target.value)}
-              placeholder="Creator name..."
+              placeholder={t("characters.extras.creatorPlaceholder")}
               className={cn(
                 "w-full border bg-surface-el/20 px-4 py-3.5 text-fg placeholder-fg/40 backdrop-blur-xl",
                 radius.md,
@@ -140,13 +143,13 @@ export function ExtrasStep({
               "uppercase text-fg/70",
             )}
           >
-            Tags
+            {t("characters.extras.tags")}
           </label>
           <div className="relative">
             <input
               value={tagsText}
               onChange={(e) => onTagsTextChange(e.target.value)}
-              placeholder="fantasy, sci-fi, romance..."
+              placeholder={t("characters.extras.tagsPlaceholder")}
               className={cn(
                 "w-full border bg-surface-el/20 px-4 py-3.5 text-fg placeholder-fg/40 backdrop-blur-xl",
                 radius.md,
@@ -169,7 +172,7 @@ export function ExtrasStep({
             )}
           </div>
           <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-            Comma-separated list for filtering and organization
+            {t("characters.extras.tagsDesc")}
           </p>
         </div>
       </div>
@@ -187,14 +190,14 @@ export function ExtrasStep({
                 "uppercase text-fg/70",
               )}
             >
-              Creator Notes
+              {t("characters.extras.creatorNotes")}
             </label>
           </div>
           <textarea
             value={creatorNotes}
             onChange={(e) => onCreatorNotesChange(e.target.value)}
             rows={4}
-            placeholder="Usage tips, lore context, or instructions for other users..."
+            placeholder={t("characters.extras.creatorNotesPlaceholder")}
             className={cn(
               "w-full resize-none border bg-surface-el/20 px-4 py-3 leading-relaxed text-fg placeholder-fg/40 backdrop-blur-xl",
               radius.md,
@@ -287,7 +290,7 @@ export function ExtrasStep({
               <span>Creating Character...</span>
             </div>
           ) : (
-            "Create Character"
+            t("characters.identity.title")
           )}
         </motion.button>
       </div>
