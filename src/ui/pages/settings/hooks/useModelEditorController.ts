@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 
 import {
@@ -87,6 +87,7 @@ function useModelEditorState() {
 export function useModelEditorController(): ControllerReturn {
   const { toModelsList, backOrReplace } = useNavigationManager();
   const { modelId } = useParams<{ modelId: string }>();
+  const [searchParams] = useSearchParams();
   const isNew = !modelId || modelId === "new";
   const [state, dispatch] = useModelEditorState();
   const initialStateRef = useRef<{
@@ -149,14 +150,29 @@ export function useModelEditorController(): ControllerReturn {
         let nextDraft = sanitizeAdvancedModelSettings(defaultAdvanced);
 
         if (isNew) {
-          const firstProvider = providers[0];
+          // Check for HuggingFace browser query params (pre-fill from download)
+          const hfModelPath = searchParams.get("hfModelPath");
+          const hfModelName = searchParams.get("hfModelName");
+          const hfDisplayName = searchParams.get("hfDisplayName");
+
+          const isFromHfBrowser = !!hfModelPath;
+
+          // If coming from HF browser, default to llamacpp provider
+          let selectedProvider: ProviderCredential | undefined;
+          if (isFromHfBrowser) {
+            selectedProvider = providers.find((p) => p.providerId === "llamacpp");
+          }
+          if (!selectedProvider) {
+            selectedProvider = providers[0];
+          }
+
           const firstCap = capabilities[0];
           nextEditorModel = {
             id: crypto.randomUUID(),
-            name: "",
-            displayName: "",
-            providerId: firstProvider?.providerId || firstCap?.id || "",
-            providerLabel: firstProvider?.label || firstCap?.name || "",
+            name: isFromHfBrowser ? hfModelPath! : "",
+            displayName: isFromHfBrowser ? hfDisplayName || hfModelName || "" : "",
+            providerId: selectedProvider?.providerId || firstCap?.id || "",
+            providerLabel: selectedProvider?.label || firstCap?.name || "",
             createdAt: Date.now(),
             inputScopes: ["text"],
             outputScopes: ["text"],

@@ -1,10 +1,20 @@
 import { useMemo, useState, useEffect } from "react";
-import { Check, ChevronRight, EthernetPort, Edit3, Trash2, Star, StarOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Check,
+  ChevronRight,
+  EthernetPort,
+  Edit3,
+  Trash2,
+  Star,
+  StarOff,
+  Download,
+} from "lucide-react";
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { useModelsController } from "./hooks/useModelsController";
-import { useNavigationManager } from "../../navigation";
+import { useNavigationManager, Routes } from "../../navigation";
 import { cn } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
 
@@ -13,6 +23,7 @@ const SORT_STORAGE_KEY = "lettuce.models.sortMode";
 
 export function ModelsPage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [selectedModel, setSelectedModel] = useState<any | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     if (typeof window === "undefined") return "alphabetical";
@@ -31,15 +42,22 @@ export function ModelsPage() {
     <div className="flex h-64 flex-col items-center justify-center">
       <EthernetPort className="mb-3 h-12 w-12 text-fg/20" />
       <h3 className="mb-1 text-lg font-medium text-fg">{t("models.empty.title")}</h3>
-      <p className="mb-4 text-center text-sm text-fg/50">
-        {t("models.empty.description")}
-      </p>
-      <button
-        onClick={onCreate}
-        className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
-      >
-        {t("models.empty.addButton")}
-      </button>
+      <p className="mb-4 text-center text-sm text-fg/50">{t("models.empty.description")}</p>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={onCreate}
+          className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
+        >
+          {t("models.empty.addButton")}
+        </button>
+        <button
+          onClick={() => navigate(Routes.settingsModelsBrowse)}
+          className="flex items-center justify-center gap-2 rounded-full border border-fg/15 bg-fg/5 px-6 py-2 text-sm font-medium text-fg/70 transition hover:bg-fg/10 active:scale-[0.99]"
+        >
+          <Download size={14} />
+          {t("hfBrowser.title")}
+        </button>
+      </div>
     </div>
   );
 
@@ -131,6 +149,28 @@ export function ModelsPage() {
       {/* List (TopNav handles title/back) */}
       <div className="flex-1 overflow-y-auto mx-3 py-3 space-y-3">
         {models.length === 0 && <EmptyState onCreate={() => toNewModel()} />}
+
+        {/* Browse GGUF Models button */}
+        {models.length > 0 && (
+          <button
+            onClick={() => navigate(Routes.settingsModelsBrowse)}
+            className={cn(
+              "group w-full rounded-xl border border-dashed border-fg/15 bg-fg/[0.02] px-4 py-3 text-left transition",
+              "hover:border-fg/25 hover:bg-fg/[0.05] active:scale-[0.995]",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-fg/10 bg-fg/5">
+                <Download size={14} className="text-fg/50" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-fg/70">{t("hfBrowser.title")}</span>
+                <p className="text-[11px] text-fg/40">{t("hfBrowser.browseOnHuggingFace")}</p>
+              </div>
+              <ChevronRight size={14} className="text-fg/25 group-hover:text-fg/50 transition" />
+            </div>
+          </button>
+        )}
 
         {/* Model Cards */}
         {listItems.map((item, idx) => {

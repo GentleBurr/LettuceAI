@@ -9,6 +9,7 @@ mod embedding_model;
 mod engine;
 mod error;
 mod group_chat_manager;
+mod hf_browser;
 mod image_generator;
 mod llama_cpp;
 mod logger;
@@ -425,6 +426,13 @@ pub fn run() {
             discovery::discovery_import_character,
             llama_cpp::llamacpp_context_info,
             llama_cpp::llamacpp_unload,
+            hf_browser::hf_search_models,
+            hf_browser::hf_get_model_files,
+            hf_browser::hf_download_model,
+            hf_browser::hf_get_download_progress,
+            hf_browser::hf_cancel_download,
+            hf_browser::hf_list_downloaded_models,
+            hf_browser::hf_delete_downloaded_model,
             content_filter::set_content_filter_level,
             content_filter::debug_content_filter,
             content_filter::get_filter_log,

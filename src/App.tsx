@@ -9,6 +9,7 @@ import { SettingsPage } from "./ui/pages/settings/Settings";
 import { ProvidersPage } from "./ui/pages/settings/ProvidersPage";
 import { ModelsPage } from "./ui/pages/settings/ModelsPage";
 import { EditModelPage } from "./ui/pages/settings/EditModelPage";
+import { HuggingFaceBrowserPage } from "./ui/pages/settings/HuggingFaceBrowserPage";
 import { ImageGenerationPage } from "./ui/pages/settings/ImageGenerationPage";
 import { SystemPromptsPage } from "./ui/pages/settings/SystemPromptsPage";
 import { EditPromptTemplate } from "./ui/pages/settings/EditPromptTemplate";
@@ -607,6 +608,7 @@ function AppContent() {
               <Route path="/settings/providers" element={<ProvidersPage />} />
               <Route path="/settings/models" element={<ModelsPage />} />
               <Route path="/settings/models/new" element={<EditModelPage />} />
+              <Route path="/settings/models/browse" element={<HuggingFaceBrowserPage />} />
               <Route path="/settings/models/:modelId" element={<EditModelPage />} />
               <Route path="/settings/voices" element={<VoicesPage />} />
               <Route path="/settings/image-generation" element={<ImageGenerationPage />} />

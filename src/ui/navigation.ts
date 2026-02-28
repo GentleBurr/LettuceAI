@@ -57,6 +57,7 @@ export const Routes = {
   settingsConvert: "/settings/convert",
   settingsModels: "/settings/models",
   settingsModelsNew: "/settings/models/new",
+  settingsModelsBrowse: "/settings/models/browse",
   settingsModel: (modelId: string) => `/settings/models/${modelId}`,
   settingsImageGeneration: "/settings/image-generation",
   characterLorebook: (characterId: string) => `/settings/characters/${characterId}/lorebook`,
@@ -71,14 +72,10 @@ export const Routes = {
   // Engine routes
   engineHome: (credentialId: string) => `/settings/engine/${credentialId}`,
   engineSetup: (credentialId: string) => `/settings/engine/${credentialId}/setup`,
-  engineCharacterCreate: (credentialId: string) =>
-    `/settings/engine/${credentialId}/character/new`,
-  engineProvidersConfig: (credentialId: string) =>
-    `/settings/engine/${credentialId}/providers`,
-  engineSettingsConfig: (credentialId: string) =>
-    `/settings/engine/${credentialId}/settings`,
-  engineChat: (credentialId: string, slug: string) =>
-    `/engine-chat/${credentialId}/${slug}`,
+  engineCharacterCreate: (credentialId: string) => `/settings/engine/${credentialId}/character/new`,
+  engineProvidersConfig: (credentialId: string) => `/settings/engine/${credentialId}/providers`,
+  engineSettingsConfig: (credentialId: string) => `/settings/engine/${credentialId}/settings`,
+  engineChat: (credentialId: string, slug: string) => `/engine-chat/${credentialId}/${slug}`,
   // Discovery routes
   discover: "/discover",
   discoverSearch: "/discover/search",
