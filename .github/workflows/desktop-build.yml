@@ -372,15 +372,16 @@ jobs:
       - name: Install ROCm HIP toolchain (Linux)
         run: |
           set -euxo pipefail
+          ROCM_SERIES="7.2.0"
           sudo mkdir -p /etc/apt/keyrings
           curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null
           echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/latest noble main" | sudo tee /etc/apt/sources.list.d/rocm.list
           sudo apt-get update
           sudo apt-get install -y \
-            rocm-core \
-            rocm-hip-runtime \
-            rocm-hip-sdk \
-            hipcc
+            rocm-core${ROCM_SERIES} \
+            rocm-hip-runtime${ROCM_SERIES} \
+            rocm-hip-sdk${ROCM_SERIES} \
+            hipcc${ROCM_SERIES}
           echo "/opt/rocm/bin" >> "$GITHUB_PATH"
           echo "ROCM_PATH=/opt/rocm" >> "$GITHUB_ENV"
           echo "HIP_PATH=/opt/rocm" >> "$GITHUB_ENV"
@@ -767,6 +768,11 @@ jobs:
           echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "C:\\Program Files\\LLVM\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install ROCm HIP toolchain (Windows)
         shell: pwsh
         run: |
@@ -784,18 +790,18 @@ jobs:
           $releaseUrl = "$base" + "rocm-rel-$releaseTag/"
 
           $releaseIndex = (Invoke-WebRequest -Uri $releaseUrl -UseBasicParsing).Content
-          $versionMatches = [regex]::Matches($releaseIndex, 'rocm-([0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?)\.tar\.gz') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
-          if (-not $versionMatches -or $versionMatches.Count -eq 0) {
+          $tarMatch = [regex]::Match($releaseIndex, 'href="rocm-([^"]+)\.tar\.gz"')
+          if (-not $tarMatch.Success) {
             throw "Could not detect ROCm Python package version in $releaseUrl"
           }
-          $rocmVersion = $versionMatches[0]
+          $rocmVersion = $tarMatch.Groups[1].Value
 
           Write-Host "Installing rocm[devel]==$rocmVersion from $releaseUrl"
           python -m pip install "rocm[devel]==$rocmVersion" --find-links "$releaseUrl"
-          rocm-sdk init
+          python -m rocm_sdk init
 
-          $rocmBin = (rocm-sdk path --bin).Trim()
-          $rocmRoot = (rocm-sdk path --root).Trim()
+          $rocmBin = (python -m rocm_sdk path --bin).Trim()
+          $rocmRoot = (python -m rocm_sdk path --root).Trim()
           if (-not (Test-Path (Join-Path $rocmBin "hipcc.bat")) -and -not (Test-Path (Join-Path $rocmBin "hipcc.exe"))) {
             throw "hipcc not found in ROCm bin path: $rocmBin"
           }
