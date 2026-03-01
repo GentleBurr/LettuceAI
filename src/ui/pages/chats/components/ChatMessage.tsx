@@ -648,6 +648,7 @@ function ChatMessageInner({
               key={message.id + ":" + computed.selectedVariantIndex}
               content={displayContent ?? message.content}
               className="text-inherit select-none"
+              onImageClick={onImageClick}
             />
           </>
         )}

@@ -1,8 +1,10 @@
 import { useMemo } from "react";
+import DOMPurify from "dompurify";
 
 type MarkdownRendererProps = {
   content: string;
   className?: string;
+  onImageClick?: (src: string, alt: string) => void;
 };
 
 type ListBuffer = {
@@ -10,17 +12,46 @@ type ListBuffer = {
   items: string[];
 };
 
+function sanitizeUrl(url: string): string | null {
+  const clean = DOMPurify.sanitize(`<a href="${url}">x</a>`);
+  const match = /href="([^"]*)"/.exec(clean);
+  return match?.[1] ?? null;
+}
+
 // Pre-compiled regex patterns - avoid recreation on each render/call
 const INLINE_PATTERN =
-  /(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]+\)|\[[^\]]+\]|\([^)]+\))/;
+  /(<img\s[^>]*>|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]+\)|\[[^\]]+\]|\([^)]+\)|!\[[^\]]*\]\([^)]+\))/i;
 const CRLF_PATTERN = /\r\n/g;
 const HEADING_PATTERN = /^(#{1,6})\s+(.*)$/;
 const QUOTE_PATTERN = /^>\s?/;
 const UNORDERED_LIST_PATTERN = /^[-*+]\s+/;
 const ORDERED_LIST_PATTERN = /^\d+\.\s+/;
 const CODE_FENCE_START = "```";
+const IMAGE_PATTERN = /^!\[([^\]]*)\]\(([^)]+)\)$/;
+const HTML_IMG_PATTERN = /^<img\s[^>]*>$/i;
+const HTML_IMG_SRC = /src=["']([^"']+)["']/i;
+const HTML_IMG_ALT = /alt=["']([^"']*?)["']/i;
+const HTML_IMG_WIDTH = /width=["']?(\d+)["']?/i;
+const HTML_IMG_HEIGHT = /height=["']?(\d+)["']?/i;
 
-function parseInline(text: string, keyPrefix: string): (JSX.Element | string)[] {
+function parseImgAttrs(tag: string): { src: string; alt: string; style: React.CSSProperties } | null {
+  const srcMatch = HTML_IMG_SRC.exec(tag);
+  if (!srcMatch) return null;
+  const src = sanitizeUrl(srcMatch[1]);
+  if (!src) return null;
+
+  const altMatch = HTML_IMG_ALT.exec(tag);
+  const widthMatch = HTML_IMG_WIDTH.exec(tag);
+  const heightMatch = HTML_IMG_HEIGHT.exec(tag);
+
+  const style: React.CSSProperties = { maxWidth: "100%" };
+  if (widthMatch) style.width = parseInt(widthMatch[1], 10);
+  if (heightMatch) style.height = parseInt(heightMatch[1], 10);
+
+  return { src, alt: altMatch?.[1] ?? "", style };
+}
+
+function parseInline(text: string, keyPrefix: string, onImageClick?: (src: string, alt: string) => void): (JSX.Element | string)[] {
   const nodes: (JSX.Element | string)[] = [];
   let remaining = text;
   let index = 0;
@@ -42,14 +73,48 @@ function parseInline(text: string, keyPrefix: string): (JSX.Element | string)[] 
     const afterMatch = remaining.slice(match.index + token.length);
     const key = `${keyPrefix}-${index++}`;
 
-    if (token.startsWith("**")) {
+    if (token.startsWith("<img") || token.startsWith("<IMG")) {
+      const attrs = parseImgAttrs(token);
+      if (attrs) {
+        const imgEl = (
+          <img
+            key={key}
+            src={attrs.src}
+            alt={attrs.alt}
+            style={attrs.style}
+            className={`rounded-xl ${onImageClick ? "cursor-pointer" : ""}`}
+            loading="lazy"
+            onClick={onImageClick ? () => onImageClick(attrs.src, attrs.alt) : undefined}
+          />
+        );
+        nodes.push(imgEl);
+      }
+    } else if (token.startsWith("![")) {
+      // Image: ![alt](src)
+      const closingBracket = token.indexOf("]");
+      const alt = token.slice(2, closingBracket);
+      const rawSrc = token.slice(closingBracket + 2, -1);
+      const src = sanitizeUrl(rawSrc);
+      if (src) {
+        nodes.push(
+          <img
+            key={key}
+            src={src}
+            alt={alt}
+            className={`w-full max-w-md rounded-xl ${onImageClick ? "cursor-pointer" : ""}`}
+            loading="lazy"
+            onClick={onImageClick ? () => onImageClick(src, alt) : undefined}
+          />,
+        );
+      }
+    } else if (token.startsWith("**")) {
       const inner = token.slice(2, -2);
-      nodes.push(<strong key={key}>{parseInline(inner, key)}</strong>);
+      nodes.push(<strong key={key}>{parseInline(inner, key, onImageClick)}</strong>);
     } else if (token[0] === "*" || token[0] === "_") {
       const inner = token.slice(1, -1);
       nodes.push(
         <em key={key} className="opacity-80">
-          {parseInline(inner, key)}
+          {parseInline(inner, key, onImageClick)}
         </em>,
       );
     } else if (token[0] === "`") {
@@ -62,24 +127,29 @@ function parseInline(text: string, keyPrefix: string): (JSX.Element | string)[] 
       // Link: [label](url)
       const closingBracket = token.indexOf("]");
       const label = token.slice(1, closingBracket);
-      const url = token.slice(closingBracket + 2, -1);
-      nodes.push(
-        <a
-          key={key}
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-emerald-300 underline underline-offset-2 hover:text-emerald-200"
-        >
-          {label}
-        </a>,
-      );
+      const rawUrl = token.slice(closingBracket + 2, -1);
+      const url = sanitizeUrl(rawUrl);
+      if (url) {
+        nodes.push(
+          <a
+            key={key}
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-emerald-300 underline underline-offset-2 hover:text-emerald-200"
+          >
+            {label}
+          </a>,
+        );
+      } else {
+        nodes.push(<span key={key}>{label}</span>);
+      }
     } else if (token[0] === "[") {
       // Standalone [text] - render as italic with visible brackets
       const inner = token.slice(1, -1);
       nodes.push(
         <em key={key} className="opacity-80">
-          [{parseInline(inner, key)}]
+          [{parseInline(inner, key, onImageClick)}]
         </em>,
       );
     } else if (token[0] === "(") {
@@ -87,7 +157,7 @@ function parseInline(text: string, keyPrefix: string): (JSX.Element | string)[] 
       const inner = token.slice(1, -1);
       nodes.push(
         <em key={key} className="opacity-80">
-          ({parseInline(inner, key)})
+          ({parseInline(inner, key, onImageClick)})
         </em>,
       );
     }
@@ -98,7 +168,7 @@ function parseInline(text: string, keyPrefix: string): (JSX.Element | string)[] 
   return nodes;
 }
 
-function flushParagraph(buffer: string[], nodes: JSX.Element[], keyIndex: { value: number }): void {
+function flushParagraph(buffer: string[], nodes: JSX.Element[], keyIndex: { value: number }, onImageClick?: (src: string, alt: string) => void): void {
   if (buffer.length === 0) return;
   const paragraphText = buffer.join("\n").trim();
   if (!paragraphText) {
@@ -108,7 +178,7 @@ function flushParagraph(buffer: string[], nodes: JSX.Element[], keyIndex: { valu
   const key = `p-${keyIndex.value++}`;
   nodes.push(
     <p key={key} className="whitespace-pre-wrap wrap-break-word">
-      {parseInline(paragraphText, key)}
+      {parseInline(paragraphText, key, onImageClick)}
     </p>,
   );
   buffer.length = 0;
@@ -118,6 +188,7 @@ function flushList(
   list: ListBuffer | null,
   nodes: JSX.Element[],
   keyIndex: { value: number },
+  onImageClick?: (src: string, alt: string) => void,
 ): null {
   if (!list || list.items.length === 0) {
     return null;
@@ -131,7 +202,7 @@ function flushList(
     <ListTag key={key} className={listClass}>
       {list.items.map((item, idx) => (
         <li key={idx} className="whitespace-pre-wrap">
-          {parseInline(item.trim(), `${key}-${idx}`)}
+          {parseInline(item.trim(), `${key}-${idx}`, onImageClick)}
         </li>
       ))}
     </ListTag>,
@@ -139,14 +210,14 @@ function flushList(
   return null;
 }
 
-function flushQuote(quoteLines: string[], nodes: JSX.Element[], keyIndex: { value: number }): void {
+function flushQuote(quoteLines: string[], nodes: JSX.Element[], keyIndex: { value: number }, onImageClick?: (src: string, alt: string) => void): void {
   if (quoteLines.length === 0) return;
   const key = `quote-${keyIndex.value++}`;
   nodes.push(
     <blockquote key={key} className="border-l-2 border-white/20 pl-4 text-sm italic text-gray-300">
       {quoteLines.map((line, idx) => (
         <p key={idx} className="whitespace-pre-wrap">
-          {parseInline(line.trim(), `${key}-${idx}`)}
+          {parseInline(line.trim(), `${key}-${idx}`, onImageClick)}
         </p>
       ))}
     </blockquote>,
@@ -154,7 +225,7 @@ function flushQuote(quoteLines: string[], nodes: JSX.Element[], keyIndex: { valu
   quoteLines.length = 0;
 }
 
-export function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className = "", onImageClick }: MarkdownRendererProps) {
   const nodes = useMemo(() => {
     const normalized = content.replace(CRLF_PATTERN, "\n");
     const lines = normalized.split("\n");
@@ -168,9 +239,9 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
     const keyIndex = { value: 0 };
 
     const flushAll = () => {
-      listBuffer = flushList(listBuffer, out, keyIndex);
-      flushQuote(quoteBuffer, out, keyIndex);
-      flushParagraph(paragraphBuffer, out, keyIndex);
+      listBuffer = flushList(listBuffer, out, keyIndex, onImageClick);
+      flushQuote(quoteBuffer, out, keyIndex, onImageClick);
+      flushParagraph(paragraphBuffer, out, keyIndex, onImageClick);
     };
 
     for (let i = 0; i < lines.length; i++) {
@@ -222,6 +293,47 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
         continue;
       }
 
+      // Standalone HTML <img> on its own line
+      if (HTML_IMG_PATTERN.test(trimmedLine)) {
+        const attrs = parseImgAttrs(trimmedLine);
+        if (attrs) {
+          flushAll();
+          out.push(
+            <img
+              key={`img-${keyIndex.value++}`}
+              src={attrs.src}
+              alt={attrs.alt}
+              style={attrs.style}
+              className={`rounded-xl ${onImageClick ? "cursor-pointer" : ""}`}
+              loading="lazy"
+              onClick={onImageClick ? () => onImageClick(attrs.src, attrs.alt) : undefined}
+            />,
+          );
+          continue;
+        }
+      }
+
+      // Standalone image on its own line
+      const imageMatch = IMAGE_PATTERN.exec(trimmedLine);
+      if (imageMatch) {
+        const src = sanitizeUrl(imageMatch[2]);
+        if (src) {
+          flushAll();
+          const alt = imageMatch[1];
+          out.push(
+            <img
+              key={`img-${keyIndex.value++}`}
+              src={src}
+              alt={alt}
+              className={`w-full max-w-md rounded-xl ${onImageClick ? "cursor-pointer" : ""}`}
+              loading="lazy"
+              onClick={onImageClick ? () => onImageClick(src, alt) : undefined}
+            />,
+          );
+          continue;
+        }
+      }
+
       // Headings
       const headingMatch = HEADING_PATTERN.exec(line);
       if (headingMatch) {
@@ -231,7 +343,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
         const key = `heading-${keyIndex.value++}`;
         out.push(
           <HeadingTag key={key} className="text-base font-semibold text-white">
-            {parseInline(headingMatch[2].trim(), key)}
+            {parseInline(headingMatch[2].trim(), key, onImageClick)}
           </HeadingTag>,
         );
         continue;
@@ -239,7 +351,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
 
       // Blockquotes
       if (QUOTE_PATTERN.test(line)) {
-        listBuffer = flushList(listBuffer, out, keyIndex);
+        listBuffer = flushList(listBuffer, out, keyIndex, onImageClick);
         paragraphBuffer.length = 0;
         quoteBuffer.push(line.replace(QUOTE_PATTERN, ""));
         continue;
@@ -247,11 +359,11 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
 
       // Unordered lists
       if (UNORDERED_LIST_PATTERN.test(line)) {
-        flushQuote(quoteBuffer, out, keyIndex);
+        flushQuote(quoteBuffer, out, keyIndex, onImageClick);
         paragraphBuffer.length = 0;
         const item = line.replace(UNORDERED_LIST_PATTERN, "");
         if (!listBuffer || listBuffer.type !== "unordered") {
-          listBuffer = flushList(listBuffer, out, keyIndex);
+          listBuffer = flushList(listBuffer, out, keyIndex, onImageClick);
           listBuffer = { type: "unordered", items: [] };
         }
         listBuffer.items.push(item);
@@ -260,11 +372,11 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
 
       // Ordered lists
       if (ORDERED_LIST_PATTERN.test(line)) {
-        flushQuote(quoteBuffer, out, keyIndex);
+        flushQuote(quoteBuffer, out, keyIndex, onImageClick);
         paragraphBuffer.length = 0;
         const item = line.replace(ORDERED_LIST_PATTERN, "");
         if (!listBuffer || listBuffer.type !== "ordered") {
-          listBuffer = flushList(listBuffer, out, keyIndex);
+          listBuffer = flushList(listBuffer, out, keyIndex, onImageClick);
           listBuffer = { type: "ordered", items: [] };
         }
         listBuffer.items.push(item);
@@ -272,8 +384,8 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
       }
 
       // Regular paragraph text
-      listBuffer = flushList(listBuffer, out, keyIndex);
-      flushQuote(quoteBuffer, out, keyIndex);
+      listBuffer = flushList(listBuffer, out, keyIndex, onImageClick);
+      flushQuote(quoteBuffer, out, keyIndex, onImageClick);
       paragraphBuffer.push(line);
     }
 
@@ -294,7 +406,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
     }
 
     return out;
-  }, [content]);
+  }, [content, onImageClick]);
 
   return (
     <div className={`markdown-renderer space-y-3 text-sm leading-relaxed ${className}`}>

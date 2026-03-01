@@ -660,6 +660,7 @@ function GroupChatMessageInner({
               key={message.id + ":" + computed.selectedVariantIndex}
               content={processedContent}
               className="text-inherit select-none"
+              onImageClick={onImageClick}
             />
           </>
         )}
