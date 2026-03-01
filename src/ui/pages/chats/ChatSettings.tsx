@@ -837,7 +837,10 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Memory (Primary) */}
           <section className={spacing.item}>
-            <SectionHeader title={t("chats.settings.memorySection")} subtitle={t("chats.settings.memorySectionDesc")} />
+            <SectionHeader
+              title={t("chats.settings.memorySection")}
+              subtitle={t("chats.settings.memorySectionDesc")}
+            />
             <button
               onClick={() => {
                 if (!characterId) return;
@@ -899,7 +902,10 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Quick Settings */}
           <section className={spacing.item}>
-            <SectionHeader title={t("chats.settings.quickSettings")} subtitle={t("chats.settings.quickSettingsDesc")} />
+            <SectionHeader
+              title={t("chats.settings.quickSettings")}
+              subtitle={t("chats.settings.quickSettingsDesc")}
+            />
             <div className="grid grid-cols-1 gap-2">
               <QuickChip
                 icon={
@@ -945,7 +951,10 @@ function ChatSettingsContent({ character }: { character: Character }) {
           {/* Voice */}
           {currentCharacter?.voiceConfig && (
             <section className={spacing.item}>
-              <SectionHeader title={t("chats.settings.voice")} subtitle={t("chats.settings.voiceDesc")} />
+              <SectionHeader
+                title={t("chats.settings.voice")}
+                subtitle={t("chats.settings.voiceDesc")}
+              />
               <div
                 className={cn(
                   "flex items-center justify-between gap-3 rounded-xl border px-4 py-3",
@@ -1001,7 +1010,10 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Advanced (Important) */}
           <section className={spacing.item}>
-            <SectionHeader title={t("chats.settings.advanced")} subtitle={t("chats.settings.advancedDesc")} />
+            <SectionHeader
+              title={t("chats.settings.advanced")}
+              subtitle={t("chats.settings.advancedDesc")}
+            />
             <button
               onClick={() => {
                 if (!currentSession) return;
@@ -1075,7 +1087,10 @@ function ChatSettingsContent({ character }: { character: Character }) {
 
           {/* Session Management */}
           <section className={spacing.item}>
-            <SectionHeader title={t("chats.settings.session")} subtitle={t("chats.settings.sessionDesc")} />
+            <SectionHeader
+              title={t("chats.settings.session")}
+              subtitle={t("chats.settings.sessionDesc")}
+            />
             <div className={spacing.field}>
               <SettingsButton
                 icon={<MessageSquarePlus className="h-4 w-4" />}
@@ -1122,7 +1137,11 @@ function ChatSettingsContent({ character }: { character: Character }) {
           setShowModelSelector(false);
           setModelSearchQuery("");
         }}
-        title={modelSelectorTarget === "fallback" ? t("chats.settings.selectFallbackModel") : t("chats.settings.selectModel")}
+        title={
+          modelSelectorTarget === "fallback"
+            ? t("chats.settings.selectFallbackModel")
+            : t("chats.settings.selectModel")
+        }
         includeExitIcon={false}
         location="bottom"
       >
@@ -1608,19 +1627,21 @@ function ChatSettingsContent({ character }: { character: Character }) {
       >
         <MenuSection>
           <div className="space-y-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+              Format:{" "}
+              {pendingChatpkgImport?.info?.source?.format === "sillytavern"
+                ? "SillyTavern format (.jsonl)"
+                : "Chat package / JSONL"}
+            </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
               {pendingChatpkgImport?.info?.characterId ? (
                 pendingChatpkgImport.info.characterId === characterId ? (
                   <p>{t("chats.characterSpecificMatches")}</p>
                 ) : (
-                  <p>
-                    {t("chats.characterSpecificMismatch", { name: currentCharacter.name })}
-                  </p>
+                  <p>{t("chats.characterSpecificMismatch", { name: currentCharacter.name })}</p>
                 )
               ) : (
-                <p>
-                  {t("chats.nonCharacterSpecificImport", { name: currentCharacter.name })}
-                </p>
+                <p>{t("chats.nonCharacterSpecificImport", { name: currentCharacter.name })}</p>
               )}
             </div>
             <button

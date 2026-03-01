@@ -162,6 +162,21 @@ export function ChatHistoryPage() {
     [exportTarget],
   );
 
+  const handleExportSillyTavern = useCallback(async () => {
+    if (!exportTarget) return;
+    try {
+      setExporting(true);
+      const path = await storageBridge.chatpkgExportSingleChatSillyTavern(exportTarget.id);
+      setExportTarget(null);
+      alert(`SillyTavern chat exported to:\n${path}`);
+    } catch (err) {
+      console.error("Failed to export SillyTavern chat:", err);
+      alert(typeof err === "string" ? err : "Failed to export SillyTavern chat");
+    } finally {
+      setExporting(false);
+    }
+  }, [exportTarget]);
+
   const filteredSessions = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sessions;
@@ -181,7 +196,9 @@ export function ChatHistoryPage() {
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <MessageCircle className="mx-auto mb-4 h-12 w-12 text-white/30" />
-          <p className={cn(typography.body.size, "text-white/60")}>{t("chats.characterNotFound")}</p>
+          <p className={cn(typography.body.size, "text-white/60")}>
+            {t("chats.characterNotFound")}
+          </p>
         </div>
       </div>
     );
@@ -384,12 +401,24 @@ export function ChatHistoryPage() {
           />
           <MenuButton
             icon={Download}
-            title={exporting ? t("common.buttons.exporting") : t("chats.nonCharacterSpecificExport")}
+            title={
+              exporting ? t("common.buttons.exporting") : t("chats.nonCharacterSpecificExport")
+            }
             description={t("chats.nonCharacterSpecificExportDesc")}
             color="from-indigo-500 to-blue-600"
             disabled={!exportTarget || exporting}
             onClick={() => {
               void handleExportChatpkg(false);
+            }}
+          />
+          <MenuButton
+            icon={Download}
+            title={exporting ? t("common.buttons.exporting") : "SillyTavern format"}
+            description="Export as .jsonl compatible with SillyTavern."
+            color="from-emerald-500 to-teal-600"
+            disabled={!exportTarget || exporting}
+            onClick={() => {
+              void handleExportSillyTavern();
             }}
           />
         </MenuButtonGroup>
@@ -422,7 +451,11 @@ export function ChatHistoryPage() {
         <MenuButtonGroup>
           <MenuButton
             icon={Trash2}
-            title={deleteTarget && busyIds.has(deleteTarget.id) ? t("common.buttons.deleting") : t("chats.deleteChat")}
+            title={
+              deleteTarget && busyIds.has(deleteTarget.id)
+                ? t("common.buttons.deleting")
+                : t("chats.deleteChat")
+            }
             description={t("chats.deleteConfirmDesc")}
             color="from-rose-500 to-red-600"
             disabled={!deleteTarget || busyIds.has(deleteTarget.id)}

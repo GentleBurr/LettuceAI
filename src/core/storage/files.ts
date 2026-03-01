@@ -419,6 +419,10 @@ export const storageBridge = {
       sessionId,
       includeCharacterId: includeCharacterId ?? true,
     }),
+  chatpkgExportSingleChatSillyTavern: (sessionId: string) =>
+    invoke<string>("chatpkg_export_single_chat_sillytavern", {
+      sessionId,
+    }),
   chatpkgExportGroupChat: (sessionId: string, includeCharacterSnapshots?: boolean) =>
     invoke<string>("chatpkg_export_group_chat", {
       sessionId,

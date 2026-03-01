@@ -321,6 +321,7 @@ pub fn run() {
             storage_manager::backup::backup_check_dynamic_memory_from_bytes,
             storage_manager::backup::backup_disable_dynamic_memory,
             storage_manager::chatpkg::chatpkg_export_single_chat,
+            storage_manager::chatpkg::chatpkg_export_single_chat_sillytavern,
             storage_manager::chatpkg::chatpkg_export_group_chat,
             storage_manager::chatpkg::chatpkg_inspect,
             storage_manager::chatpkg::chatpkg_import,

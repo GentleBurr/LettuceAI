@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
@@ -189,6 +189,32 @@ fn normalize_chat_role(raw: &str) -> Option<&'static str> {
     }
 }
 
+fn parse_created_at(value: Option<&JsonValue>) -> Option<i64> {
+    let raw = value?;
+    if let Some(v) = raw.as_i64() {
+        return Some(if v < 10_000_000_000 { v * 1000 } else { v });
+    }
+    if let Some(s) = raw.as_str() {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        if let Ok(v) = trimmed.parse::<i64>() {
+            return Some(if v < 10_000_000_000 { v * 1000 } else { v });
+        }
+        if let Ok(dt) = DateTime::parse_from_rfc3339(trimmed) {
+            return Some(dt.timestamp_millis());
+        }
+        if let Ok(dt) = NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%dT%H:%M:%S%.f") {
+            return Some(dt.and_utc().timestamp_millis());
+        }
+        if let Ok(dt) = NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%d %H:%M:%S%.f") {
+            return Some(dt.and_utc().timestamp_millis());
+        }
+    }
+    None
+}
+
 fn extract_message_text(value: &JsonValue) -> Option<String> {
     if let Some(text) = value.as_str() {
         let trimmed = text.trim();
@@ -201,7 +227,7 @@ fn extract_message_text(value: &JsonValue) -> Option<String> {
         return None;
     };
 
-    for key in ["content", "text", "message", "value", "body"] {
+    for key in ["content", "text", "message", "value", "body", "mes"] {
         let Some(candidate) = obj.get(key) else {
             continue;
         };
@@ -234,38 +260,64 @@ fn extract_message_text(value: &JsonValue) -> Option<String> {
     None
 }
 
-fn normalize_message_object(value: &JsonValue) -> Option<JsonValue> {
-    let role_value = ["role", "sender", "author", "speaker", "from"]
-        .iter()
-        .find_map(|key| value.get(*key).and_then(|v| v.as_str()))?;
-    let role = normalize_chat_role(role_value)?;
+fn normalize_message_object(value: &JsonValue) -> Option<(JsonValue, bool)> {
+    let is_sillytavern = value.get("mes").is_some()
+        || value.get("is_user").is_some()
+        || value.get("is_system").is_some();
+    let role = if value
+        .get("is_system")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        Some("system")
+    } else {
+        value
+            .get("is_user")
+            .and_then(|v| v.as_bool())
+            .map(|is_user| if is_user { "user" } else { "assistant" })
+            .or_else(|| {
+                ["role", "sender", "author", "speaker", "from"]
+                    .iter()
+                    .find_map(|key| value.get(*key).and_then(|v| v.as_str()))
+                    .and_then(normalize_chat_role)
+            })
+    }?;
     let content = extract_message_text(value)?;
-    let created_at = ["createdAt", "timestamp", "time"]
+    let created_at = ["createdAt", "timestamp", "time", "send_date"]
         .iter()
-        .find_map(|key| value.get(*key).and_then(|v| v.as_i64()))
+        .find_map(|key| parse_created_at(value.get(*key)))
         .unwrap_or_else(|| now_ms() as i64);
 
-    Some(json!({
-        "id": Uuid::new_v4().to_string(),
-        "role": role,
-        "content": content,
-        "createdAt": created_at,
-        "attachments": value.get("attachments").cloned().unwrap_or_else(|| JsonValue::Array(vec![])),
-    }))
+    Some((
+        json!({
+            "id": Uuid::new_v4().to_string(),
+            "role": role,
+            "content": content,
+            "createdAt": created_at,
+            "attachments": value.get("attachments").cloned().unwrap_or_else(|| JsonValue::Array(vec![])),
+        }),
+        is_sillytavern,
+    ))
 }
 
 fn build_single_chat_envelope_from_messages(
     messages: Vec<JsonValue>,
     source_path: &str,
+    source_format: &str,
 ) -> JsonValue {
     let now = now_ms() as i64;
+    let source_app = if source_format == "sillytavern" {
+        "sillytavern"
+    } else {
+        "external"
+    };
     json!({
         "type": "single_chat",
         "version": CHATPKG_VERSION,
         "exportedAt": now,
         "source": {
-            "app": "external",
-            "format": "jsonl",
+            "app": source_app,
+            "format": source_format,
         },
         "payload": {
             "session": {
@@ -281,6 +333,22 @@ fn build_single_chat_envelope_from_messages(
     })
 }
 
+fn build_external_single_chat_envelope(
+    messages: Vec<JsonValue>,
+    source_path: &str,
+    is_sillytavern: bool,
+) -> JsonValue {
+    build_single_chat_envelope_from_messages(
+        messages,
+        source_path,
+        if is_sillytavern {
+            "sillytavern"
+        } else {
+            "jsonl"
+        },
+    )
+}
+
 fn parse_chat_json_lines(raw: &str, source_path: &str) -> Result<JsonValue, String> {
     if let Ok(parsed) = serde_json::from_str::<JsonValue>(raw) {
         if parsed.get("type").is_some() && parsed.get("payload").is_some() {
@@ -288,27 +356,45 @@ fn parse_chat_json_lines(raw: &str, source_path: &str) -> Result<JsonValue, Stri
         }
 
         if let Some(items) = parsed.as_array() {
+            let mut is_sillytavern = false;
             let normalized = items
                 .iter()
-                .filter_map(normalize_message_object)
+                .filter_map(|item| {
+                    normalize_message_object(item).map(|(message, st)| {
+                        if st {
+                            is_sillytavern = true;
+                        }
+                        message
+                    })
+                })
                 .collect::<Vec<_>>();
             if !normalized.is_empty() {
-                return Ok(build_single_chat_envelope_from_messages(
+                return Ok(build_external_single_chat_envelope(
                     normalized,
                     source_path,
+                    is_sillytavern,
                 ));
             }
         }
 
         if let Some(messages) = parsed.get("messages").and_then(|v| v.as_array()) {
+            let mut is_sillytavern = false;
             let normalized = messages
                 .iter()
-                .filter_map(normalize_message_object)
+                .filter_map(|message| {
+                    normalize_message_object(message).map(|(normalized_message, st)| {
+                        if st {
+                            is_sillytavern = true;
+                        }
+                        normalized_message
+                    })
+                })
                 .collect::<Vec<_>>();
             if !normalized.is_empty() {
-                return Ok(build_single_chat_envelope_from_messages(
+                return Ok(build_external_single_chat_envelope(
                     normalized,
                     source_path,
+                    is_sillytavern,
                 ));
             }
         }
@@ -340,14 +426,23 @@ fn parse_chat_json_lines(raw: &str, source_path: &str) -> Result<JsonValue, Stri
             return Ok(single);
         }
         if let Some(messages) = single.get("messages").and_then(|v| v.as_array()) {
+            let mut is_sillytavern = false;
             let normalized = messages
                 .iter()
-                .filter_map(normalize_message_object)
+                .filter_map(|message| {
+                    normalize_message_object(message).map(|(normalized_message, st)| {
+                        if st {
+                            is_sillytavern = true;
+                        }
+                        normalized_message
+                    })
+                })
                 .collect::<Vec<_>>();
             if !normalized.is_empty() {
-                return Ok(build_single_chat_envelope_from_messages(
+                return Ok(build_external_single_chat_envelope(
                     normalized,
                     source_path,
+                    is_sillytavern,
                 ));
             }
         }
@@ -355,13 +450,24 @@ fn parse_chat_json_lines(raw: &str, source_path: &str) -> Result<JsonValue, Stri
     }
 
     let mut messages = Vec::new();
+    let mut saw_sillytavern = false;
     for entry in parsed_lines {
         if let Some(items) = entry.get("messages").and_then(|v| v.as_array()) {
-            messages.extend(items.iter().filter_map(normalize_message_object));
+            for item in items.iter() {
+                if let Some((message, is_sillytavern)) = normalize_message_object(item) {
+                    if is_sillytavern {
+                        saw_sillytavern = true;
+                    }
+                    messages.push(message);
+                }
+            }
             continue;
         }
 
-        if let Some(message) = normalize_message_object(&entry) {
+        if let Some((message, is_sillytavern)) = normalize_message_object(&entry) {
+            if is_sillytavern {
+                saw_sillytavern = true;
+            }
             messages.push(message);
         }
     }
@@ -374,10 +480,155 @@ fn parse_chat_json_lines(raw: &str, source_path: &str) -> Result<JsonValue, Stri
         ));
     }
 
-    Ok(build_single_chat_envelope_from_messages(
+    Ok(build_external_single_chat_envelope(
         messages,
         source_path,
+        saw_sillytavern,
     ))
+}
+
+fn sillytavern_send_date(created_at_ms: i64) -> String {
+    Utc.timestamp_millis_opt(created_at_ms)
+        .single()
+        .unwrap_or_else(Utc::now)
+        .format("%Y-%m-%dT%H:%M:%S%.3f")
+        .to_string()
+}
+
+fn pick_message_content(message: &JsonValue) -> String {
+    if let Some(content) = message.get("content").and_then(|v| v.as_str()) {
+        return content.to_string();
+    }
+    if let Some(variants) = message.get("variants").and_then(|v| v.as_array()) {
+        if let Some(selected_id) = message.get("selectedVariantId").and_then(|v| v.as_str()) {
+            if let Some(selected) = variants
+                .iter()
+                .find(|variant| variant.get("id").and_then(|v| v.as_str()) == Some(selected_id))
+            {
+                if let Some(content) = selected.get("content").and_then(|v| v.as_str()) {
+                    return content.to_string();
+                }
+            }
+        }
+        if let Some(first) = variants.first() {
+            if let Some(content) = first.get("content").and_then(|v| v.as_str()) {
+                return content.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
+#[tauri::command]
+pub fn chatpkg_export_single_chat_sillytavern(
+    app: tauri::AppHandle,
+    session_id: String,
+) -> Result<String, String> {
+    let session_json = super::sessions::session_get(app.clone(), session_id)?
+        .ok_or_else(|| crate::utils::err_msg(module_path!(), line!(), "Session not found"))?;
+    let session: JsonValue = serde_json::from_str(&session_json)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let title = session
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("chat");
+    let character_id = session.get("characterId").and_then(|v| v.as_str());
+    let persona_id = session.get("personaId").and_then(|v| v.as_str());
+    let messages = session
+        .get("messages")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let conn = open_db(&app)?;
+    let character_name = match character_id {
+        Some(cid) => conn
+            .query_row(
+                "SELECT name FROM characters WHERE id = ?1",
+                params![cid],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+            .unwrap_or_else(|| "Character".to_string()),
+        None => "Character".to_string(),
+    };
+    let user_name = match persona_id {
+        Some(pid) => conn
+            .query_row(
+                "SELECT title FROM personas WHERE id = ?1",
+                params![pid],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+            .unwrap_or_else(|| "User".to_string()),
+        None => "User".to_string(),
+    };
+
+    let first_created_at = messages
+        .first()
+        .and_then(|v| v.get("createdAt"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or_else(|| now_ms() as i64);
+
+    let mut lines: Vec<String> = Vec::with_capacity(messages.len() + 1);
+    let metadata = json!({
+        "user_name": user_name,
+        "character_name": character_name,
+        "create_date": sillytavern_send_date(first_created_at),
+        "chat_metadata": {},
+    });
+    lines.push(
+        serde_json::to_string(&metadata)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
+    );
+
+    for message in messages {
+        let role = message
+            .get("role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("assistant");
+        let created_at = message
+            .get("createdAt")
+            .and_then(|v| v.as_i64())
+            .unwrap_or_else(|| now_ms() as i64);
+        let content = pick_message_content(&message);
+        if content.trim().is_empty() {
+            continue;
+        }
+
+        let (name, is_user, is_system) = match role {
+            "user" => (user_name.as_str(), true, false),
+            "system" => ("System", false, true),
+            _ => (character_name.as_str(), false, false),
+        };
+        let line = json!({
+            "name": name,
+            "is_user": is_user,
+            "is_system": is_system,
+            "send_date": sillytavern_send_date(created_at),
+            "mes": content,
+            "extra": {},
+            "original_avatar": "",
+        });
+        lines.push(
+            serde_json::to_string(&line)
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
+        );
+    }
+
+    let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
+    let filename = format!(
+        "chat_{}_{}_sillytavern.jsonl",
+        sanitize_filename(title),
+        timestamp
+    );
+    let output_path = get_downloads_dir()?.join(filename);
+    fs::write(&output_path, lines.join("\n"))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    Ok(output_path.to_string_lossy().to_string())
 }
 
 fn read_chatpkg_source(path: &str) -> Result<ChatpkgSource, String> {

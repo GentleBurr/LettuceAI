@@ -360,7 +360,9 @@ export function ChatPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/20">
                 <Paintbrush className="h-4 w-4 text-purple-400" />
               </div>
-              <span className="text-sm font-medium text-purple-300">{t("chats.chatAppearance")}</span>
+              <span className="text-sm font-medium text-purple-300">
+                {t("chats.chatAppearance")}
+              </span>
             </button>
 
             <button
@@ -372,7 +374,9 @@ export function ChatPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/20">
                 <Upload className="h-4 w-4 text-emerald-300" />
               </div>
-              <span className="text-sm font-medium text-emerald-200">{t("chats.importChatPackage")}</span>
+              <span className="text-sm font-medium text-emerald-200">
+                {t("chats.importChatPackage")}
+              </span>
             </button>
 
             <button
@@ -423,6 +427,12 @@ export function ChatPage() {
         title={t("chats.importChatPackage")}
       >
         <div className="space-y-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+            Format:{" "}
+            {pendingChatpkgImport?.info?.source?.format === "sillytavern"
+              ? "SillyTavern format (.jsonl)"
+              : "Chat package / JSONL"}
+          </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
             {pendingChatpkgImport?.info?.characterId ? (
               pendingChatpkgImport.info.characterId === chatpkgImportTarget?.id ? (
@@ -704,7 +714,8 @@ const CharacterCard = memo(
   }) => {
     const { t } = useI18n();
     const descriptionPreview =
-      (character.description || character.definition || "").trim() || t("common.labels.noDescriptionYet");
+      (character.description || character.definition || "").trim() ||
+      t("common.labels.noDescriptionYet");
     const { gradientCss, hasGradient, textColor, textSecondary } = useAvatarGradient(
       "character",
       character.id,
@@ -898,7 +909,8 @@ const HeroCard = memo(
   }) => {
     const { t } = useI18n();
     const descriptionPreview =
-      (character.description || character.definition || "").trim() || t("common.labels.noDescriptionYet");
+      (character.description || character.definition || "").trim() ||
+      t("common.labels.noDescriptionYet");
     const { gradientCss, hasGradient, textColor, textSecondary } = useAvatarGradient(
       "character",
       character.id,
@@ -1013,7 +1025,8 @@ const GalleryCard = memo(
   }) => {
     const { t } = useI18n();
     const descriptionPreview =
-      (character.description || character.definition || "").trim() || t("common.labels.noDescriptionYet");
+      (character.description || character.definition || "").trim() ||
+      t("common.labels.noDescriptionYet");
     const avatarUrl = useAvatar("character", character.id, character.avatarPath, "base");
     const hasAvatar = avatarUrl && isImageLike(avatarUrl);
     const { gradientCss, hasGradient } = useAvatarGradient(
