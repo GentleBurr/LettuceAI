@@ -73,6 +73,7 @@ type ControllerReturn = {
   handleReasoningEffortChange: (value: "low" | "medium" | "high" | null) => void;
   handleReasoningBudgetChange: (value: number | null) => void;
   handleSave: () => Promise<void>;
+  saveModel: () => Promise<boolean>;
   handleDelete: () => Promise<void>;
   handleSetDefault: () => Promise<void>;
   resetToInitial: () => void;
@@ -143,21 +144,18 @@ export function useModelEditorController(): ControllerReturn {
         const providers = ensureLocalProvider(settings.providerCredentials);
         const defaultModelId = settings.defaultModelId ?? null;
 
-        // Use a standard default if no settings exist
         const defaultAdvanced = createDefaultAdvancedModelSettings();
 
         let nextEditorModel: Model | null = null;
         let nextDraft = sanitizeAdvancedModelSettings(defaultAdvanced);
 
         if (isNew) {
-          // Check for HuggingFace browser query params (pre-fill from download)
           const hfModelPath = searchParams.get("hfModelPath");
           const hfModelName = searchParams.get("hfModelName");
           const hfDisplayName = searchParams.get("hfDisplayName");
 
           const isFromHfBrowser = !!hfModelPath;
 
-          // If coming from HF browser, default to llamacpp provider
           let selectedProvider: ProviderCredential | undefined;
           if (isFromHfBrowser) {
             selectedProvider = providers.find((p) => p.providerId === "llamacpp");
@@ -215,10 +213,22 @@ export function useModelEditorController(): ControllerReturn {
               modelAdvancedDraft: nextDraft,
             },
           });
-          initialStateRef.current = {
-            editorModel: nextEditorModel ? JSON.parse(JSON.stringify(nextEditorModel)) : null,
-            modelAdvancedDraft: JSON.parse(JSON.stringify(nextDraft)),
-          };
+          const isFromHfBrowser = isNew && !!searchParams.get("hfModelPath");
+          if (isFromHfBrowser && nextEditorModel) {
+            initialStateRef.current = {
+              editorModel: {
+                ...JSON.parse(JSON.stringify(nextEditorModel)),
+                name: "",
+                displayName: "",
+              },
+              modelAdvancedDraft: JSON.parse(JSON.stringify(nextDraft)),
+            };
+          } else {
+            initialStateRef.current = {
+              editorModel: nextEditorModel ? JSON.parse(JSON.stringify(nextEditorModel)) : null,
+              modelAdvancedDraft: JSON.parse(JSON.stringify(nextDraft)),
+            };
+          }
         }
       } catch (error) {
         console.error("Failed to load model settings", error);
@@ -805,90 +815,105 @@ export function useModelEditorController(): ControllerReturn {
     dispatch({ type: "set_error", payload: null });
   }, [dispatch]);
 
-  const handleSave = useCallback(async () => {
-    const { editorModel, providers, modelAdvancedDraft } = state;
-    if (!editorModel) return;
+  const doSave = useCallback(
+    async (navigate: boolean): Promise<boolean> => {
+      const { editorModel, providers, modelAdvancedDraft } = state;
+      if (!editorModel) return false;
 
-    dispatch({ type: "set_error", payload: null });
+      dispatch({ type: "set_error", payload: null });
 
-    const providerCred =
-      providers.find(
-        (p) => p.providerId === editorModel.providerId && p.label === editorModel.providerLabel,
-      ) || providers.find((p) => p.providerId === editorModel.providerId);
+      const providerCred =
+        providers.find(
+          (p) => p.providerId === editorModel.providerId && p.label === editorModel.providerLabel,
+        ) || providers.find((p) => p.providerId === editorModel.providerId);
 
-    if (!providerCred) {
-      dispatch({
-        type: "set_error",
-        payload: "Select a provider with valid credentials",
-      });
-      return;
-    }
-
-    const shouldVerify = ["openai", "anthropic"].includes(providerCred.providerId);
-    if (shouldVerify) {
-      try {
-        dispatch({ type: "set_verifying", payload: true });
-        const name = editorModel.name.trim();
-        if (!name) {
-          dispatch({ type: "set_error", payload: "Model name required" });
-          return;
-        }
-
-        let resp: { exists: boolean; error?: string } | undefined;
-        try {
-          resp = await invoke<{ exists: boolean; error?: string }>("verify_model_exists", {
-            providerId: providerCred.providerId,
-            credentialId: providerCred.id,
-            model: name,
-          });
-        } catch (err) {
-          console.warn("Invoke verify_model_exists failed, treating as undefined:", err);
-        }
-        if (!resp) {
-          dispatch({
-            type: "set_error",
-            payload: "Model verification unavailable (backend)",
-          });
-          return;
-        }
-        if (!resp.exists) {
-          dispatch({
-            type: "set_error",
-            payload: resp.error || "Model not found on provider",
-          });
-          return;
-        }
-      } catch (error: any) {
+      if (!providerCred) {
         dispatch({
           type: "set_error",
-          payload: error?.message || "Verification failed",
+          payload: "Select a provider with valid credentials",
         });
-        return;
-      } finally {
-        dispatch({ type: "set_verifying", payload: false });
+        return false;
       }
-    }
 
-    dispatch({ type: "set_saving", payload: true });
-    try {
-      await addOrUpdateModel({
-        ...editorModel,
-        providerId: providerCred.providerId,
-        providerCredentialId: providerCred.id,
-        providerLabel: providerCred.label,
-        advancedModelSettings: sanitizeAdvancedModelSettings(modelAdvancedDraft),
-      });
-      backOrReplace(Routes.settingsModels);
-    } catch (error: any) {
-      console.error("Failed to save model", error);
-      dispatch({
-        type: "set_error",
-        payload: error?.message || "Failed to save model",
-      });
-    } finally {
-      dispatch({ type: "set_saving", payload: false });
-    }
-  }, [backOrReplace, state]);
+      const shouldVerify = ["openai", "anthropic"].includes(providerCred.providerId);
+      if (shouldVerify) {
+        try {
+          dispatch({ type: "set_verifying", payload: true });
+          const name = editorModel.name.trim();
+          if (!name) {
+            dispatch({ type: "set_error", payload: "Model name required" });
+            return false;
+          }
+
+          let resp: { exists: boolean; error?: string } | undefined;
+          try {
+            resp = await invoke<{ exists: boolean; error?: string }>("verify_model_exists", {
+              providerId: providerCred.providerId,
+              credentialId: providerCred.id,
+              model: name,
+            });
+          } catch (err) {
+            console.warn("Invoke verify_model_exists failed, treating as undefined:", err);
+          }
+          if (!resp) {
+            dispatch({
+              type: "set_error",
+              payload: "Model verification unavailable (backend)",
+            });
+            return false;
+          }
+          if (!resp.exists) {
+            dispatch({
+              type: "set_error",
+              payload: resp.error || "Model not found on provider",
+            });
+            return false;
+          }
+        } catch (error: any) {
+          dispatch({
+            type: "set_error",
+            payload: error?.message || "Verification failed",
+          });
+          return false;
+        } finally {
+          dispatch({ type: "set_verifying", payload: false });
+        }
+      }
+
+      dispatch({ type: "set_saving", payload: true });
+      try {
+        await addOrUpdateModel({
+          ...editorModel,
+          providerId: providerCred.providerId,
+          providerCredentialId: providerCred.id,
+          providerLabel: providerCred.label,
+          advancedModelSettings: sanitizeAdvancedModelSettings(modelAdvancedDraft),
+        });
+        if (navigate) {
+          backOrReplace(Routes.settingsModels);
+        }
+        return true;
+      } catch (error: any) {
+        console.error("Failed to save model", error);
+        dispatch({
+          type: "set_error",
+          payload: error?.message || "Failed to save model",
+        });
+        return false;
+      } finally {
+        dispatch({ type: "set_saving", payload: false });
+      }
+    },
+    [backOrReplace, state],
+  );
+
+  const handleSave = useCallback(async () => {
+    await doSave(true);
+  }, [doSave]);
+
+  const saveModel = useCallback(async (): Promise<boolean> => {
+    return doSave(false);
+  }, [doSave]);
 
   const handleDelete = useCallback(async () => {
     const { editorModel } = state;
@@ -1033,6 +1058,7 @@ export function useModelEditorController(): ControllerReturn {
     handleReasoningEffortChange,
     handleReasoningBudgetChange,
     handleSave,
+    saveModel,
     handleDelete,
     handleSetDefault,
     resetToInitial,

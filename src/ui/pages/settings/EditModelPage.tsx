@@ -44,15 +44,37 @@ import {
   ChevronRight,
   HelpCircle,
   AlertTriangle,
+  FolderOpen,
+  Loader,
+  HardDrive,
+  ArrowRight,
 } from "lucide-react";
 import { ProviderParameterSupportInfo } from "../../components/ProviderParameterSupportInfo";
 import { useModelEditorController } from "./hooks/useModelEditorController";
+import { Routes, useNavigationManager } from "../../navigation";
+import { addOrUpdateModel } from "../../../core/storage/repo";
 import type { ReasoningSupport } from "../../../core/storage/schemas";
 import { getProviderReasoningSupport } from "../../../core/storage/schemas";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
 import { useI18n } from "../../../core/i18n/context";
+
+type DownloadedGgufModel = {
+  modelId: string;
+  filename: string;
+  path: string;
+  size: number;
+  quantization: string;
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
+}
 
 type LlamaCppContextInfo = {
   maxContextLength: number;
@@ -122,6 +144,13 @@ export function EditModelPage() {
   const [llamaContextInfo, setLlamaContextInfo] = useState<LlamaCppContextInfo | null>(null);
   const [llamaContextError, setLlamaContextError] = useState<string | null>(null);
   const [llamaContextLoading, setLlamaContextLoading] = useState(false);
+  const [showLocalModelPicker, setShowLocalModelPicker] = useState(false);
+  const [downloadedModels, setDownloadedModels] = useState<DownloadedGgufModel[]>([]);
+  const [loadingDownloaded, setLoadingDownloaded] = useState(false);
+  const [ggufModelsDir, setGgufModelsDir] = useState<string | null>(null);
+  const [showMovePrompt, setShowMovePrompt] = useState(false);
+  const [movingModel, setMovingModel] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   const {
     state: {
@@ -175,11 +204,114 @@ export function EditModelPage() {
     handleReasoningEffortChange,
     handleReasoningBudgetChange,
     handleSave,
+    saveModel,
     resetToInitial,
     fetchModels,
   } = useModelEditorController();
+  const { backOrReplace } = useNavigationManager();
   const isLocalModel = editorModel?.providerId === "llamacpp";
   const isOllamaModel = editorModel?.providerId === "ollama";
+
+  // Fetch GGUF models directory path on mount
+  useEffect(() => {
+    invoke<string>("hf_get_gguf_models_dir")
+      .then((dir) => setGgufModelsDir(dir))
+      .catch(() => setGgufModelsDir(null));
+  }, []);
+
+  // Fetch downloaded models when the local picker is opened
+  const openLocalModelPicker = async () => {
+    setShowLocalModelPicker(true);
+    setLoadingDownloaded(true);
+    try {
+      const models = await invoke<DownloadedGgufModel[]>("hf_list_downloaded_models");
+      setDownloadedModels(models);
+    } catch (err) {
+      console.error("Failed to list downloaded models", err);
+      setDownloadedModels([]);
+    } finally {
+      setLoadingDownloaded(false);
+    }
+  };
+
+  const handleSelectLocalModel = (model: DownloadedGgufModel) => {
+    handleModelNameChange(model.path);
+    if (!editorModel?.displayName?.trim()) {
+      const cleanName = model.filename
+        .replace(/\.gguf$/i, "")
+        .replace(/[-_]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      handleDisplayNameChange(cleanName);
+    }
+    setShowLocalModelPicker(false);
+  };
+
+  // Check if a path is outside the GGUF models dir
+  const isPathOutsideGgufDir = (path: string): boolean => {
+    if (!ggufModelsDir || !path.trim()) return false;
+    return !path.startsWith(ggufModelsDir);
+  };
+
+  // Intercept save for llamacpp models to check if move prompt is needed
+  const handleSaveWithMoveCheck = async () => {
+    if (!isLocalModel || !editorModel?.name?.trim()) {
+      handleSave();
+      return;
+    }
+
+    const modelPath = editorModel.name.trim();
+    if (!isPathOutsideGgufDir(modelPath)) {
+      handleSave();
+      return;
+    }
+
+    // Save without navigating, then show the move prompt
+    const success = await saveModel();
+    if (success) {
+      setShowMovePrompt(true);
+    }
+  };
+
+  const handleMoveToLibrary = async () => {
+    if (!editorModel?.name?.trim()) return;
+    setMovingModel(true);
+    setMoveError(null);
+    try {
+      // Unload llama.cpp first so the file isn't locked
+      try {
+        await invoke("llamacpp_unload");
+      } catch {
+        // May not be loaded, that's fine
+      }
+
+      const newPath = await invoke<string>("hf_move_model_to_gguf_dir", {
+        sourcePath: editorModel.name.trim(),
+        modelName: editorModel.displayName?.trim() || null,
+      });
+
+      // Update the model with the new path
+      await addOrUpdateModel({
+        ...editorModel,
+        name: newPath,
+      });
+
+      setShowMovePrompt(false);
+      backOrReplace(Routes.settingsModels);
+    } catch (err: any) {
+      console.error("Failed to move model", err);
+      setMoveError(
+        typeof err === "string" ? err : err?.message || t("hfBrowser.moveToLibraryFailed"),
+      );
+    } finally {
+      setMovingModel(false);
+    }
+  };
+
+  const handleSkipMove = () => {
+    setShowMovePrompt(false);
+    backOrReplace(Routes.settingsModels);
+  };
   const selectedProviderCredential =
     editorModel &&
     (providers.find(
@@ -453,7 +585,7 @@ export function EditModelPage() {
   // Register window globals for header save button
   useEffect(() => {
     const globalWindow = window as any;
-    globalWindow.__saveModel = handleSave;
+    globalWindow.__saveModel = handleSaveWithMoveCheck;
     globalWindow.__saveModelCanSave = canSave;
     globalWindow.__saveModelSaving = saving || verifying;
     return () => {
@@ -461,7 +593,7 @@ export function EditModelPage() {
       delete globalWindow.__saveModelCanSave;
       delete globalWindow.__saveModelSaving;
     };
-  }, [handleSave, canSave, saving, verifying]);
+  }, [handleSaveWithMoveCheck, canSave, saving, verifying]);
 
   useEffect(() => {
     const handleDiscard = () => resetToInitial();
@@ -815,9 +947,71 @@ export function EditModelPage() {
                     className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3 font-mono text-sm text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
                   />
                   {isLocalModel && (
-                    <p className="text-[11px] text-fg/40">
-                      Use the full file path to a local GGUF model.
-                    </p>
+                    <>
+                      <p className="text-[11px] text-fg/40">
+                        Use the full file path to a local GGUF model.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={openLocalModelPicker}
+                        className="flex w-full items-center gap-3 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3 text-left transition hover:bg-fg/10 active:scale-[0.99]"
+                      >
+                        <FolderOpen className="h-4 w-4 text-accent/70 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium text-fg/70">
+                            {t("hfBrowser.selectFromLibrary")}
+                          </span>
+                          <span className="block text-[11px] text-fg/40">
+                            {t("hfBrowser.browseOnHuggingFace")}
+                          </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-fg/20 shrink-0" />
+                      </button>
+
+                      {/* Local Model Picker Bottom Sheet */}
+                      <BottomMenu
+                        isOpen={showLocalModelPicker}
+                        onClose={() => setShowLocalModelPicker(false)}
+                        title={t("hfBrowser.libraryTitle")}
+                      >
+                        <MenuSection>
+                          {loadingDownloaded ? (
+                            <div className="flex items-center justify-center gap-2 py-12 text-fg/50">
+                              <Loader size={18} className="animate-spin" />
+                              <span className="text-sm">{t("hfBrowser.searching")}</span>
+                            </div>
+                          ) : downloadedModels.length === 0 ? (
+                            <div className="flex flex-col items-center gap-2 py-16 text-center">
+                              <HardDrive size={32} className="text-fg/20" />
+                              <p className="text-sm font-medium text-fg/60">
+                                {t("hfBrowser.libraryEmpty")}
+                              </p>
+                              <p className="text-xs text-fg/40 px-6">
+                                {t("hfBrowser.libraryEmptyHint")}
+                              </p>
+                            </div>
+                          ) : (
+                            downloadedModels.map((model) => (
+                              <MenuButton
+                                key={model.path}
+                                icon={<HardDrive className="h-5 w-5 text-accent/60" />}
+                                title={model.filename.replace(/\.gguf$/i, "")}
+                                description={`${model.quantization} · ${formatBytes(model.size)}`}
+                                color="from-accent/20 to-accent/10"
+                                rightElement={
+                                  editorModel.name === model.path ? (
+                                    <Check className="h-4 w-4 text-accent" />
+                                  ) : (
+                                    <ArrowRight className="h-4 w-4 text-fg/20" />
+                                  )
+                                }
+                                onClick={() => handleSelectLocalModel(model)}
+                              />
+                            ))
+                          )}
+                        </MenuSection>
+                      </BottomMenu>
+                    </>
                   )}
                   {!isLocalModel &&
                     !modelFetchEnabledForSelectedProvider &&
@@ -830,6 +1024,38 @@ export function EditModelPage() {
                     )}
                 </>
               )}
+
+              {/* Move to Library Prompt */}
+              <BottomMenu isOpen={showMovePrompt} onClose={handleSkipMove} title="Move Model">
+                <div className="px-4 pb-2">
+                  <p className="text-sm text-fg/70 leading-relaxed">
+                    {t("hfBrowser.moveToLibrary")}
+                  </p>
+                  {moveError && (
+                    <div className="mt-3 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2">
+                      <p className="text-xs text-danger/80">{moveError}</p>
+                    </div>
+                  )}
+                </div>
+                <MenuSection>
+                  <MenuButton
+                    icon={<FolderOpen className="h-5 w-5 text-accent" />}
+                    title={t("hfBrowser.moveToLibraryYes")}
+                    description={movingModel ? t("hfBrowser.moveToLibraryMoving") : undefined}
+                    color="from-accent to-accent/80"
+                    onClick={handleMoveToLibrary}
+                    loading={movingModel}
+                    disabled={movingModel}
+                  />
+                  <MenuButton
+                    icon={<ArrowRight className="h-5 w-5 text-fg/40" />}
+                    title={t("hfBrowser.moveToLibraryNo")}
+                    color="from-white/10 to-white/5"
+                    onClick={handleSkipMove}
+                    disabled={movingModel}
+                  />
+                </MenuSection>
+              </BottomMenu>
             </div>
           </div>
 

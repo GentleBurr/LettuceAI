@@ -43,6 +43,7 @@ import {
 } from "./ui/pages/chats";
 import { ThemeProvider } from "./core/theme/ThemeContext";
 import { toast } from "./ui/components/toast";
+import { DownloadQueueProvider } from "./core/downloads/DownloadQueueContext";
 import {
   CreateCharacterPage,
   EditCharacterPage,
@@ -214,7 +215,9 @@ function App() {
               }}
             />
             <ConfirmBottomMenuHost />
-            <AppContent />
+            <DownloadQueueProvider>
+              <AppContent />
+            </DownloadQueueProvider>
           </div>
         </BrowserRouter>
       </ThemeProvider>

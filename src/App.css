@@ -321,3 +321,112 @@ input[type="range"]:active::-moz-range-thumb {
   transform: scale(1.2);
   background-color: var(--color-accent);
 }
+
+/* ─── HuggingFace README HTML blocks ─────────────────────────────────────── */
+
+.hf-html-block table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.hf-html-block thead tr {
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.hf-html-block th {
+  padding: 8px 6px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.hf-html-block th:first-child {
+  text-align: left;
+}
+
+.hf-html-block td {
+  padding: 6px 6px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-html-block td:first-child {
+  text-align: left;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+}
+
+/* Section header rows (colspan cells) */
+.hf-html-block td[colspan] {
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--color-accent);
+  background: rgba(52, 211, 153, 0.08);
+  border-bottom: 1px solid rgba(52, 211, 153, 0.15);
+  text-align: left;
+}
+
+.hf-html-block tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hf-html-block th[style*="color:#7c3aed"],
+.hf-html-block th[style*="color: #7c3aed"] {
+  color: var(--color-accent) !important;
+}
+
+.hf-html-block th[style*="border-bottom"] {
+  border-bottom-color: rgba(52, 211, 153, 0.3) !important;
+}
+
+.hf-html-block td[style*="background:rgba(124"],
+.hf-html-block td[style*="background: rgba(124"] {
+  background: rgba(52, 211, 153, 0.08) !important;
+  color: var(--color-accent) !important;
+  border-bottom-color: rgba(52, 211, 153, 0.15) !important;
+}
+
+.hf-html-block p {
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.6;
+}
+
+.hf-html-block p br {
+  display: block;
+  margin-top: 2px;
+  content: "";
+}
+
+.hf-html-block sub,
+.hf-html-block small {
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+.hf-html-block a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.hf-html-block a:hover {
+  opacity: 0.8;
+}
+
+.hf-html-block img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+:root {
+  color-scheme: dark;
+}

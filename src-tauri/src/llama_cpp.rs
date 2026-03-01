@@ -248,13 +248,13 @@ mod desktop {
             })
     }
 
-    fn get_available_memory_bytes() -> Option<u64> {
+    pub(super) fn get_available_memory_bytes() -> Option<u64> {
         let mut sys = sysinfo::System::new();
         sys.refresh_memory();
         Some(sys.available_memory())
     }
 
-    fn get_available_vram_bytes() -> Option<u64> {
+    pub(super) fn get_available_vram_bytes() -> Option<u64> {
         let mut max_free: u64 = 0;
         // SAFETY: read-only ggml backend device enumeration and memory queries.
         unsafe {
@@ -288,6 +288,39 @@ mod desktop {
         } else {
             None
         }
+    }
+
+    /// Detect if the system uses unified memory (shared RAM/VRAM).
+    /// True on Apple Silicon (macOS aarch64) or when only iGPU devices are found.
+    pub(super) fn is_unified_memory() -> bool {
+        // Apple Silicon always has unified memory
+        if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+            return true;
+        }
+
+        // Check if all GPU-like devices are iGPUs
+        let mut found_gpu = false;
+        let mut all_igpu = true;
+        unsafe {
+            let count = ggml_backend_dev_count();
+            for i in 0..count {
+                let dev = ggml_backend_dev_get(i);
+                if dev.is_null() {
+                    continue;
+                }
+                let dev_type = ggml_backend_dev_type(dev);
+                if dev_type == GGML_BACKEND_DEVICE_TYPE_GPU
+                    || dev_type == GGML_BACKEND_DEVICE_TYPE_IGPU
+                    || dev_type == GGML_BACKEND_DEVICE_TYPE_ACCEL
+                {
+                    found_gpu = true;
+                    if dev_type != GGML_BACKEND_DEVICE_TYPE_IGPU {
+                        all_igpu = false;
+                    }
+                }
+            }
+        }
+        found_gpu && all_igpu
     }
 
     fn kv_bytes_per_value(llama_kv_type: Option<&str>) -> f64 {
@@ -1021,6 +1054,36 @@ mod desktop {
             data,
         })
     }
+}
+
+#[cfg(not(mobile))]
+pub(crate) fn available_memory_bytes() -> Option<u64> {
+    desktop::get_available_memory_bytes()
+}
+
+#[cfg(not(mobile))]
+pub(crate) fn available_vram_bytes() -> Option<u64> {
+    desktop::get_available_vram_bytes()
+}
+
+#[cfg(mobile)]
+pub(crate) fn available_memory_bytes() -> Option<u64> {
+    None
+}
+
+#[cfg(mobile)]
+pub(crate) fn available_vram_bytes() -> Option<u64> {
+    None
+}
+
+#[cfg(not(mobile))]
+pub(crate) fn is_unified_memory() -> bool {
+    desktop::is_unified_memory()
+}
+
+#[cfg(mobile)]
+pub(crate) fn is_unified_memory() -> bool {
+    false
 }
 
 #[cfg(not(mobile))]

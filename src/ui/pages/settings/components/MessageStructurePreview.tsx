@@ -13,8 +13,6 @@ import { BottomMenu } from "../../../components";
 import { confirmBottomMenu } from "../../../components/ConfirmBottomMenu";
 import type { SystemPromptEntry } from "../../../../core/storage/schemas";
 
-// ---------- Types ----------
-
 interface PreviewMessage {
   id: string;
   role: "system" | "user" | "assistant";
@@ -25,9 +23,6 @@ interface PreviewMessage {
   injectionInfo?: string;
 }
 
-// ---------- Assembly algorithm (mirrors Rust backend) ----------
-
-/** Mirrors `partition_prompt_entries` from commands.rs:110-124 */
 function partitionEntries(
   entries: SystemPromptEntry[],
 ): [SystemPromptEntry[], SystemPromptEntry[]] {
@@ -50,7 +45,6 @@ function partitionEntries(
   return [relative, inChat];
 }
 
-/** Mirrors `should_insert_in_chat_prompt_entry` from commands.rs:126-139 */
 function shouldInsert(entry: SystemPromptEntry, turnCount: number): boolean {
   switch (entry.injectionPosition) {
     case "inChat":
@@ -68,7 +62,6 @@ function shouldInsert(entry: SystemPromptEntry, turnCount: number): boolean {
   }
 }
 
-/** Mirrors `insert_in_chat_prompt_entries` from commands.rs:141-173 */
 function insertInChatEntries(
   messages: PreviewMessage[],
   entries: SystemPromptEntry[],
@@ -107,7 +100,6 @@ function insertInChatEntries(
   return result;
 }
 
-/** Mirrors `condense_entries_into_single_system_message` from prompt_engine.rs:1161-1193 */
 function condenseEntries(entries: SystemPromptEntry[]): SystemPromptEntry[] {
   const merged = entries
     .filter((e) => e.enabled || e.systemPrompt)
@@ -169,7 +161,6 @@ function generateMockMessages(pairCount: number): PreviewMessage[] {
   return messages;
 }
 
-/** Main assembly: builds the full message list the LLM would see. */
 function assembleStructure(
   entries: SystemPromptEntry[],
   mockPairCount: number,
@@ -203,7 +194,6 @@ function assembleStructure(
   return result;
 }
 
-// ---------- Role config ----------
 
 const ROLE_CONFIG = {
   system: { accent: "bg-info", text: "text-info/80", badge: "bg-info/15 text-info/80" },
@@ -211,7 +201,6 @@ const ROLE_CONFIG = {
   assistant: { accent: "bg-secondary", text: "text-secondary/80", badge: "bg-secondary/15 text-secondary/80" },
 } as const;
 
-// ---------- Sub-components ----------
 
 function PromptEntryMessage({
   message,

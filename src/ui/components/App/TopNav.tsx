@@ -228,7 +228,10 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
     [basePath],
   );
   const isModelEdit = useMemo(
-    () => /^\/settings\/models\/[^/]+$/.test(basePath) && basePath !== "/settings/models/new",
+    () =>
+      /^\/settings\/models\/[^/]+$/.test(basePath) &&
+      basePath !== "/settings/models/new" &&
+      basePath !== "/settings/models/browse",
     [basePath],
   );
   const isModelNew = useMemo(() => basePath === "/settings/models/new", [basePath]);

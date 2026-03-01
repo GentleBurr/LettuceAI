@@ -95,6 +95,10 @@ export const BACK_MAPPINGS: BackMapping[] = [
     match: (p) => p.includes("/settings/models") && p.includes("view=advanced"),
     target: Routes.settingsModels,
   },
+  {
+    match: (p) => p.startsWith("/settings/models/browse") && p.includes("model="),
+    target: Routes.settingsModelsBrowse,
+  },
   { match: (p) => p.startsWith("/settings/models/"), target: Routes.settingsModels },
   { match: (p) => p.startsWith("/settings/image-generation"), target: Routes.settings },
   { match: (p) => p.startsWith("/settings/providers/"), target: "/settings/providers" },

@@ -17,6 +17,7 @@ import { useModelsController } from "./hooks/useModelsController";
 import { useNavigationManager, Routes } from "../../navigation";
 import { cn } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
+import { ModelsDownloadIndicator } from "./components/ModelsDownloadIndicator";
 
 type SortMode = "alphabetical" | "provider";
 const SORT_STORAGE_KEY = "lettuce.models.sortMode";
@@ -149,6 +150,9 @@ export function ModelsPage() {
       {/* List (TopNav handles title/back) */}
       <div className="flex-1 overflow-y-auto mx-3 py-3 space-y-3">
         {models.length === 0 && <EmptyState onCreate={() => toNewModel()} />}
+
+        {/* Active/completed downloads from HuggingFace browser */}
+        <ModelsDownloadIndicator />
 
         {/* Browse GGUF Models button */}
         {models.length > 0 && (
