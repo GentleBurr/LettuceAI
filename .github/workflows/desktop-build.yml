@@ -900,6 +900,9 @@ jobs:
           RUSTFLAGS: "--cfg DEV_BUILD -C target-feature=-crt-static"
           CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreadedDLL"
           CMAKE_GENERATOR: "Ninja"
+          CMAKE_C_COMPILER: "clang-cl"
+          CMAKE_CXX_COMPILER: "clang-cl"
+          CMAKE_HIP_COMPILER: "hipcc"
           CMAKE_HIP_PLATFORM: "amd"
           HIP_PLATFORM: "amd"
           CARGO_TARGET_DIR: target-rocm
