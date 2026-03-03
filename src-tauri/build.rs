@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Cursor};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const ORT_VERSION: &str = "1.22.0";
 
@@ -104,18 +105,6 @@ fn setup_macos_libs() -> anyhow::Result<()> {
     let resource_dir = manifest_dir.join("onnxruntime");
     fs::create_dir_all(&resource_dir)?;
 
-    if let Ok(path) = env::var("ORT_LIB_LOCATION") {
-        let trimmed = path.trim();
-        if !trimmed.is_empty() {
-            copy_macos_dylibs_from_dir(Path::new(trimmed), &resource_dir)?;
-            println!(
-                "cargo:warning=ORT_LIB_LOCATION is set for macOS build ({}); copied ONNX Runtime dylibs into {:?}.",
-                trimmed, resource_dir
-            );
-            return Ok(());
-        }
-    }
-
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let archive_arch = match target_arch.as_str() {
         "aarch64" => "arm64",
@@ -129,14 +118,43 @@ fn setup_macos_libs() -> anyhow::Result<()> {
         }
     };
 
+    if let Ok(path) = env::var("ORT_LIB_LOCATION") {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            copy_macos_dylibs_from_dir(Path::new(trimmed), &resource_dir)?;
+            validate_macos_ort_dylibs(&resource_dir, archive_arch, false)?;
+            println!(
+                "cargo:warning=ORT_LIB_LOCATION is set for macOS build ({}); copied ONNX Runtime dylibs into {:?}.",
+                trimmed, resource_dir
+            );
+            return Ok(());
+        }
+    }
+
     let dylib_path = resource_dir.join("libonnxruntime.dylib");
     let shared_path = resource_dir.join("libonnxruntime_providers_shared.dylib");
+    let coreml_path = resource_dir.join("libonnxruntime_providers_coreml.dylib");
     if dylib_path.exists() && shared_path.exists() {
-        println!(
-            "cargo:warning=macOS ONNX Runtime already present at {:?}",
-            dylib_path
-        );
-        return Ok(());
+        match validate_macos_ort_dylibs(&resource_dir, archive_arch, false) {
+            Ok(()) => {
+                if coreml_path.exists() {
+                    println!(
+                        "cargo:warning=macOS ONNX Runtime already present at {:?}",
+                        dylib_path
+                    );
+                    return Ok(());
+                }
+                println!(
+                    "cargo:warning=macOS ONNX Runtime present but CoreML provider dylib is missing; refreshing download."
+                );
+            }
+            Err(err) => {
+                println!(
+                    "cargo:warning=Existing macOS ONNX Runtime dylibs are invalid for target arch '{}': {}. Refreshing download.",
+                    archive_arch, err
+                );
+            }
+        }
     }
 
     let archive_url = format!(
@@ -151,6 +169,12 @@ fn setup_macos_libs() -> anyhow::Result<()> {
     );
     let response = reqwest::blocking::get(&archive_url)?.bytes()?;
     extract_tgz_dylibs_from_dir(&response, &lib_dir_in_archive, &resource_dir)?;
+    validate_macos_ort_dylibs(&resource_dir, archive_arch, false)?;
+    if !coreml_path.exists() {
+        println!(
+            "cargo:warning=Downloaded macOS ONNX Runtime does not include libonnxruntime_providers_coreml.dylib; runtime will fall back to CPU for embeddings."
+        );
+    }
     if dylib_path.exists() {
         println!("cargo:warning=Extracted: {:?}", dylib_path);
     }
@@ -169,6 +193,7 @@ fn copy_macos_dylibs_from_dir(src_dir: &Path, dest_dir: &Path) -> anyhow::Result
     let mut copied_count = 0usize;
     let mut has_main_dylib = false;
     let mut has_shared_provider = false;
+    let mut has_coreml_provider = false;
 
     for entry in fs::read_dir(src_dir)? {
         let entry = entry?;
@@ -187,6 +212,7 @@ fn copy_macos_dylibs_from_dir(src_dir: &Path, dest_dir: &Path) -> anyhow::Result
         match file_name.to_string_lossy().as_ref() {
             "libonnxruntime.dylib" => has_main_dylib = true,
             "libonnxruntime_providers_shared.dylib" => has_shared_provider = true,
+            "libonnxruntime_providers_coreml.dylib" => has_coreml_provider = true,
             _ => {}
         }
     }
@@ -209,6 +235,82 @@ fn copy_macos_dylibs_from_dir(src_dir: &Path, dest_dir: &Path) -> anyhow::Result
         anyhow::bail!(
             "ORT_LIB_LOCATION is missing libonnxruntime_providers_shared.dylib: {}",
             src_dir.display()
+        );
+    }
+    if !has_coreml_provider {
+        println!(
+            "cargo:warning=ORT_LIB_LOCATION does not include libonnxruntime_providers_coreml.dylib; runtime will use CPU fallback for embeddings."
+        );
+    }
+
+    Ok(())
+}
+
+fn dylib_supports_arch(path: &Path, expected_arch: &str) -> anyhow::Result<bool> {
+    let output = match Command::new("lipo").arg("-archs").arg(path).output() {
+        Ok(out) => out,
+        Err(err) => {
+            println!(
+                "cargo:warning=Unable to execute lipo for '{}': {}. Skipping arch validation.",
+                path.display(),
+                err
+            );
+            return Ok(true);
+        }
+    };
+
+    if !output.status.success() {
+        println!(
+            "cargo:warning=lipo -archs failed for '{}'; skipping arch validation.",
+            path.display()
+        );
+        return Ok(true);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(stdout.split_whitespace().any(|arch| arch == expected_arch))
+}
+
+fn validate_macos_ort_dylibs(
+    dylib_dir: &Path,
+    expected_arch: &str,
+    require_coreml: bool,
+) -> anyhow::Result<()> {
+    let main = dylib_dir.join("libonnxruntime.dylib");
+    let shared = dylib_dir.join("libonnxruntime_providers_shared.dylib");
+    let coreml = dylib_dir.join("libonnxruntime_providers_coreml.dylib");
+
+    if !main.exists() {
+        anyhow::bail!("Missing libonnxruntime.dylib in {}", dylib_dir.display());
+    }
+    if !shared.exists() {
+        anyhow::bail!(
+            "Missing libonnxruntime_providers_shared.dylib in {}",
+            dylib_dir.display()
+        );
+    }
+    if require_coreml && !coreml.exists() {
+        anyhow::bail!(
+            "Missing libonnxruntime_providers_coreml.dylib in {}",
+            dylib_dir.display()
+        );
+    }
+
+    for lib in [main.as_path(), shared.as_path()] {
+        if !dylib_supports_arch(lib, expected_arch)? {
+            anyhow::bail!(
+                "Dylib '{}' does not include target arch '{}'",
+                lib.display(),
+                expected_arch
+            );
+        }
+    }
+
+    if coreml.exists() && !dylib_supports_arch(&coreml, expected_arch)? {
+        anyhow::bail!(
+            "Dylib '{}' does not include target arch '{}'",
+            coreml.display(),
+            expected_arch
         );
     }
 

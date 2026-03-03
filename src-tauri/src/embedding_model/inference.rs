@@ -1,6 +1,8 @@
 use super::*;
 use crate::utils::log_info;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
+use crate::utils::log_warn;
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 use ort::{
     execution_providers::coreml::{
         CoreMLComputeUnits, CoreMLExecutionProvider, CoreMLModelFormat,
@@ -15,6 +17,10 @@ use ort::{
 };
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(target_os = "macos")]
+use tauri::Emitter;
 use tokenizers::Tokenizer;
 
 struct LoadedEmbeddingRuntime {
@@ -29,6 +35,9 @@ lazy_static::lazy_static! {
     static ref LOADED_EMBEDDING_RUNTIME: Arc<TokioMutex<Option<LoadedEmbeddingRuntime>>> =
         Arc::new(TokioMutex::new(None));
 }
+
+#[cfg(target_os = "macos")]
+static COREML_FALLBACK_TOAST_SHOWN: AtomicBool = AtomicBool::new(false);
 
 pub async fn clear_loaded_runtime_cache() {
     let mut cache = LOADED_EMBEDDING_RUNTIME.lock().await;
@@ -228,6 +237,7 @@ pub(super) fn compute_embedding_with_session(
     }
 }
 
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 fn configure_session_builder_for_target(
     builder: ort::session::builder::SessionBuilder,
     model_path: &Path,
@@ -277,11 +287,8 @@ fn configure_session_builder_for_target(
     }
 }
 
-fn create_runtime(
-    model_path: &Path,
-    tokenizer_path: &Path,
-) -> Result<(Session, Tokenizer), String> {
-    let session_builder = Session::builder()
+fn create_base_session_builder() -> Result<ort::session::builder::SessionBuilder, String> {
+    Session::builder()
         .map_err(|e| {
             crate::utils::err_msg(
                 module_path!(),
@@ -296,17 +303,60 @@ fn create_runtime(
                 line!(),
                 format!("Failed to set optimization level: {}", e),
             )
-        })?;
+        })
+}
 
-    let session = configure_session_builder_for_target(session_builder, model_path)?
-        .commit_from_file(model_path)
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to load model: {}", e),
-            )
-        })?;
+fn create_runtime(
+    app: &AppHandle,
+    model_path: &Path,
+    tokenizer_path: &Path,
+) -> Result<(Session, Tokenizer), String> {
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    let _ = app;
+
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
+    let session_builder =
+        match configure_session_builder_for_target(create_base_session_builder()?, model_path) {
+            Ok(builder) => builder,
+            Err(err) => {
+                log_warn(
+                    app,
+                    "embedding_debug",
+                    format!(
+                        "CoreML execution provider unavailable; falling back to CPU: {}",
+                        err
+                    ),
+                );
+                #[cfg(target_os = "macos")]
+                {
+                    if COREML_FALLBACK_TOAST_SHOWN
+                        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok()
+                    {
+                        let _ = app.emit(
+                        "app://toast",
+                        serde_json::json!({
+                            "variant": "warning",
+                            "title": "Embedding acceleration fallback",
+                            "description": "CoreML is unavailable. Embeddings are running on CPU."
+                        }),
+                    );
+                    }
+                }
+                create_base_session_builder()?
+            }
+        };
+
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    let session_builder = create_base_session_builder()?;
+
+    let session = session_builder.commit_from_file(model_path).map_err(|e| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Failed to load model: {}", e),
+        )
+    })?;
     let tokenizer = Tokenizer::from_file(tokenizer_path).map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
@@ -381,7 +431,7 @@ pub async fn compute_embedding(app: AppHandle, text: String) -> Result<Vec<f32>,
         });
 
         if !reuse {
-            let (session, tokenizer) = create_runtime(&model_path, &tokenizer_path)?;
+            let (session, tokenizer) = create_runtime(&app, &model_path, &tokenizer_path)?;
             *cache = Some(LoadedEmbeddingRuntime {
                 model_path: model_path.clone(),
                 tokenizer_path: tokenizer_path.clone(),
@@ -430,7 +480,7 @@ pub async fn compute_embedding(app: AppHandle, text: String) -> Result<Vec<f32>,
             }
         }
 
-        let (mut session, tokenizer) = create_runtime(&model_path, &tokenizer_path)?;
+        let (mut session, tokenizer) = create_runtime(&app, &model_path, &tokenizer_path)?;
         log_info(
             &app,
             "embedding_debug",
@@ -500,7 +550,7 @@ pub async fn initialize_embedding_model(app: AppHandle) -> Result<(), String> {
             loaded.model_path == model_path && loaded.tokenizer_path == tokenizer_path
         });
         if !reuse {
-            let (session, tokenizer) = create_runtime(&model_path, &tokenizer_path)?;
+            let (session, tokenizer) = create_runtime(&app, &model_path, &tokenizer_path)?;
             *cache = Some(LoadedEmbeddingRuntime {
                 model_path: model_path.clone(),
                 tokenizer_path: tokenizer_path.clone(),

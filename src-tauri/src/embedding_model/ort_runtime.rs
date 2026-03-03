@@ -96,7 +96,36 @@ async fn resolve_or_download_onnxruntime(app: &AppHandle) -> Result<PathBuf, Str
         if !trimmed.is_empty() {
             let path = Path::new(trimmed);
             if path.exists() {
-                return Ok(path.to_path_buf());
+                if cfg!(target_os = "windows") {
+                    let shared = path
+                        .parent()
+                        .map(|dir| dir.join("onnxruntime_providers_shared.dll"));
+                    if let Some(shared_path) = shared {
+                        if shared_path.exists() {
+                            return Ok(path.to_path_buf());
+                        }
+                    }
+                } else if cfg!(target_os = "macos") {
+                    if let Some(ort_dir) = path.parent() {
+                        let shared = ort_dir.join("libonnxruntime_providers_shared.dylib");
+                        if shared.exists() {
+                            let coreml = ort_dir.join("libonnxruntime_providers_coreml.dylib");
+                            if !coreml.exists() {
+                                crate::utils::log_warn(
+                                    app,
+                                    "embedding_debug",
+                                    format!(
+                                        "ORT_DYLIB_PATH is set to {} but CoreML provider dylib is missing; embeddings will use CPU fallback.",
+                                        path.display()
+                                    ),
+                                );
+                            }
+                            return Ok(path.to_path_buf());
+                        }
+                    }
+                } else {
+                    return Ok(path.to_path_buf());
+                }
             }
         }
     }
