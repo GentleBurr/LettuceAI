@@ -164,7 +164,34 @@ type LazyReadmeImageProps = {
   style?: React.CSSProperties;
   width?: number | string;
   height?: number | string;
+  maxWidth: number;
+  maxHeight: number;
 };
+
+type ViewportImageLimits = {
+  maxWidth: number;
+  maxHeight: number;
+};
+
+const IMAGE_MAX_WIDTH_RATIO = 0.9;
+const IMAGE_MAX_HEIGHT_RATIO = 0.7;
+const MIN_IMAGE_MAX_WIDTH = 320;
+const MIN_IMAGE_MAX_HEIGHT = 220;
+const FALLBACK_IMAGE_MAX_WIDTH = 960;
+const FALLBACK_IMAGE_MAX_HEIGHT = 700;
+
+function getViewportImageLimits(): ViewportImageLimits {
+  if (typeof window === "undefined") {
+    return { maxWidth: FALLBACK_IMAGE_MAX_WIDTH, maxHeight: FALLBACK_IMAGE_MAX_HEIGHT };
+  }
+  return {
+    maxWidth: Math.max(MIN_IMAGE_MAX_WIDTH, Math.floor(window.innerWidth * IMAGE_MAX_WIDTH_RATIO)),
+    maxHeight: Math.max(
+      MIN_IMAGE_MAX_HEIGHT,
+      Math.floor(window.innerHeight * IMAGE_MAX_HEIGHT_RATIO),
+    ),
+  };
+}
 
 const LazyReadmeImage = memo(function LazyReadmeImage({
   src,
@@ -173,6 +200,8 @@ const LazyReadmeImage = memo(function LazyReadmeImage({
   style,
   width,
   height,
+  maxWidth,
+  maxHeight,
 }: LazyReadmeImageProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
@@ -234,16 +263,29 @@ const LazyReadmeImage = memo(function LazyReadmeImage({
 
   const numericWidth = parsePixelValue(width);
   const numericHeight = parsePixelValue(height);
+  const resolvedMaxWidth = Math.min(numericWidth ?? maxWidth, maxWidth);
   const skeletonStyle: React.CSSProperties = {};
+  skeletonStyle.maxWidth = `min(100%, ${resolvedMaxWidth}px)`;
+  skeletonStyle.maxHeight = maxHeight;
   if (numericWidth && numericHeight) {
-    skeletonStyle.maxWidth = numericWidth;
+    skeletonStyle.maxHeight = Math.min(numericHeight, maxHeight);
     skeletonStyle.aspectRatio = `${numericWidth} / ${numericHeight}`;
   } else if (numericWidth) {
-    skeletonStyle.maxWidth = numericWidth;
-    skeletonStyle.height = Math.max(80, Math.min(360, Math.round(numericWidth * 0.55)));
+    skeletonStyle.height = Math.min(
+      maxHeight,
+      Math.max(80, Math.min(360, Math.round(numericWidth * 0.55))),
+    );
   } else {
-    skeletonStyle.height = 160;
+    skeletonStyle.height = Math.min(maxHeight, 160);
   }
+  const imgStyle: React.CSSProperties = {
+    ...style,
+    maxWidth: `min(100%, ${resolvedMaxWidth}px)`,
+    maxHeight,
+    width: "auto",
+    height: "auto",
+    objectFit: "contain",
+  };
 
   return (
     <div ref={hostRef}>
@@ -252,7 +294,7 @@ const LazyReadmeImage = memo(function LazyReadmeImage({
           src={src}
           alt={alt}
           className={className}
-          style={style}
+          style={imgStyle}
           loading="lazy"
           decoding="async"
           fetchPriority="low"
@@ -280,6 +322,26 @@ function Admonition({ type, children }: { type: AdmonitionType; children: React.
 }
 
 function HfReadmeRendererComponent({ content, className = "" }: HfReadmeRendererProps) {
+  const [viewportImageLimits, setViewportImageLimits] =
+    useState<ViewportImageLimits>(getViewportImageLimits);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let frame = 0;
+    const onResize = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setViewportImageLimits(getViewportImageLimits());
+      });
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
   const processed = useMemo(() => {
     const withAdmonitions = preprocessAdmonitions(content);
     return sanitize(withAdmonitions);
@@ -366,7 +428,15 @@ function HfReadmeRendererComponent({ content, className = "" }: HfReadmeRenderer
             const style: React.CSSProperties = {};
             const numericWidth = parsePixelValue(width);
             const numericHeight = parsePixelValue(height);
-            if (numericWidth) style.maxWidth = numericWidth;
+            const maxWidth = Math.min(
+              numericWidth ?? viewportImageLimits.maxWidth,
+              viewportImageLimits.maxWidth,
+            );
+            const maxHeight = Math.min(
+              numericHeight ?? viewportImageLimits.maxHeight,
+              viewportImageLimits.maxHeight,
+            );
+            if (numericWidth) style.maxWidth = `min(100%, ${Math.round(maxWidth)}px)`;
             if (numericWidth && numericHeight)
               style.aspectRatio = `${numericWidth} / ${numericHeight}`;
 
@@ -379,6 +449,8 @@ function HfReadmeRendererComponent({ content, className = "" }: HfReadmeRenderer
                   style={style}
                   width={width}
                   height={height}
+                  maxWidth={Math.round(maxWidth)}
+                  maxHeight={Math.round(maxHeight)}
                 />
                 {alt && (
                   <figcaption className="mt-1.5 text-center text-[11px] text-fg/40">
