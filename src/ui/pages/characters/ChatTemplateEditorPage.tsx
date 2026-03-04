@@ -46,7 +46,7 @@ function formatSceneLabel(
   untitledLabel: string,
 ): string {
   if (!scene) return noSceneLabel;
-  const raw = (scene.direction || scene.content || "").trim();
+  const raw = (scene.content || scene.direction || "").trim();
   if (!raw) return untitledLabel;
   return raw.replace(/\s+/g, " ").replace(/^[*\-+#>\s]+/, "");
 }
@@ -487,7 +487,7 @@ export default function ChatTemplateEditorPage() {
     ? ({
         id: "scene-preview",
         role: "assistant" as const,
-        content: selectedScene.direction || selectedScene.content || "",
+        content: selectedScene.content || selectedScene.direction || "",
         createdAt: Date.now(),
       } as StoredMessage)
     : null;

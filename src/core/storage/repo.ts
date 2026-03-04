@@ -555,7 +555,7 @@ export async function createSession(
         ? (scene.variants?.find((v) => v.id === scene.selectedVariantId)?.content ?? scene.content)
         : undefined;
       const sceneContent =
-        variantContent?.trim() || scene.direction?.trim() || scene.content?.trim() || "";
+        variantContent?.trim() || scene.content?.trim() || scene.direction?.trim() || "";
 
       if (sceneContent) {
         messages.unshift({

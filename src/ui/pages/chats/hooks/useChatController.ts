@@ -25,6 +25,7 @@ import type {
   Character,
   Persona,
   Session,
+  Scene,
   StoredMessage,
   ImageAttachment,
 } from "../../../../core/storage/schemas";
@@ -156,6 +157,57 @@ export interface ChatController {
  */
 function isStartingSceneMessage(message: StoredMessage): boolean {
   return message.role === "scene";
+}
+
+function resolveSceneContent(scene: Scene): string {
+  if (scene.selectedVariantId) {
+    const selectedVariant = scene.variants?.find(
+      (variant) => variant.id === scene.selectedVariantId,
+    );
+    if (selectedVariant?.content?.trim()) {
+      return selectedVariant.content;
+    }
+  }
+  if (scene.content?.trim()) {
+    return scene.content;
+  }
+  return scene.direction?.trim() ?? "";
+}
+
+function normalizeStartingSceneMessage(
+  messages: StoredMessage[],
+  character: Character,
+  selectedSceneId?: string | null,
+): StoredMessage[] {
+  const sceneMessageIndex = messages.findIndex((message) => isStartingSceneMessage(message));
+  if (sceneMessageIndex < 0) {
+    return messages;
+  }
+
+  const selectedScene =
+    character.scenes.find((scene) => scene.id === selectedSceneId) ??
+    character.scenes.find((scene) => scene.id === character.defaultSceneId) ??
+    character.scenes[0];
+  if (!selectedScene) {
+    return messages;
+  }
+
+  const expectedSceneContent = resolveSceneContent(selectedScene).trim();
+  if (!expectedSceneContent) {
+    return messages;
+  }
+
+  const currentSceneMessage = messages[sceneMessageIndex];
+  if (currentSceneMessage.content.trim() === expectedSceneContent) {
+    return messages;
+  }
+
+  const nextMessages = [...messages];
+  nextMessages[sceneMessageIndex] = {
+    ...currentSceneMessage,
+    content: expectedSceneContent,
+  };
+  return nextMessages;
 }
 
 /**
@@ -692,6 +744,13 @@ export function useChatController(
           orderedMessages = [...fetched].sort((a, b) => a.createdAt - b.createdAt);
           hasMoreMessagesBeforeRef.current = orderedMessages.length >= INITIAL_MESSAGE_LIMIT;
         }
+
+        orderedMessages = normalizeStartingSceneMessage(
+          orderedMessages,
+          match,
+          targetSession.selectedSceneId,
+        );
+
         messagesRef.current = orderedMessages;
         const normalizedSession: Session = { ...targetSession, messages: orderedMessages };
 
