@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -112,6 +112,157 @@ function sanitize(raw: string): string {
   });
 }
 
+function normalizeInlineStyle(style: unknown): string {
+  if (!style) return "";
+  if (typeof style === "string") {
+    return style.toLowerCase().replace(/\s+/g, "");
+  }
+  if (typeof style === "object") {
+    return Object.entries(style as Record<string, unknown>)
+      .map(([key, value]) => `${String(key)}:${String(value)}`)
+      .join(";")
+      .toLowerCase()
+      .replace(/\s+/g, "");
+  }
+  return "";
+}
+
+function hasAccentTextStyle(style: unknown): boolean {
+  const normalized = normalizeInlineStyle(style);
+  return normalized.includes("color:#7c3aed") || normalized.includes("color:rgb(124,58,237)");
+}
+
+function hasAccentBorderStyle(style: unknown): boolean {
+  return normalizeInlineStyle(style).includes("border-bottom");
+}
+
+function hasAccentBackgroundStyle(style: unknown): boolean {
+  const normalized = normalizeInlineStyle(style);
+  return (
+    normalized.includes("background:rgba(124,58,237") ||
+    normalized.includes("background-color:rgba(124,58,237")
+  );
+}
+
+function parsePixelValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.endsWith("px")) {
+    const parsed = Number.parseFloat(trimmed.slice(0, -2));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  const parsed = Number.parseFloat(trimmed);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+type LazyReadmeImageProps = {
+  src: string;
+  alt: string;
+  className?: string;
+  style?: React.CSSProperties;
+  width?: number | string;
+  height?: number | string;
+};
+
+const LazyReadmeImage = memo(function LazyReadmeImage({
+  src,
+  alt,
+  className,
+  style,
+  width,
+  height,
+}: LazyReadmeImageProps) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(false);
+    setShouldLoad(false);
+  }, [src]);
+
+  useEffect(() => {
+    if (shouldLoad) return;
+    const host = hostRef.current;
+    if (!host) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return;
+    }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldLoad(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "1200px 0px" },
+    );
+    obs.observe(host);
+    return () => obs.disconnect();
+  }, [shouldLoad]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
+    let cancelled = false;
+
+    const preloader = new Image();
+    preloader.decoding = "async";
+    preloader.src = src;
+
+    const markReady = () => {
+      if (!cancelled) setReady(true);
+    };
+
+    if (typeof preloader.decode === "function") {
+      preloader.decode().then(markReady).catch(markReady);
+    } else {
+      preloader.onload = markReady;
+      preloader.onerror = markReady;
+    }
+
+    return () => {
+      cancelled = true;
+      preloader.onload = null;
+      preloader.onerror = null;
+    };
+  }, [shouldLoad, src]);
+
+  const numericWidth = parsePixelValue(width);
+  const numericHeight = parsePixelValue(height);
+  const skeletonStyle: React.CSSProperties = {};
+  if (numericWidth && numericHeight) {
+    skeletonStyle.maxWidth = numericWidth;
+    skeletonStyle.aspectRatio = `${numericWidth} / ${numericHeight}`;
+  } else if (numericWidth) {
+    skeletonStyle.maxWidth = numericWidth;
+    skeletonStyle.height = Math.max(80, Math.min(360, Math.round(numericWidth * 0.55)));
+  } else {
+    skeletonStyle.height = 160;
+  }
+
+  return (
+    <div ref={hostRef}>
+      {shouldLoad && ready ? (
+        <img
+          src={src}
+          alt={alt}
+          className={className}
+          style={style}
+          loading="lazy"
+          decoding="async"
+          fetchPriority="low"
+        />
+      ) : (
+        <div className="rounded-xl bg-fg/5" style={skeletonStyle} />
+      )}
+    </div>
+  );
+});
 
 function Admonition({ type, children }: { type: AdmonitionType; children: React.ReactNode }) {
   const cfg = ADMONITION_CONFIG[type] ?? ADMONITION_CONFIG.Note;
@@ -128,7 +279,7 @@ function Admonition({ type, children }: { type: AdmonitionType; children: React.
   );
 }
 
-export function HfReadmeRenderer({ content, className = "" }: HfReadmeRendererProps) {
+function HfReadmeRendererComponent({ content, className = "" }: HfReadmeRendererProps) {
   const processed = useMemo(() => {
     const withAdmonitions = preprocessAdmonitions(content);
     return sanitize(withAdmonitions);
@@ -193,7 +344,7 @@ export function HfReadmeRenderer({ content, className = "" }: HfReadmeRendererPr
             </a>
           ),
 
-          img: ({ src, alt, width }) => {
+          img: ({ src, alt, width, height }) => {
             if (!src) return null;
 
             const isBadge =
@@ -206,24 +357,28 @@ export function HfReadmeRenderer({ content, className = "" }: HfReadmeRendererPr
                   alt={alt ?? ""}
                   className="inline-block h-5 rounded"
                   loading="lazy"
+                  decoding="async"
+                  fetchPriority="low"
                 />
               );
             }
 
             const style: React.CSSProperties = {};
-            if (width) {
-              const num = parseInt(String(width).replace("px", ""), 10);
-              if (!isNaN(num)) style.maxWidth = num;
-            }
+            const numericWidth = parsePixelValue(width);
+            const numericHeight = parsePixelValue(height);
+            if (numericWidth) style.maxWidth = numericWidth;
+            if (numericWidth && numericHeight)
+              style.aspectRatio = `${numericWidth} / ${numericHeight}`;
 
             return (
               <figure className="my-3">
-                <img
+                <LazyReadmeImage
                   src={src}
                   alt={alt ?? ""}
                   className="max-w-full rounded-xl"
                   style={style}
-                  loading="lazy"
+                  width={width}
+                  height={height}
                 />
                 {alt && (
                   <figcaption className="mt-1.5 text-center text-[11px] text-fg/40">
@@ -272,16 +427,37 @@ export function HfReadmeRenderer({ content, className = "" }: HfReadmeRendererPr
           thead: ({ children }) => <thead>{children}</thead>,
           tbody: ({ children }) => <tbody>{children}</tbody>,
           tr: ({ children }) => <tr className="border-b border-fg/6">{children}</tr>,
-          th: ({ children }) => (
-            <th className="border-b-2 border-accent/30 px-2 py-2 text-left text-[11px] font-semibold text-fg/70 whitespace-nowrap">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="px-2 py-1.5 text-center text-fg/70 tabular-nums border-b border-fg/6">
-              {children}
-            </td>
-          ),
+          th: ({ children, node, ...rest }) => {
+            const inlineStyle = (rest as any).style ?? (node as any)?.properties?.style;
+            return (
+              <th
+                {...rest}
+                className={cn(
+                  "border-b-2 border-accent/30 px-2 py-2 text-left text-[11px] font-semibold text-fg/70 whitespace-nowrap",
+                  (rest as any).className,
+                  hasAccentTextStyle(inlineStyle) && "hf-cell-accent-text",
+                  hasAccentBorderStyle(inlineStyle) && "hf-cell-accent-border",
+                )}
+              >
+                {children}
+              </th>
+            );
+          },
+          td: ({ children, node, ...rest }) => {
+            const inlineStyle = (rest as any).style ?? (node as any)?.properties?.style;
+            return (
+              <td
+                {...rest}
+                className={cn(
+                  "px-2 py-1.5 text-center text-fg/70 tabular-nums border-b border-fg/6",
+                  (rest as any).className,
+                  hasAccentBackgroundStyle(inlineStyle) && "hf-cell-accent-bg",
+                )}
+              >
+                {children}
+              </td>
+            );
+          },
 
           hr: () => <hr className="my-6 border-t border-fg/10" />,
 
@@ -322,3 +498,6 @@ export function HfReadmeRenderer({ content, className = "" }: HfReadmeRendererPr
     </div>
   );
 }
+
+export const HfReadmeRenderer = memo(HfReadmeRendererComponent);
+HfReadmeRenderer.displayName = "HfReadmeRenderer";
