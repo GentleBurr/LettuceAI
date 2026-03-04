@@ -48,9 +48,41 @@ concurrency:
   group: desktop-build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
+  prepare_release:
+    name: Prepare GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      name: ${{ steps.meta.outputs.name }}
+    steps:
+      - name: Compute release metadata
+        id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="desktop-dev-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHORT_SHA}"
+          NAME="Desktop Dev Build #${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT} (${SHORT_SHA})"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: true
+          generate_release_notes: false
+          body: |
+            Automated desktop build artifacts for commit `${{ github.sha }}`.
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   linux_cpu:
     name: Linux Build (CPU)
+    needs: prepare_release
     if: ${{ inputs.build_llama_cpu_linux == true }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
@@ -168,14 +200,16 @@ jobs:
           cd src-tauri/target/release/bundle
           zip -r ../../../../dist-artifacts/linux-cpu.zip .
 
-      - name: Upload Linux CPU zip
-        uses: actions/upload-artifact@v4
+      - name: Upload Linux CPU zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: linux-cpu-zip
-          path: dist-artifacts/linux-cpu.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/linux-cpu.zip
+          fail_on_unmatched_files: true
 
   linux_cuda:
     name: Linux Build (CUDA)
+    needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_cuda_linux == true }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
@@ -318,14 +352,16 @@ jobs:
           cd src-tauri/target-cuda/release/bundle
           zip -r ../../../../dist-artifacts/linux-cuda.zip .
 
-      - name: Upload Linux CUDA zip
-        uses: actions/upload-artifact@v4
+      - name: Upload Linux CUDA zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: linux-cuda-zip
-          path: dist-artifacts/linux-cuda.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/linux-cuda.zip
+          fail_on_unmatched_files: true
 
   linux_rocm:
     name: Linux Build (ROCm)
+    needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_rocm_linux == true }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
@@ -483,14 +519,16 @@ jobs:
           cd src-tauri/target-rocm/release/bundle
           zip -r ../../../../dist-artifacts/linux-rocm.zip .
 
-      - name: Upload Linux ROCm zip
-        uses: actions/upload-artifact@v4
+      - name: Upload Linux ROCm zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: linux-rocm-zip
-          path: dist-artifacts/linux-rocm.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/linux-rocm.zip
+          fail_on_unmatched_files: true
 
   windows_cpu:
     name: Windows Build (CPU)
+    needs: prepare_release
     if: ${{ inputs.build_llama_cpu_windows == true }}
     runs-on: blacksmith-4vcpu-windows-2025
     env:
@@ -600,14 +638,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist-artifacts | Out-Null
           Compress-Archive -Path src-tauri/target/release/bundle/* -DestinationPath dist-artifacts/windows-cpu.zip -Force
 
-      - name: Upload Windows CPU zip
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows CPU zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows-cpu-zip
-          path: dist-artifacts/windows-cpu.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/windows-cpu.zip
+          fail_on_unmatched_files: true
 
   windows_cuda:
     name: Windows Build (CUDA)
+    needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_cuda_windows == true }}
     runs-on: blacksmith-4vcpu-windows-2025
     env:
@@ -733,14 +773,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist-artifacts | Out-Null
           Compress-Archive -Path src-tauri/target-cuda/release/bundle/* -DestinationPath dist-artifacts/windows-cuda.zip -Force
 
-      - name: Upload Windows CUDA zip
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows CUDA zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows-cuda-zip
-          path: dist-artifacts/windows-cuda.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/windows-cuda.zip
+          fail_on_unmatched_files: true
 
   windows_rocm:
     name: Windows Build (ROCm)
+    needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_rocm_windows == true }}
     runs-on: blacksmith-4vcpu-windows-2025
     env:
@@ -915,14 +957,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist-artifacts | Out-Null
           Compress-Archive -Path src-tauri/target-rocm/release/bundle/* -DestinationPath dist-artifacts/windows-rocm.zip -Force
 
-      - name: Upload Windows ROCm zip
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows ROCm zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows-rocm-zip
-          path: dist-artifacts/windows-rocm.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/windows-rocm.zip
+          fail_on_unmatched_files: true
 
   macos_cpu:
     name: macOS Build (CPU)
+    needs: prepare_release
     if: ${{ inputs.build_llama_cpu_macos == true }}
     runs-on: macos-14
     env:
@@ -1034,22 +1078,26 @@ jobs:
         run: |
           mkdir -p dist-artifacts
           ditto -c -k --sequesterRsrc --keepParent src-tauri/target/release/bundle/macos/*.app dist-artifacts/macos-app.zip
-          cp src-tauri/target/release/bundle/dmg/*.dmg dist-artifacts/
+          CPU_DMG=$(ls src-tauri/target/release/bundle/dmg/*.dmg | head -n 1)
+          cp "$CPU_DMG" dist-artifacts/macos-cpu.dmg
 
-      - name: Upload macOS app zip
-        uses: actions/upload-artifact@v4
+      - name: Upload macOS app zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: macos-app-zip
-          path: dist-artifacts/macos-app.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/macos-app.zip
+          fail_on_unmatched_files: true
 
-      - name: Upload macOS dmg
-        uses: actions/upload-artifact@v4
+      - name: Upload macOS dmg to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: macos-dmg
-          path: dist-artifacts/*.dmg
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/macos-cpu.dmg
+          fail_on_unmatched_files: true
 
   macos_metal:
     name: macOS Build (Metal)
+    needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_metal_macos == true }}
     runs-on: macos-14
     env:
@@ -1163,16 +1211,19 @@ jobs:
         run: |
           mkdir -p dist-artifacts
           ditto -c -k --sequesterRsrc --keepParent src-tauri/target-metal/release/bundle/macos/*.app dist-artifacts/macos-metal-app.zip
-          cp src-tauri/target-metal/release/bundle/dmg/*.dmg dist-artifacts/
+          METAL_DMG=$(ls src-tauri/target-metal/release/bundle/dmg/*.dmg | head -n 1)
+          cp "$METAL_DMG" dist-artifacts/macos-metal.dmg
 
-      - name: Upload macOS Metal app zip
-        uses: actions/upload-artifact@v4
+      - name: Upload macOS Metal app zip to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: macos-metal-app-zip
-          path: dist-artifacts/macos-metal-app.zip
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/macos-metal-app.zip
+          fail_on_unmatched_files: true
 
-      - name: Upload macOS Metal dmg
-        uses: actions/upload-artifact@v4
+      - name: Upload macOS Metal dmg to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: macos-metal-dmg
-          path: dist-artifacts/*.dmg
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: dist-artifacts/macos-metal.dmg
+          fail_on_unmatched_files: true

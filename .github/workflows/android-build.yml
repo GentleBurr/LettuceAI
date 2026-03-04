@@ -7,11 +7,43 @@ concurrency:
   group: android-build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 env:
   NDK_VERSION: r26d
 
 jobs:
+  prepare_release:
+    name: Prepare GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      name: ${{ steps.meta.outputs.name }}
+    steps:
+      - name: Compute release metadata
+        id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="android-dev-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHORT_SHA}"
+          NAME="Android Dev Build #${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT} (${SHORT_SHA})"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: true
+          generate_release_notes: false
+          body: |
+            Automated Android build artifacts for commit `${{ github.sha }}`.
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   android:
+    needs: prepare_release
     runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       APTABASE_KEY: ${{ secrets.APTABASE_KEY }}
@@ -182,12 +214,34 @@ jobs:
           "$APKSIGNER" verify --verbose "$SIGNED_APK"
           rm -f "$UNSIGNED_APK"
 
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
+      - name: Package Android artifacts
+        run: |
+          APK_ROOT="src-tauri/gen/android/app/build/outputs/apk"
+          SIGNED_APK="$APK_ROOT/universal/release/app-universal-release.apk"
+          mkdir -p dist-artifacts
+
+          if [ ! -f "$SIGNED_APK" ]; then
+            echo "Signed universal APK not found at $SIGNED_APK"
+            exit 1
+          fi
+
+          cp "$SIGNED_APK" dist-artifacts/android-universal-release.apk
+
+          (
+            cd "$APK_ROOT"
+            find . -type f -name "*.apk" ! -name "*-unsigned.apk" | sort > "$GITHUB_WORKSPACE/dist-artifacts/apk-file-list.txt"
+            if [ ! -s "$GITHUB_WORKSPACE/dist-artifacts/apk-file-list.txt" ]; then
+              echo "No signed APK files found under $APK_ROOT"
+              exit 1
+            fi
+            zip -9 "$GITHUB_WORKSPACE/dist-artifacts/android-apk-bundle.zip" -@ < "$GITHUB_WORKSPACE/dist-artifacts/apk-file-list.txt"
+          )
+
+      - name: Upload Android artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: android-build
-          if-no-files-found: error
-          path: |
-            src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
-            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
-            !src-tauri/gen/android/app/build/outputs/apk/**/*-unsigned.apk
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          files: |
+            dist-artifacts/android-universal-release.apk
+            dist-artifacts/android-apk-bundle.zip
+          fail_on_unmatched_files: true
