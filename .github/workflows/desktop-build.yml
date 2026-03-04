@@ -59,6 +59,12 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       name: ${{ steps.meta.outputs.name }}
     steps:
+      - name: Checkout (full history for changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - name: Compute release metadata
         id: meta
         run: |
@@ -68,6 +74,49 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
+      - name: Build release body (include commits since last Desktop build)
+        id: release_body
+        shell: bash
+        run: |
+          REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          PREV_TAG=""
+          while IFS= read -r tag; do
+            TAG_SHA="$(git rev-list -n 1 "$tag" 2>/dev/null || true)"
+            if [[ -n "$TAG_SHA" && "$TAG_SHA" != "$GITHUB_SHA" ]]; then
+              PREV_TAG="$tag"
+              break
+            fi
+          done < <(git tag --list 'desktop-dev-*' --sort=-creatordate)
+
+          {
+            echo "body<<'EOF'"
+            echo "Automated desktop build artifacts for commit \`${GITHUB_SHA}\`."
+            echo "Workflow run: ${REPO_URL}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+
+            if [[ -n "$PREV_TAG" ]]; then
+              echo "### Changes since \`${PREV_TAG}\`"
+              echo "Compare: ${REPO_URL}/compare/${PREV_TAG}...${GITHUB_SHA}"
+              echo
+
+              COMMIT_LINES=0
+              while IFS=$'\t' read -r sha subject; do
+                [[ -z "$sha" ]] && continue
+                short_sha="${sha:0:7}"
+                echo "- [\`${short_sha}\`](${REPO_URL}/commit/${sha}) ${subject}"
+                COMMIT_LINES=$((COMMIT_LINES + 1))
+              done < <(git log --pretty=format:'%H%x09%s' "${PREV_TAG}..${GITHUB_SHA}")
+
+              if [[ "$COMMIT_LINES" -eq 0 ]]; then
+                echo "- No commits between the previous desktop build and this build."
+              fi
+            else
+              echo "### Changes"
+              echo "- No previous desktop build tag found."
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create prerelease
         uses: softprops/action-gh-release@v2
         with:
@@ -76,9 +125,7 @@ jobs:
           name: ${{ steps.meta.outputs.name }}
           prerelease: true
           generate_release_notes: false
-          body: |
-            Automated desktop build artifacts for commit `${{ github.sha }}`.
-            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          body: ${{ steps.release_body.outputs.body }}
 
   linux_cpu:
     name: Linux Build (CPU)
@@ -1227,3 +1274,55 @@ jobs:
           tag_name: ${{ needs.prepare_release.outputs.tag }}
           files: dist-artifacts/macos-metal.dmg
           fail_on_unmatched_files: true
+
+  cleanup_release_on_failure:
+    name: Cleanup release on failure/cancel
+    needs:
+      - prepare_release
+      - linux_cpu
+      - linux_cuda
+      - linux_rocm
+      - windows_cpu
+      - windows_cuda
+      - windows_rocm
+      - macos_cpu
+      - macos_metal
+    if: ${{ always() && needs.prepare_release.result == 'success' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete prerelease and tag
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.prepare_release.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            if (!tag) {
+              core.info("No release tag from prepare_release; skipping cleanup.");
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+
+            try {
+              const release = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              await github.rest.repos.deleteRelease({ owner, repo, release_id: release.data.id });
+              core.info(`Deleted release ${tag} (id=${release.data.id}).`);
+            } catch (error) {
+              if (error.status === 404) {
+                core.info(`Release ${tag} not found; skipping.`);
+              } else {
+                throw error;
+              }
+            }
+
+            try {
+              await github.rest.git.deleteRef({ owner, repo, ref: `tags/${tag}` });
+              core.info(`Deleted tag ${tag}.`);
+            } catch (error) {
+              if (error.status === 404) {
+                core.info(`Tag ${tag} not found; skipping.`);
+              } else {
+                throw error;
+              }
+            }
