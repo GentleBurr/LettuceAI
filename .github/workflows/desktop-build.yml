@@ -95,7 +95,7 @@ jobs:
               short_sha="${sha:0:7}"
               echo "- [\`${short_sha}\`](${REPO_URL}/commit/${sha}) ${subject}"
               count=$((count + 1))
-            done < <(git log --pretty=format:'%H%x09%s' "${range}")
+            done < <(git log --pretty=format:'%H%x09%s%n' "${range}")
 
             if [[ "${count}" -eq 0 ]]; then
               echo "- ${empty_message}"
@@ -163,6 +163,9 @@ jobs:
           if [[ -n "${PREV_SUCCESS_RUN_INFO}" ]]; then
             IFS=$'\t' read -r PREV_RUN PREV_ATTEMPT <<< "${PREV_SUCCESS_RUN_INFO}"
             PREV_TAG="$(git tag --list "${TAG_PREFIX}-${PREV_RUN}-${PREV_ATTEMPT}-*" --sort=-creatordate | head -n 1)"
+            if [[ -z "${PREV_TAG}" ]]; then
+              PREV_TAG="$(git tag --list "${TAG_PREFIX}-${PREV_RUN}-*" --sort=-creatordate | head -n 1)"
+            fi
           fi
 
           BODY_DELIM="BODY_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
@@ -929,41 +932,7 @@ jobs:
           echo "C:\\Program Files\\LLVM\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Vulkan SDK
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          choco install vulkan-sdk -y --no-progress
-
-          if (-not (Test-Path "C:\\VulkanSDK")) {
-            throw "C:\\VulkanSDK not found after Vulkan SDK install."
-          }
-
-          $sdkDir = Get-ChildItem -Path "C:\\VulkanSDK" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          if (-not $sdkDir) {
-            throw "No Vulkan SDK version directory found under C:\\VulkanSDK."
-          }
-
-          $vulkanRoot = $sdkDir.FullName
-          if (-not (Test-Path (Join-Path $vulkanRoot "Lib\\vulkan-1.lib"))) {
-            throw "vulkan-1.lib not found under $vulkanRoot\\Lib"
-          }
-
-          "VULKAN_SDK=$vulkanRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          (Join-Path $vulkanRoot "Bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Verify Vulkan SDK
-        shell: pwsh
-        run: |
-          if (-not $env:VULKAN_SDK) {
-            Write-Error "VULKAN_SDK is not set."
-            exit 1
-          }
-          $vulkanLib = Join-Path $env:VULKAN_SDK "Lib\\vulkan-1.lib"
-          if (-not (Test-Path $vulkanLib)) {
-            Write-Error "Vulkan loader import library not found: $vulkanLib"
-            exit 1
-          }
-          Write-Host "VULKAN_SDK=$env:VULKAN_SDK"
+        uses: jakoch/install-vulkan-sdk-action@v1
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -1031,15 +1000,19 @@ jobs:
           "@
           $devConfig | Out-File -FilePath dev-config.json -Encoding UTF8
 
-      - name: Build Tauri (Windows, llama.cpp Vulkan)
+      - name: Build with Vulkan
         env:
           RUSTFLAGS: "--cfg DEV_BUILD -C target-feature=-crt-static"
           CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreadedDLL"
           CMAKE_GENERATOR: "Ninja"
           CXXFLAGS: "/EHsc"
-          VULKAN_SDK: ${{ env.VULKAN_SDK }}
           CARGO_TARGET_DIR: target-vulkan
-        run: bun run tauri build --config dev-config.json --features llama-gpu-vulkan
+        shell: pwsh
+        run: |
+          echo "VULKAN_SDK=$env:VULKAN_SDK"
+          vulkaninfo --summary
+          $env:CMAKE_ARGS="-DGGML_VULKAN=ON"
+          bun run tauri build --config dev-config.json --features llama-gpu-vulkan
 
       - name: Package Windows Vulkan zip
         shell: pwsh

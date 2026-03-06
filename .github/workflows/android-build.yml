@@ -57,7 +57,7 @@ jobs:
               short_sha="${sha:0:7}"
               echo "- [\`${short_sha}\`](${REPO_URL}/commit/${sha}) ${subject}"
               count=$((count + 1))
-            done < <(git log --pretty=format:'%H%x09%s' "${range}")
+            done < <(git log --pretty=format:'%H%x09%s%n' "${range}")
 
             if [[ "${count}" -eq 0 ]]; then
               echo "- ${empty_message}"
@@ -115,7 +115,10 @@ jobs:
           )"
           if [[ -n "${PREV_SUCCESS_RUN_INFO}" ]]; then
             IFS=$'\t' read -r PREV_RUN PREV_ATTEMPT <<< "${PREV_SUCCESS_RUN_INFO}"
-            PREV_TAG="$(git tag --list "${TAG_PREFIX}-${PREV_RUN}-${PREV_ATTEMPT}-*" | head -n 1)"
+            PREV_TAG="$(git tag --list "${TAG_PREFIX}-${PREV_RUN}-${PREV_ATTEMPT}-*" --sort=-creatordate | head -n 1)"
+            if [[ -z "${PREV_TAG}" ]]; then
+              PREV_TAG="$(git tag --list "${TAG_PREFIX}-${PREV_RUN}-*" --sort=-creatordate | head -n 1)"
+            fi
           fi
 
           BODY_DELIM="BODY_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
