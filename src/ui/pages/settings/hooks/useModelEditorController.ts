@@ -55,6 +55,9 @@ type ControllerReturn = {
   handleLlamaBatchSizeChange: (value: number | null) => void;
   handleLlamaKvTypeChange: (value: AdvancedModelSettings["llamaKvType"]) => void;
   handleLlamaFlashAttentionChange: (value: AdvancedModelSettings["llamaFlashAttention"]) => void;
+  handleLlamaSamplerProfileChange: (value: AdvancedModelSettings["llamaSamplerProfile"]) => void;
+  handleLlamaMinPChange: (value: number | null) => void;
+  handleLlamaTypicalPChange: (value: number | null) => void;
   handleLlamaChatTemplateOverrideChange: (value: string | null) => void;
   handleLlamaChatTemplatePresetChange: (value: string | null) => void;
   handleLlamaRawCompletionFallbackChange: (value: boolean | null) => void;
@@ -556,6 +559,45 @@ export function useModelEditorController(): ControllerReturn {
         payload: {
           ...state.modelAdvancedDraft,
           llamaFlashAttention: value ?? null,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
+  const handleLlamaSamplerProfileChange = useCallback(
+    (value: AdvancedModelSettings["llamaSamplerProfile"]) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaSamplerProfile: value ?? null,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
+  const handleLlamaMinPChange = useCallback(
+    (value: number | null) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaMinP: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
+  const handleLlamaTypicalPChange = useCallback(
+    (value: number | null) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaTypicalP: value,
         },
       });
     },
@@ -1096,6 +1138,9 @@ export function useModelEditorController(): ControllerReturn {
     handleLlamaBatchSizeChange,
     handleLlamaKvTypeChange,
     handleLlamaFlashAttentionChange,
+    handleLlamaSamplerProfileChange,
+    handleLlamaMinPChange,
+    handleLlamaTypicalPChange,
     handleLlamaChatTemplateOverrideChange,
     handleLlamaChatTemplatePresetChange,
     handleLlamaRawCompletionFallbackChange,

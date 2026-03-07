@@ -50,6 +50,7 @@ use crate::utils::emit_debug;
 const FALLBACK_TEMPERATURE: f64 = 0.7;
 const FALLBACK_TOP_P: f64 = 1.0;
 const FALLBACK_MAX_OUTPUT_TOKENS: u32 = 4096;
+const DEFAULT_LLAMA_SAMPLER_PROFILE: &str = "balanced";
 const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
     "character_trait",
     "relationship",
@@ -58,6 +59,75 @@ const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
     "preference",
     "other",
 ];
+
+#[derive(Clone, Copy)]
+struct LlamaSamplerProfileDefaults {
+    name: &'static str,
+    temperature: f64,
+    top_p: f64,
+    top_k: Option<u32>,
+    min_p: Option<f64>,
+    typical_p: Option<f64>,
+    frequency_penalty: Option<f64>,
+    presence_penalty: Option<f64>,
+}
+
+fn is_llama_cpp_model(model: &Model) -> bool {
+    model.provider_id.eq_ignore_ascii_case("llamacpp")
+}
+
+fn normalize_llama_sampler_profile(value: &str) -> Option<String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "balanced" | "creative" | "stable" | "reasoning" => Some(normalized),
+        _ => None,
+    }
+}
+
+fn llama_sampler_profile_defaults(profile: Option<&str>) -> LlamaSamplerProfileDefaults {
+    match profile.unwrap_or(DEFAULT_LLAMA_SAMPLER_PROFILE) {
+        "creative" => LlamaSamplerProfileDefaults {
+            name: "creative",
+            temperature: 0.95,
+            top_p: 0.98,
+            top_k: Some(80),
+            min_p: Some(0.02),
+            typical_p: None,
+            frequency_penalty: Some(0.0),
+            presence_penalty: Some(0.25),
+        },
+        "stable" => LlamaSamplerProfileDefaults {
+            name: "stable",
+            temperature: 0.55,
+            top_p: 0.90,
+            top_k: Some(32),
+            min_p: Some(0.08),
+            typical_p: Some(0.97),
+            frequency_penalty: Some(0.2),
+            presence_penalty: Some(0.0),
+        },
+        "reasoning" => LlamaSamplerProfileDefaults {
+            name: "reasoning",
+            temperature: 0.35,
+            top_p: 0.90,
+            top_k: Some(24),
+            min_p: None,
+            typical_p: Some(0.95),
+            frequency_penalty: Some(0.1),
+            presence_penalty: Some(0.0),
+        },
+        _ => LlamaSamplerProfileDefaults {
+            name: "balanced",
+            temperature: 0.8,
+            top_p: 0.95,
+            top_k: Some(40),
+            min_p: Some(0.05),
+            typical_p: None,
+            frequency_penalty: Some(0.15),
+            presence_penalty: Some(0.0),
+        },
+    }
+}
 
 fn resolve_persona_id<'a>(session: &'a Session, explicit: Option<&'a str>) -> Option<&'a str> {
     if explicit.is_some() {
@@ -397,8 +467,32 @@ fn format_memories_with_ids(session: &Session) -> Vec<String> {
         .collect()
 }
 
-fn resolve_temperature(session: &Session, model: &Model, settings: &Settings) -> f64 {
+fn resolve_llama_sampler_profile(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<String> {
     session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_sampler_profile.clone())
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_sampler_profile.clone())
+        })
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_sampler_profile
+                .clone()
+        })
+        .and_then(|value| normalize_llama_sampler_profile(&value))
+}
+
+fn resolve_temperature(session: &Session, model: &Model, settings: &Settings) -> f64 {
+    let configured = session
         .advanced_model_settings
         .as_ref()
         .and_then(|cfg| cfg.temperature)
@@ -408,12 +502,21 @@ fn resolve_temperature(session: &Session, model: &Model, settings: &Settings) ->
                 .as_ref()
                 .and_then(|cfg| cfg.temperature)
         })
-        .or(settings.advanced_model_settings.temperature)
-        .unwrap_or(FALLBACK_TEMPERATURE)
+        .or(settings.advanced_model_settings.temperature);
+    if let Some(value) = configured {
+        return value;
+    }
+    if is_llama_cpp_model(model) {
+        return llama_sampler_profile_defaults(
+            resolve_llama_sampler_profile(session, model, settings).as_deref(),
+        )
+        .temperature;
+    }
+    FALLBACK_TEMPERATURE
 }
 
 fn resolve_top_p(session: &Session, model: &Model, settings: &Settings) -> f64 {
-    session
+    let configured = session
         .advanced_model_settings
         .as_ref()
         .and_then(|cfg| cfg.top_p)
@@ -423,8 +526,17 @@ fn resolve_top_p(session: &Session, model: &Model, settings: &Settings) -> f64 {
                 .as_ref()
                 .and_then(|cfg| cfg.top_p)
         })
-        .or(settings.advanced_model_settings.top_p)
-        .unwrap_or(FALLBACK_TOP_P)
+        .or(settings.advanced_model_settings.top_p);
+    if let Some(value) = configured {
+        return value;
+    }
+    if is_llama_cpp_model(model) {
+        return llama_sampler_profile_defaults(
+            resolve_llama_sampler_profile(session, model, settings).as_deref(),
+        )
+        .top_p;
+    }
+    FALLBACK_TOP_P
 }
 
 fn resolve_max_tokens(session: &Session, model: &Model, settings: &Settings) -> u32 {
@@ -457,12 +569,8 @@ fn resolve_context_length(session: &Session, model: &Model, settings: &Settings)
         .filter(|v| *v > 0)
 }
 
-fn resolve_frequency_penalty(
-    session: &Session,
-    model: &Model,
-    _settings: &Settings,
-) -> Option<f64> {
-    session
+fn resolve_frequency_penalty(session: &Session, model: &Model, settings: &Settings) -> Option<f64> {
+    let configured = session
         .advanced_model_settings
         .as_ref()
         .and_then(|cfg| cfg.frequency_penalty)
@@ -471,11 +579,21 @@ fn resolve_frequency_penalty(
                 .advanced_model_settings
                 .as_ref()
                 .and_then(|cfg| cfg.frequency_penalty)
-        })
+        });
+    if configured.is_some() {
+        return configured;
+    }
+    if is_llama_cpp_model(model) {
+        return llama_sampler_profile_defaults(
+            resolve_llama_sampler_profile(session, model, settings).as_deref(),
+        )
+        .frequency_penalty;
+    }
+    None
 }
 
-fn resolve_presence_penalty(session: &Session, model: &Model, _settings: &Settings) -> Option<f64> {
-    session
+fn resolve_presence_penalty(session: &Session, model: &Model, settings: &Settings) -> Option<f64> {
+    let configured = session
         .advanced_model_settings
         .as_ref()
         .and_then(|cfg| cfg.presence_penalty)
@@ -484,11 +602,21 @@ fn resolve_presence_penalty(session: &Session, model: &Model, _settings: &Settin
                 .advanced_model_settings
                 .as_ref()
                 .and_then(|cfg| cfg.presence_penalty)
-        })
+        });
+    if configured.is_some() {
+        return configured;
+    }
+    if is_llama_cpp_model(model) {
+        return llama_sampler_profile_defaults(
+            resolve_llama_sampler_profile(session, model, settings).as_deref(),
+        )
+        .presence_penalty;
+    }
+    None
 }
 
-fn resolve_top_k(session: &Session, model: &Model, _settings: &Settings) -> Option<u32> {
-    session
+fn resolve_top_k(session: &Session, model: &Model, settings: &Settings) -> Option<u32> {
+    let configured = session
         .advanced_model_settings
         .as_ref()
         .and_then(|cfg| cfg.top_k)
@@ -497,7 +625,17 @@ fn resolve_top_k(session: &Session, model: &Model, _settings: &Settings) -> Opti
                 .advanced_model_settings
                 .as_ref()
                 .and_then(|cfg| cfg.top_k)
-        })
+        });
+    if configured.is_some() {
+        return configured;
+    }
+    if is_llama_cpp_model(model) {
+        return llama_sampler_profile_defaults(
+            resolve_llama_sampler_profile(session, model, settings).as_deref(),
+        )
+        .top_k;
+    }
+    None
 }
 
 fn resolve_llama_gpu_layers(session: &Session, model: &Model, settings: &Settings) -> Option<u32> {
@@ -735,7 +873,65 @@ fn resolve_llama_raw_completion_fallback(
                 .as_ref()
                 .and_then(|cfg| cfg.llama_raw_completion_fallback)
         })
-        .or(settings.advanced_model_settings.llama_raw_completion_fallback)
+        .or(settings
+            .advanced_model_settings
+            .llama_raw_completion_fallback)
+}
+
+fn resolve_llama_profile_min_p(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<f64> {
+    if let Some(value) = session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_min_p)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_min_p)
+        })
+        .or(settings.advanced_model_settings.llama_min_p)
+    {
+        return Some(value);
+    }
+    if !is_llama_cpp_model(model) {
+        return None;
+    }
+    llama_sampler_profile_defaults(
+        resolve_llama_sampler_profile(session, model, settings).as_deref(),
+    )
+    .min_p
+}
+
+fn resolve_llama_profile_typical_p(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<f64> {
+    if let Some(value) = session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_typical_p)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_typical_p)
+        })
+        .or(settings.advanced_model_settings.llama_typical_p)
+    {
+        return Some(value);
+    }
+    if !is_llama_cpp_model(model) {
+        return None;
+    }
+    llama_sampler_profile_defaults(
+        resolve_llama_sampler_profile(session, model, settings).as_deref(),
+    )
+    .typical_p
 }
 
 fn build_llama_extra_fields(
@@ -744,6 +940,17 @@ fn build_llama_extra_fields(
     settings: &Settings,
 ) -> Option<HashMap<String, Value>> {
     let mut extra = HashMap::new();
+    let sampler_profile = if is_llama_cpp_model(model) {
+        Some(
+            llama_sampler_profile_defaults(
+                resolve_llama_sampler_profile(session, model, settings).as_deref(),
+            )
+            .name
+            .to_string(),
+        )
+    } else {
+        None
+    };
     if let Some(v) = resolve_llama_gpu_layers(session, model, settings) {
         extra.insert("llamaGpuLayers".to_string(), json!(v));
     }
@@ -782,6 +989,15 @@ fn build_llama_extra_fields(
     }
     if let Some(v) = resolve_llama_raw_completion_fallback(session, model, settings) {
         extra.insert("llamaRawCompletionFallback".to_string(), json!(v));
+    }
+    if let Some(v) = sampler_profile {
+        extra.insert("llamaSamplerProfile".to_string(), json!(v));
+    }
+    if let Some(v) = resolve_llama_profile_min_p(session, model, settings) {
+        extra.insert("llamaMinP".to_string(), json!(v));
+    }
+    if let Some(v) = resolve_llama_profile_typical_p(session, model, settings) {
+        extra.insert("llamaTypicalP".to_string(), json!(v));
     }
 
     if extra.is_empty() {

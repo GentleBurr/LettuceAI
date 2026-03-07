@@ -286,6 +286,12 @@ pub struct AdvancedModelSettings {
     pub llama_chat_template_preset: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_raw_completion_fallback: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_sampler_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_min_p: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_typical_p: Option<f64>,
     pub ollama_num_ctx: Option<u32>,
     pub ollama_num_predict: Option<u32>,
     pub ollama_num_keep: Option<u32>,
@@ -333,6 +339,9 @@ impl Default for AdvancedModelSettings {
             llama_chat_template_override: None,
             llama_chat_template_preset: None,
             llama_raw_completion_fallback: None,
+            llama_sampler_profile: None,
+            llama_min_p: None,
+            llama_typical_p: None,
             ollama_num_ctx: None,
             ollama_num_predict: None,
             ollama_num_keep: None,

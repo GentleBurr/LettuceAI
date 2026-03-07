@@ -167,8 +167,102 @@ fn resolve_context_length(model: &Model, settings: &Settings) -> Option<u32> {
         .filter(|v| *v > 0)
 }
 
+const DEFAULT_LLAMA_SAMPLER_PROFILE: &str = "balanced";
+
+#[derive(Clone, Copy)]
+struct LlamaSamplerProfileDefaults {
+    name: &'static str,
+    temperature: f64,
+    top_p: f64,
+    top_k: Option<u32>,
+    min_p: Option<f64>,
+    typical_p: Option<f64>,
+    frequency_penalty: Option<f64>,
+    presence_penalty: Option<f64>,
+}
+
+fn normalize_llama_sampler_profile(value: &str) -> Option<String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "balanced" | "creative" | "stable" | "reasoning" => Some(normalized),
+        _ => None,
+    }
+}
+
+fn resolve_llama_sampler_profile(model: &Model, settings: &Settings) -> String {
+    model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_sampler_profile.clone())
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_sampler_profile
+                .clone()
+        })
+        .and_then(|value| normalize_llama_sampler_profile(&value))
+        .unwrap_or_else(|| DEFAULT_LLAMA_SAMPLER_PROFILE.to_string())
+}
+
+fn llama_sampler_profile_defaults(profile: &str) -> LlamaSamplerProfileDefaults {
+    match profile {
+        "creative" => LlamaSamplerProfileDefaults {
+            name: "creative",
+            temperature: 0.95,
+            top_p: 0.98,
+            top_k: Some(80),
+            min_p: Some(0.02),
+            typical_p: None,
+            frequency_penalty: Some(0.0),
+            presence_penalty: Some(0.25),
+        },
+        "stable" => LlamaSamplerProfileDefaults {
+            name: "stable",
+            temperature: 0.55,
+            top_p: 0.90,
+            top_k: Some(32),
+            min_p: Some(0.08),
+            typical_p: Some(0.97),
+            frequency_penalty: Some(0.2),
+            presence_penalty: Some(0.0),
+        },
+        "reasoning" => LlamaSamplerProfileDefaults {
+            name: "reasoning",
+            temperature: 0.35,
+            top_p: 0.90,
+            top_k: Some(24),
+            min_p: None,
+            typical_p: Some(0.95),
+            frequency_penalty: Some(0.1),
+            presence_penalty: Some(0.0),
+        },
+        _ => LlamaSamplerProfileDefaults {
+            name: "balanced",
+            temperature: 0.8,
+            top_p: 0.95,
+            top_k: Some(40),
+            min_p: Some(0.05),
+            typical_p: None,
+            frequency_penalty: Some(0.15),
+            presence_penalty: Some(0.0),
+        },
+    }
+}
+
 fn build_llama_extra_fields(model: &Model, settings: &Settings) -> Option<HashMap<String, Value>> {
     let mut extra = HashMap::new();
+    let sampler_profile = resolve_llama_sampler_profile(model, settings);
+    let sampler_defaults = llama_sampler_profile_defaults(&sampler_profile);
+    let explicit_min_p = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_min_p)
+        .or(settings.advanced_model_settings.llama_min_p);
+    let explicit_typical_p = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_typical_p)
+        .or(settings.advanced_model_settings.llama_typical_p);
     if let Some(v) = model
         .advanced_model_settings
         .as_ref()
@@ -263,7 +357,12 @@ fn build_llama_extra_fields(model: &Model, settings: &Settings) -> Option<HashMa
         .advanced_model_settings
         .as_ref()
         .and_then(|a| a.llama_chat_template_override.clone())
-        .or_else(|| settings.advanced_model_settings.llama_chat_template_override.clone())
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_chat_template_override
+                .clone()
+        })
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
     {
@@ -273,7 +372,12 @@ fn build_llama_extra_fields(model: &Model, settings: &Settings) -> Option<HashMa
         .advanced_model_settings
         .as_ref()
         .and_then(|a| a.llama_chat_template_preset.clone())
-        .or_else(|| settings.advanced_model_settings.llama_chat_template_preset.clone())
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_chat_template_preset
+                .clone()
+        })
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
     {
@@ -283,9 +387,21 @@ fn build_llama_extra_fields(model: &Model, settings: &Settings) -> Option<HashMa
         .advanced_model_settings
         .as_ref()
         .and_then(|a| a.llama_raw_completion_fallback)
-        .or(settings.advanced_model_settings.llama_raw_completion_fallback)
+        .or(settings
+            .advanced_model_settings
+            .llama_raw_completion_fallback)
     {
         extra.insert("llamaRawCompletionFallback".to_string(), json!(v));
+    }
+    extra.insert(
+        "llamaSamplerProfile".to_string(),
+        json!(sampler_defaults.name),
+    );
+    if let Some(v) = explicit_min_p.or(sampler_defaults.min_p) {
+        extra.insert("llamaMinP".to_string(), json!(v));
+    }
+    if let Some(v) = explicit_typical_p.or(sampler_defaults.typical_p) {
+        extra.insert("llamaTypicalP".to_string(), json!(v));
     }
 
     if extra.is_empty() {
@@ -4367,16 +4483,24 @@ async fn generate_character_response(
         "content": format!("[{}]: {}", persona_name, context.user_message)
     }));
 
+    let sampler_profile = if cred.provider_id == "llamacpp" {
+        Some(resolve_llama_sampler_profile(model, &settings))
+    } else {
+        None
+    };
+    let sampler_defaults = sampler_profile
+        .as_deref()
+        .map(llama_sampler_profile_defaults);
     let temperature = model
         .advanced_model_settings
         .as_ref()
         .and_then(|a| a.temperature)
-        .unwrap_or(0.7);
+        .unwrap_or_else(|| sampler_defaults.map_or(0.7, |defaults| defaults.temperature));
     let top_p = model
         .advanced_model_settings
         .as_ref()
         .and_then(|a| a.top_p)
-        .unwrap_or(1.0);
+        .unwrap_or_else(|| sampler_defaults.map_or(1.0, |defaults| defaults.top_p));
     let max_tokens = model
         .advanced_model_settings
         .as_ref()
@@ -4399,12 +4523,18 @@ async fn generate_character_response(
     let presence_penalty = model
         .advanced_model_settings
         .as_ref()
-        .and_then(|a| a.presence_penalty);
+        .and_then(|a| a.presence_penalty)
+        .or_else(|| sampler_defaults.and_then(|defaults| defaults.presence_penalty));
     let frequency_penalty = model
         .advanced_model_settings
         .as_ref()
-        .and_then(|a| a.frequency_penalty);
-    let top_k = model.advanced_model_settings.as_ref().and_then(|a| a.top_k);
+        .and_then(|a| a.frequency_penalty)
+        .or_else(|| sampler_defaults.and_then(|defaults| defaults.frequency_penalty));
+    let top_k = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.top_k)
+        .or_else(|| sampler_defaults.and_then(|defaults| defaults.top_k));
     let extra_body_fields = if cred.provider_id == "llamacpp" {
         build_llama_extra_fields(model, &settings)
     } else if cred.provider_id == "ollama" {

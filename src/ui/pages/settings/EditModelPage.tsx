@@ -110,6 +110,13 @@ const LLAMA_CHAT_TEMPLATE_PRESET_OPTIONS = [
   { value: "gemma", label: "Gemma" },
 ] as const;
 
+const LLAMA_SAMPLER_PROFILE_OPTIONS = [
+  { value: "balanced", label: "Balanced" },
+  { value: "creative", label: "Creative" },
+  { value: "stable", label: "Stable" },
+  { value: "reasoning", label: "Reasoning" },
+] as const;
+
 const normalizeSearchText = (value?: string) =>
   (value ?? "")
     .toLowerCase()
@@ -196,6 +203,9 @@ export function EditModelPage() {
     handleLlamaBatchSizeChange,
     handleLlamaKvTypeChange,
     handleLlamaFlashAttentionChange,
+    handleLlamaSamplerProfileChange,
+    handleLlamaMinPChange,
+    handleLlamaTypicalPChange,
     handleLlamaChatTemplateOverrideChange,
     handleLlamaChatTemplatePresetChange,
     handleLlamaRawCompletionFallbackChange,
@@ -1866,6 +1876,103 @@ export function EditModelPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                          <div className="space-y-4">
+                            <div className="space-y-0.5">
+                              <span className="block text-xs font-medium text-fg/70">
+                                Sampler Profile
+                              </span>
+                              <span className="block text-[10px] text-fg/40">
+                                Tuned local defaults for chat, roleplay stability, or reasoning
+                              </span>
+                            </div>
+                            <select
+                              value={modelAdvancedDraft.llamaSamplerProfile ?? "balanced"}
+                              onChange={(e) =>
+                                handleLlamaSamplerProfileChange(
+                                  e.target.value as
+                                    | "balanced"
+                                    | "creative"
+                                    | "stable"
+                                    | "reasoning",
+                                )
+                              }
+                              className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2.5 text-sm text-fg transition focus:border-fg/30 focus:outline-none"
+                            >
+                              {LLAMA_SAMPLER_PROFILE_OPTIONS.map((option) => (
+                                <option
+                                  key={option.value}
+                                  value={option.value}
+                                  className="bg-[#16171d]"
+                                >
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="block text-[10px] text-fg/40">
+                              Local explicit values like temperature or top-k still win. This
+                              profile fills in tuned sampler defaults and controls min-p or
+                              typical-p behavior.
+                            </span>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="space-y-0.5">
+                              <span className="block text-xs font-medium text-fg/70">
+                                Min P
+                              </span>
+                              <span className="block text-[10px] text-fg/40">
+                                Optional local-only override for min-p sampling
+                              </span>
+                            </div>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              max={1}
+                              step="0.01"
+                              value={modelAdvancedDraft.llamaMinP ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.trim();
+                                handleLlamaMinPChange(raw === "" ? null : Number(raw));
+                              }}
+                              placeholder="Use sampler profile default"
+                              className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2.5 text-sm text-fg transition focus:border-fg/30 focus:outline-none"
+                            />
+                            <span className="block text-[10px] text-fg/40">
+                              Leave blank to use the selected profile. Set to `0` or blank to
+                              effectively disable min-p filtering.
+                            </span>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="space-y-0.5">
+                              <span className="block text-xs font-medium text-fg/70">
+                                Typical P
+                              </span>
+                              <span className="block text-[10px] text-fg/40">
+                                Optional local-only override for typical sampling
+                              </span>
+                            </div>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              max={1}
+                              step="0.01"
+                              value={modelAdvancedDraft.llamaTypicalP ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.trim();
+                                handleLlamaTypicalPChange(raw === "" ? null : Number(raw));
+                              }}
+                              placeholder="Use sampler profile default"
+                              className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2.5 text-sm text-fg transition focus:border-fg/30 focus:outline-none"
+                            />
+                            <span className="block text-[10px] text-fg/40">
+                              Leave blank to use the selected profile. Values near `1.0` keep
+                              behavior close to plain top-p.
+                            </span>
+                          </div>
+
                           <div className="space-y-4 md:col-span-2">
                             <div className="rounded-2xl border border-fg/10 bg-surface-el/10 p-4">
                               <div className="space-y-1">

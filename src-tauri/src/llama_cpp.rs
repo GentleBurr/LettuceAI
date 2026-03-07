@@ -72,6 +72,38 @@ mod desktop {
         prompt_mode: PromptMode,
     }
 
+    const DEFAULT_LLAMA_SAMPLER_PROFILE: &str = "balanced";
+
+    #[derive(Clone, Copy)]
+    struct SamplerProfileDefaults {
+        name: &'static str,
+        temperature: f64,
+        top_p: f64,
+        top_k: Option<u32>,
+        min_p: Option<f64>,
+        typical_p: Option<f64>,
+        frequency_penalty: Option<f64>,
+        presence_penalty: Option<f64>,
+    }
+
+    struct ResolvedSamplerConfig {
+        profile: &'static str,
+        temperature: f64,
+        top_p: f64,
+        top_k: Option<u32>,
+        min_p: Option<f64>,
+        typical_p: Option<f64>,
+        frequency_penalty: Option<f64>,
+        presence_penalty: Option<f64>,
+        seed: Option<u32>,
+    }
+
+    struct BuiltSampler {
+        sampler: LlamaSampler,
+        order: Vec<&'static str>,
+        active_params: Value,
+    }
+
     fn push_unique_u32(out: &mut Vec<u32>, value: u32) {
         if !out.contains(&value) {
             out.push(value);
@@ -812,46 +844,132 @@ mod desktop {
         }
     }
 
-    fn build_sampler(
-        temperature: f64,
-        top_p: f64,
-        min_p: Option<f64>,
-        top_k: Option<u32>,
-        frequency_penalty: Option<f64>,
-        presence_penalty: Option<f64>,
-        seed: Option<u32>,
-    ) -> LlamaSampler {
+    fn normalize_sampler_profile(value: &str) -> Option<&'static str> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "balanced" => Some("balanced"),
+            "creative" => Some("creative"),
+            "stable" => Some("stable"),
+            "reasoning" => Some("reasoning"),
+            _ => None,
+        }
+    }
+
+    fn sampler_profile_defaults(profile: Option<&str>) -> SamplerProfileDefaults {
+        match profile
+            .and_then(normalize_sampler_profile)
+            .unwrap_or(DEFAULT_LLAMA_SAMPLER_PROFILE)
+        {
+            "creative" => SamplerProfileDefaults {
+                name: "creative",
+                temperature: 0.95,
+                top_p: 0.98,
+                top_k: Some(80),
+                min_p: Some(0.02),
+                typical_p: None,
+                frequency_penalty: Some(0.0),
+                presence_penalty: Some(0.25),
+            },
+            "stable" => SamplerProfileDefaults {
+                name: "stable",
+                temperature: 0.55,
+                top_p: 0.90,
+                top_k: Some(32),
+                min_p: Some(0.08),
+                typical_p: Some(0.97),
+                frequency_penalty: Some(0.2),
+                presence_penalty: Some(0.0),
+            },
+            "reasoning" => SamplerProfileDefaults {
+                name: "reasoning",
+                temperature: 0.35,
+                top_p: 0.90,
+                top_k: Some(24),
+                min_p: None,
+                typical_p: Some(0.95),
+                frequency_penalty: Some(0.1),
+                presence_penalty: Some(0.0),
+            },
+            _ => SamplerProfileDefaults {
+                name: "balanced",
+                temperature: 0.8,
+                top_p: 0.95,
+                top_k: Some(40),
+                min_p: Some(0.05),
+                typical_p: None,
+                frequency_penalty: Some(0.15),
+                presence_penalty: Some(0.0),
+            },
+        }
+    }
+
+    fn build_sampler(config: &ResolvedSamplerConfig) -> BuiltSampler {
         let mut samplers = Vec::new();
-        let penalty_freq = frequency_penalty.unwrap_or(0.0);
-        let penalty_present = presence_penalty.unwrap_or(0.0);
+        let mut order = Vec::new();
+        let mut active_params = serde_json::Map::new();
+        active_params.insert("profile".to_string(), json!(config.profile));
+        active_params.insert("temperature".to_string(), json!(config.temperature));
+        active_params.insert("top_p".to_string(), json!(config.top_p));
+        if let Some(seed) = config.seed {
+            active_params.insert("seed".to_string(), json!(seed));
+        }
+        let penalty_freq = config.frequency_penalty.unwrap_or(0.0);
+        let penalty_present = config.presence_penalty.unwrap_or(0.0);
         if penalty_freq != 0.0 || penalty_present != 0.0 {
+            order.push("penalties");
             samplers.push(LlamaSampler::penalties(
                 -1,
                 1.0,
                 penalty_freq as f32,
                 penalty_present as f32,
             ));
+            active_params.insert("frequency_penalty".to_string(), json!(penalty_freq));
+            active_params.insert("presence_penalty".to_string(), json!(penalty_present));
         }
 
-        let k = top_k.unwrap_or(40) as i32;
+        let k = config.top_k.unwrap_or(40) as i32;
+        order.push("top_k");
         samplers.push(LlamaSampler::top_k(k));
+        active_params.insert("top_k".to_string(), json!(k));
 
-        let p = if top_p > 0.0 { top_p } else { 1.0 };
+        let p = if config.top_p > 0.0 {
+            config.top_p
+        } else {
+            1.0
+        };
+        order.push("top_p");
         samplers.push(LlamaSampler::top_p(p as f32, 1));
-        if let Some(mp) = min_p {
+        if let Some(mp) = config.min_p {
             if mp > 0.0 {
+                order.push("min_p");
                 samplers.push(LlamaSampler::min_p(mp as f32, 1));
+                active_params.insert("min_p".to_string(), json!(mp));
+            }
+        }
+        if let Some(tp) = config.typical_p {
+            if tp > 0.0 && tp < 1.0 {
+                order.push("typical");
+                samplers.push(LlamaSampler::typical(tp as f32, 1));
+                active_params.insert("typical_p".to_string(), json!(tp));
             }
         }
 
-        if temperature > 0.0 {
-            samplers.push(LlamaSampler::temp(temperature as f32));
-            samplers.push(LlamaSampler::dist(seed.unwrap_or_else(rand::random::<u32>)));
+        if config.temperature > 0.0 {
+            order.push("temp");
+            samplers.push(LlamaSampler::temp(config.temperature as f32));
+            order.push("dist");
+            samplers.push(LlamaSampler::dist(
+                config.seed.unwrap_or_else(rand::random::<u32>),
+            ));
         } else {
+            order.push("greedy");
             samplers.push(LlamaSampler::greedy());
         }
 
-        LlamaSampler::chain(samplers, false)
+        BuiltSampler {
+            sampler: LlamaSampler::chain(samplers, false),
+            order,
+            active_params: Value::Object(active_params),
+        }
     }
 
     pub async fn llamacpp_context_info(
@@ -927,17 +1045,34 @@ mod desktop {
             .and_then(|v| v.as_array())
             .ok_or_else(|| "llama.cpp request missing messages".to_string())?;
 
+        let sampler_profile = body
+            .get("llamaSamplerProfile")
+            .or_else(|| body.get("llama_sampler_profile"))
+            .and_then(|v| v.as_str())
+            .and_then(normalize_sampler_profile);
+        let sampler_defaults = sampler_profile_defaults(sampler_profile);
         let temperature = body
             .get("temperature")
             .and_then(|v| v.as_f64())
-            .unwrap_or(0.7);
-        let top_p = body.get("top_p").and_then(|v| v.as_f64()).unwrap_or(1.0);
+            .unwrap_or(sampler_defaults.temperature);
+        let top_p = body
+            .get("top_p")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(sampler_defaults.top_p);
         let min_p = body
             .get("min_p")
             .or_else(|| body.get("minP"))
             .or_else(|| body.get("llamaMinP"))
             .or_else(|| body.get("llama_min_p"))
-            .and_then(|v| v.as_f64());
+            .and_then(|v| v.as_f64())
+            .or(sampler_defaults.min_p);
+        let typical_p = body
+            .get("typical_p")
+            .or_else(|| body.get("typicalP"))
+            .or_else(|| body.get("llamaTypicalP"))
+            .or_else(|| body.get("llama_typical_p"))
+            .and_then(|v| v.as_f64())
+            .or(sampler_defaults.typical_p);
         let max_tokens = body
             .get("max_tokens")
             .or_else(|| body.get("max_completion_tokens"))
@@ -953,9 +1088,16 @@ mod desktop {
             .or_else(|| body.get("topK"))
             .and_then(|v| v.as_u64())
             .and_then(|v| u32::try_from(v).ok())
-            .filter(|v| *v > 0);
-        let frequency_penalty = body.get("frequency_penalty").and_then(|v| v.as_f64());
-        let presence_penalty = body.get("presence_penalty").and_then(|v| v.as_f64());
+            .filter(|v| *v > 0)
+            .or(sampler_defaults.top_k);
+        let frequency_penalty = body
+            .get("frequency_penalty")
+            .and_then(|v| v.as_f64())
+            .or(sampler_defaults.frequency_penalty);
+        let presence_penalty = body
+            .get("presence_penalty")
+            .and_then(|v| v.as_f64())
+            .or(sampler_defaults.presence_penalty);
         let llama_threads = body
             .get("llamaThreads")
             .or_else(|| body.get("llama_threads"))
@@ -1344,15 +1486,40 @@ mod desktop {
             let mut n_cur = prompt_len;
             let max_new = max_tokens.min(ctx_size.saturating_sub(n_cur as u32 + 1));
 
-            let mut sampler = build_sampler(
+            let sampler_config = ResolvedSamplerConfig {
+                profile: sampler_defaults.name,
                 temperature,
                 top_p,
-                min_p,
                 top_k,
+                min_p,
+                typical_p,
                 frequency_penalty,
                 presence_penalty,
-                llama_seed,
+                seed: llama_seed,
+            };
+            let built_sampler = build_sampler(&sampler_config);
+            log_info(
+                &app,
+                "llama_cpp",
+                format!(
+                    "llama sampler profile={} order={} active_params={}",
+                    sampler_config.profile,
+                    built_sampler.order.join(" -> "),
+                    built_sampler.active_params,
+                ),
             );
+            crate::utils::emit_debug(
+                &app,
+                "llama_sampler",
+                json!({
+                    "requestId": request_id,
+                    "modelPath": model_path,
+                    "profile": sampler_config.profile,
+                    "order": built_sampler.order,
+                    "activeParams": built_sampler.active_params,
+                }),
+            );
+            let mut sampler = built_sampler.sampler;
 
             let target_len = prompt_len + max_new as i32;
             let mut reached_eos = false;
