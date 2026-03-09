@@ -3,7 +3,10 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::fs;
-use unified_entity_card::{assert_uec, create_character_uec, create_persona_uec, UecKind};
+use unified_entity_card::{
+    assert_uec, convert_uec_v1_to_v2, create_character_uec, create_persona_uec, downgrade_uec,
+    Uec, UecKind, SCHEMA_VERSION, SCHEMA_VERSION_V2,
+};
 
 #[cfg(not(target_os = "android"))]
 use tauri::Manager;
@@ -171,8 +174,135 @@ fn parse_avatar_crop(value: Option<&JsonValue>) -> Option<AvatarCrop> {
     })
 }
 
+fn asset_string_to_v2_locator(value: &str) -> JsonValue {
+    if let Some(rest) = value.strip_prefix("data:") {
+        let (mime_type, data) = rest.split_once(";base64,").unwrap_or(("", rest));
+        let mut locator = JsonMap::new();
+        locator.insert(
+            "type".into(),
+            JsonValue::String("inline_base64".to_string()),
+        );
+        if !mime_type.is_empty() {
+            locator.insert(
+                "mimeType".into(),
+                JsonValue::String(mime_type.to_string()),
+            );
+        }
+        locator.insert("data".into(), JsonValue::String(data.to_string()));
+        return JsonValue::Object(locator);
+    }
+
+    if value.starts_with("http://") || value.starts_with("https://") {
+        let mut locator = JsonMap::new();
+        locator.insert(
+            "type".into(),
+            JsonValue::String("remote_url".to_string()),
+        );
+        locator.insert("url".into(), JsonValue::String(value.to_string()));
+        return JsonValue::Object(locator);
+    }
+
+    JsonValue::String(value.to_string())
+}
+
+fn asset_locator_to_string(value: Option<&JsonValue>) -> Option<String> {
+    let value = value?;
+    match value {
+        JsonValue::String(content) => Some(content.clone()),
+        JsonValue::Object(map) => match map.get("type").and_then(|item| item.as_str()) {
+            Some("inline_base64") => {
+                let data = map.get("data").and_then(|item| item.as_str())?;
+                let mime_type = map
+                    .get("mimeType")
+                    .and_then(|item| item.as_str())
+                    .unwrap_or("application/octet-stream");
+                Some(format!("data:{};base64,{}", mime_type, data))
+            }
+            Some("remote_url") => map
+                .get("url")
+                .and_then(|item| item.as_str())
+                .map(|url| url.to_string()),
+            Some("asset_ref") => None,
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn normalize_v2_asset_fields(card: &mut JsonValue) {
+    let Some(payload) = card.get_mut("payload").and_then(|payload| payload.as_object_mut()) else {
+        return;
+    };
+
+    for key in ["avatar", "chatBackground"] {
+        let Some(current) = payload.get(key).cloned() else {
+            continue;
+        };
+        if let JsonValue::String(text) = current {
+            payload.insert(key.to_string(), asset_string_to_v2_locator(&text));
+        }
+    }
+}
+
+fn normalize_legacy_asset_fields(card: &mut JsonValue) {
+    let Some(payload) = card.get_mut("payload").and_then(|payload| payload.as_object_mut()) else {
+        return;
+    };
+
+    for key in ["avatar", "chatBackground"] {
+        let Some(current) = payload.get(key).cloned() else {
+            continue;
+        };
+        if let Some(text) = asset_locator_to_string(Some(&current)) {
+            payload.insert(key.to_string(), JsonValue::String(text));
+        }
+    }
+}
+
+fn normalize_uec_for_read(value: &JsonValue, strict: bool) -> Result<Uec, String> {
+    let uec = assert_uec(value, strict)?;
+    if uec.schema.version == SCHEMA_VERSION_V2 {
+        let mut downgraded = downgrade_uec(value, SCHEMA_VERSION, false).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to downgrade UEC v2 for legacy parser: {}", e),
+            )
+        })?;
+        normalize_legacy_asset_fields(&mut downgraded.card);
+        return assert_uec(&downgraded.card, strict).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Invalid downgraded UEC payload: {}", e),
+            )
+        });
+    }
+
+    Ok(uec)
+}
+
+fn stringify_v2_uec(card: &JsonValue) -> Result<String, String> {
+    let mut upgraded = convert_uec_v1_to_v2(card).map_err(|e| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Failed to upgrade UEC v1 payload to v2: {}", e),
+        )
+    })?;
+    normalize_v2_asset_fields(&mut upgraded);
+
+    serde_json::to_string_pretty(&upgraded).map_err(|e| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Failed to serialize export: {}", e),
+        )
+    })
+}
+
 fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, String> {
-    let uec = assert_uec(value, false)?;
+    let uec = normalize_uec_for_read(value, false)?;
     if uec.kind != UecKind::Character {
         return Err(crate::utils::err_msg(
             module_path!(),
@@ -363,14 +493,8 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
         .and_then(|map| map.get("defaultChatTemplateId").and_then(|v| v.as_str()))
         .map(|value| value.to_string());
 
-    let avatar_data = payload
-        .get("avatar")
-        .and_then(|value| value.as_str())
-        .map(|value| value.to_string());
-    let background_image_data = payload
-        .get("chatBackground")
-        .and_then(|value| value.as_str())
-        .map(|value| value.to_string());
+    let avatar_data = asset_locator_to_string(payload.get("avatar"));
+    let background_image_data = asset_locator_to_string(payload.get("chatBackground"));
 
     Ok(CharacterExportPackage {
         version: 1,
@@ -411,7 +535,7 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
 }
 
 fn parse_uec_persona(value: &JsonValue) -> Result<PersonaExportPackage, String> {
-    let uec = assert_uec(value, false)?;
+    let uec = normalize_uec_for_read(value, false)?;
     if uec.kind != UecKind::Persona {
         return Err(crate::utils::err_msg(
             module_path!(),
@@ -436,10 +560,7 @@ fn parse_uec_persona(value: &JsonValue) -> Result<PersonaExportPackage, String> 
         .unwrap_or_default()
         .to_string();
     let is_default = payload.get("isDefault").and_then(|v| v.as_bool());
-    let avatar_data = payload
-        .get("avatar")
-        .and_then(|value| value.as_str())
-        .map(|value| value.to_string());
+    let avatar_data = asset_locator_to_string(payload.get("avatar"));
     let avatar_crop = parse_avatar_crop(
         uec.app_specific_settings
             .as_ref()
@@ -1024,13 +1145,7 @@ fn build_uec_from_package(
         Some(JsonValue::Object(JsonMap::new())),
     );
 
-    serde_json::to_string_pretty(&export_card).map_err(|e| {
-        crate::utils::err_msg(
-            module_path!(),
-            line!(),
-            format!("Failed to serialize export: {}", e),
-        )
-    })
+    stringify_v2_uec(&export_card)
 }
 
 fn build_uec_from_persona_package(
@@ -1089,8 +1204,7 @@ fn build_uec_from_persona_package(
         Some(JsonValue::Object(JsonMap::new())),
     );
 
-    serde_json::to_string_pretty(&uec)
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+    stringify_v2_uec(&uec)
 }
 
 #[tauri::command]
@@ -1593,9 +1707,15 @@ pub fn convert_export_to_uec(import_json: String) -> Result<String, String> {
     })?;
 
     if looks_like_uec(&raw_value) {
-        assert_uec(&raw_value, false)?;
-        return serde_json::to_string_pretty(&raw_value)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e));
+        let uec = assert_uec(&raw_value, false).map_err(|e| {
+            crate::utils::err_msg(module_path!(), line!(), format!("Invalid UEC: {}", e))
+        })?;
+        return if uec.schema.version == SCHEMA_VERSION_V2 {
+            serde_json::to_string_pretty(&raw_value)
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+        } else {
+            stringify_v2_uec(&raw_value)
+        };
     }
 
     if engine::guess_chara_card_format(&raw_value).is_some() {
@@ -1761,8 +1881,7 @@ pub fn convert_export_to_uec(import_json: String) -> Result<String, String> {
                 Some(JsonValue::Object(meta)),
                 Some(JsonValue::Object(JsonMap::new())),
             );
-            serde_json::to_string_pretty(&uec)
-                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+            stringify_v2_uec(&uec)
         }
         "persona" => {
             let package: PersonaExportPackage =
@@ -1828,8 +1947,7 @@ pub fn convert_export_to_uec(import_json: String) -> Result<String, String> {
                 Some(JsonValue::Object(meta)),
                 Some(JsonValue::Object(JsonMap::new())),
             );
-            serde_json::to_string_pretty(&uec)
-                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+            stringify_v2_uec(&uec)
         }
         _ => Err(crate::utils::err_msg(
             module_path!(),
@@ -2498,13 +2616,7 @@ pub fn persona_export(app: tauri::AppHandle, persona_id: String) -> Result<Strin
         Some(JsonValue::Object(JsonMap::new())),
     );
 
-    let json = serde_json::to_string_pretty(&export_card).map_err(|e| {
-        crate::utils::err_msg(
-            module_path!(),
-            line!(),
-            format!("Failed to serialize export: {}", e),
-        )
-    })?;
+    let json = stringify_v2_uec(&export_card)?;
 
     log_info(
         &app,
@@ -2808,4 +2920,168 @@ pub fn save_json_to_downloads(
     );
 
     Ok(path_str)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn normalize_uec_for_read_accepts_v1_schema() {
+        let card = json!({
+            "schema": { "name": "UEC", "version": SCHEMA_VERSION },
+            "kind": "character",
+            "payload": {
+                "id": "char-v1",
+                "name": "Aster Vale"
+            }
+        });
+
+        let parsed = normalize_uec_for_read(&card, false).expect("v1 UEC should be readable");
+        assert_eq!(parsed.kind, UecKind::Character);
+        assert_eq!(parsed.schema.version, SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn normalize_uec_for_read_downgrades_v2_schema_for_legacy_parser() {
+        let card = json!({
+            "schema": {
+                "name": "UEC",
+                "version": SCHEMA_VERSION_V2
+            },
+            "kind": "character",
+            "payload": {
+                "id": "char-v2",
+                "name": "Aster Vale",
+                "scene": {
+                    "id": "scene-1",
+                    "content": "Hello there",
+                    "selectedVariant": 0,
+                    "variants": []
+                }
+            },
+            "meta": {
+                "originalCreatedAt": 1,
+                "originalUpdatedAt": 2
+            }
+        });
+
+        let parsed = normalize_uec_for_read(&card, false).expect("v2 UEC should be readable");
+        assert_eq!(parsed.kind, UecKind::Character);
+        assert_eq!(parsed.schema.version, SCHEMA_VERSION);
+        let payload = parsed.payload.as_object().expect("payload object");
+        assert!(payload.get("scenes").is_some());
+        assert!(payload.get("scene").is_none());
+    }
+
+    #[test]
+    fn stringify_v2_uec_upgrades_v1_schema_to_v2() {
+        let mut payload = JsonMap::new();
+        payload.insert("id".into(), JsonValue::String("char-1".to_string()));
+        payload.insert("name".into(), JsonValue::String("Aster Vale".to_string()));
+        payload.insert(
+            "avatar".into(),
+            JsonValue::String("data:image/webp;base64,QUJD".to_string()),
+        );
+        payload.insert(
+            "chatBackground".into(),
+            JsonValue::String("https://example.com/bg.png".to_string()),
+        );
+        payload.insert(
+            "scenes".into(),
+            JsonValue::Array(vec![json!({
+                "id": "scene-1",
+                "content": "Hello there",
+                "selectedVariantId": null,
+                "variants": []
+            })]),
+        );
+        payload.insert("defaultSceneId".into(), JsonValue::String("scene-1".to_string()));
+        payload.insert("createdAt".into(), JsonValue::from(1));
+        payload.insert("updatedAt".into(), JsonValue::from(2));
+
+        let v1 = create_character_uec(
+            payload,
+            false,
+            None,
+            None,
+            Some(json!({ "createdAt": 1, "updatedAt": 2, "source": "lettuceai" })),
+            None,
+        );
+        let value: JsonValue = serde_json::from_str(&stringify_v2_uec(&v1).expect("v2 json"))
+            .expect("valid json");
+        let schema = value
+            .get("schema")
+            .and_then(|schema| schema.as_object())
+            .expect("schema object");
+
+        assert_eq!(
+            schema.get("version").and_then(|value| value.as_str()),
+            Some(SCHEMA_VERSION_V2)
+        );
+        let payload = value
+            .get("payload")
+            .and_then(|payload| payload.as_object())
+            .expect("payload object");
+        assert!(payload.get("scene").is_some());
+        assert!(payload.get("scenes").is_none());
+        assert_eq!(
+            payload
+                .get("avatar")
+                .and_then(|avatar| avatar.get("type"))
+                .and_then(|value| value.as_str()),
+            Some("inline_base64")
+        );
+        assert_eq!(
+            payload
+                .get("chatBackground")
+                .and_then(|background| background.get("type"))
+                .and_then(|value| value.as_str()),
+            Some("remote_url")
+        );
+    }
+
+    #[test]
+    fn parse_uec_character_reads_v2_asset_locators() {
+        let card = json!({
+            "schema": { "name": "UEC", "version": SCHEMA_VERSION_V2 },
+            "kind": "character",
+            "payload": {
+                "id": "char-v2",
+                "name": "Aster Vale",
+                "avatar": {
+                    "type": "inline_base64",
+                    "mimeType": "image/webp",
+                    "data": "QUJD"
+                },
+                "chatBackground": {
+                    "type": "remote_url",
+                    "url": "https://example.com/bg.png"
+                },
+                "scene": {
+                    "id": "scene-1",
+                    "content": "Hello there",
+                    "selectedVariant": 0,
+                    "variants": []
+                }
+            },
+            "meta": {
+                "createdAt": 1,
+                "updatedAt": 2,
+                "originalCreatedAt": 1,
+                "originalUpdatedAt": 2
+            }
+        });
+
+        let package = parse_uec_character(&card).expect("v2 character should parse");
+        assert_eq!(
+            package.avatar_data.as_deref(),
+            Some("data:image/webp;base64,QUJD")
+        );
+        assert_eq!(
+            package.background_image_data.as_deref(),
+            Some("https://example.com/bg.png")
+        );
+    }
 }
