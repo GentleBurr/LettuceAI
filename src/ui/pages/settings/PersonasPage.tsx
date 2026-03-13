@@ -149,7 +149,7 @@ export function PersonasPage() {
                     <div className="flex items-center gap-2 overflow-hidden">
                       <h3 className="truncate text-sm font-semibold text-fg">{persona.title}</h3>
                       {persona.nickname && (
-                        <span className="shrink-0 rounded-md bg-fg/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fg/60">
+                        <span className="shrink-0 rounded-full border border-fg/15 bg-fg/5 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-fg/60">
                           {persona.nickname}
                         </span>
                       )}

@@ -379,10 +379,15 @@ const PersonaCard = memo(
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-hidden">
             <h3 className="truncate font-semibold text-[15px] leading-tight text-fg">
               {persona.title}
             </h3>
+            {persona.nickname && (
+              <span className="shrink-0 rounded-full border border-fg/15 bg-fg/5 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-fg/60">
+                {persona.nickname}
+              </span>
+            )}
             {persona.isDefault && (
               <span className="shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent">
                 Default

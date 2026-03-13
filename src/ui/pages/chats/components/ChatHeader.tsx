@@ -132,9 +132,12 @@ export function ChatHeader({
   );
 
   const headerTitle = useMemo(() => {
-    if (swapPlaces) return persona?.title ?? "Unknown";
+    if (swapPlaces) {
+      if (!persona) return "Unknown";
+      return persona.nickname ? `${persona.title} (${persona.nickname})` : persona.title;
+    }
     return character?.name ?? "Unknown";
-  }, [character?.name, persona?.title, swapPlaces]);
+  }, [character?.name, persona, swapPlaces]);
 
   return (
     <>

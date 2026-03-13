@@ -735,10 +735,14 @@ function ChatSettingsContent({ character }: { character: Character }) {
     const currentPersonaId = currentSession?.personaId;
     if (!currentPersonaId) {
       const defaultPersona = personas.find((p) => p.isDefault);
-      return defaultPersona ? `${defaultPersona.title} (default)` : "No persona";
+      if (!defaultPersona) return "No persona";
+      return defaultPersona.nickname
+        ? `${defaultPersona.title} (${defaultPersona.nickname}) (default)`
+        : `${defaultPersona.title} (default)`;
     }
     const persona = personas.find((p) => p.id === currentPersonaId);
-    return persona ? persona.title : "Custom persona";
+    if (!persona) return "Custom persona";
+    return persona.nickname ? `${persona.title} (${persona.nickname})` : persona.title;
   };
 
   const selectedPersonaId = useMemo(() => {

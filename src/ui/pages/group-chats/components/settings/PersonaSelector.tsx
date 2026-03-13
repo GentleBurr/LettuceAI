@@ -181,7 +181,7 @@ function PersonaOptionItem({ persona, isSelected, onClick, onLongPress }: Person
 
       {/* Content */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-hidden">
           <span
             className={cn(
               typography.body.size,
@@ -191,6 +191,11 @@ function PersonaOptionItem({ persona, isSelected, onClick, onLongPress }: Person
           >
             {title}
           </span>
+          {persona?.nickname && (
+            <span className="shrink-0 rounded-full border border-fg/15 bg-fg/5 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-fg/60">
+              {persona.nickname}
+            </span>
+          )}
           {isDefault && (
             <span className="inline-flex items-center gap-1 shrink-0 rounded-full border border-info/30 bg-info/10 px-2 py-0.5">
               <Star className="h-2.5 w-2.5 fill-info text-info" />
