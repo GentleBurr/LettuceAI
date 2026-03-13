@@ -82,19 +82,6 @@ pub fn build_headers(provider_id: &ProviderId, api_key: &str) -> Result<HeaderMa
                 })?,
             );
         }
-        "featherless" => {
-            // Featherless uses "Authentication" instead of "Authorization"
-            headers.insert(
-                HeaderName::from_static("authentication"),
-                HeaderValue::from_str(&format!("Bearer {}", api_key)).map_err(|e| {
-                    crate::utils::err_msg(
-                        module_path!(),
-                        line!(),
-                        format!("invalid authentication header: {e}"),
-                    )
-                })?,
-            );
-        }
         "gemini" => {
             // Gemini can use x-goog-api-key header, but typically uses query param
             // We'll support header-based auth as an alternative
@@ -190,5 +177,22 @@ pub fn extract_error_message(payload: &Value) -> Option<String> {
         Some(message.clone())
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::header::AUTHORIZATION;
+
+    #[test]
+    fn featherless_uses_standard_authorization_header() {
+        let headers = build_headers(&ProviderId("featherless".into()), "test-key").unwrap();
+
+        assert_eq!(
+            headers.get(AUTHORIZATION).unwrap(),
+            &HeaderValue::from_static("Bearer test-key")
+        );
+        assert!(headers.get("authentication").is_none());
     }
 }

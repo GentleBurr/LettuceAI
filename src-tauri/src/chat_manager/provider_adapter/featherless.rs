@@ -24,13 +24,12 @@ impl ProviderAdapter for FeatherlessAdapter {
     }
 
     fn required_auth_headers(&self) -> &'static [&'static str] {
-        // Featherless docs: `Authentication: Bearer <API_KEY>`
-        &["Authentication"]
+        &["Authorization"]
     }
 
     fn default_headers_template(&self) -> HashMap<String, String> {
         let mut out = HashMap::new();
-        out.insert("Authentication".into(), "Bearer <apiKey>".into());
+        out.insert("Authorization".into(), "Bearer <apiKey>".into());
         out.insert("Content-Type".into(), "application/json".into());
         out.insert("Accept".into(), "text/event-stream".into());
         // Recommended but not strictly required by Featherless:
@@ -45,7 +44,7 @@ impl ProviderAdapter for FeatherlessAdapter {
         extra: Option<&HashMap<String, String>>,
     ) -> HashMap<String, String> {
         let mut out: HashMap<String, String> = HashMap::new();
-        out.insert("Authentication".into(), format!("Bearer {}", api_key));
+        out.insert("Authorization".into(), format!("Bearer {}", api_key));
         out.insert("Content-Type".into(), "application/json".into());
         out.insert("Accept".into(), "text/event-stream".into());
         out.entry("User-Agent".into())
