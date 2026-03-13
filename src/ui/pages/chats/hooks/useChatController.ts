@@ -806,6 +806,47 @@ export function useChatController(
     messagesRef.current = state.messages;
   }, [state.messages]);
 
+  const reloadSessionStateFromStorage = useCallback(
+    async (sessionId: string) => {
+      const limit = Math.max(
+        INITIAL_MESSAGE_LIMIT,
+        messagesRef.current.filter((message) => !message.id.startsWith("placeholder-")).length,
+      );
+      const [meta, storedMessages] = await Promise.all([
+        getSessionMeta(sessionId).catch(() => null),
+        listMessages(sessionId, { limit }).catch(() => [] as StoredMessage[]),
+      ]);
+
+      const orderedMessagesSource =
+        storedMessages.length > 0 ? storedMessages : (meta?.messages ?? []);
+      let orderedMessages = [...orderedMessagesSource].sort((a, b) => a.createdAt - b.createdAt);
+      if (state.character) {
+        orderedMessages = normalizeStartingSceneMessage(
+          orderedMessages,
+          state.character,
+          meta?.selectedSceneId ?? state.session?.selectedSceneId,
+        );
+      }
+
+      messagesRef.current = orderedMessages;
+      hasMoreMessagesBeforeRef.current = orderedMessages.length >= limit;
+
+      if (meta) {
+        dispatch({
+          type: "BATCH",
+          actions: [
+            { type: "SET_SESSION", payload: { ...meta, messages: orderedMessages } },
+            { type: "SET_MESSAGES", payload: orderedMessages },
+          ],
+        });
+        return;
+      }
+
+      dispatch({ type: "SET_MESSAGES", payload: orderedMessages });
+    },
+    [state.character, state.session],
+  );
+
   const clearLongPress = useCallback(() => {
     if (longPressTimerRef.current !== null) {
       window.clearTimeout(longPressTimerRef.current);
@@ -1065,6 +1106,9 @@ export function useChatController(
 
       const userPlaceholder = createPlaceholderMessage("user", message, messageAttachments);
       const assistantPlaceholder = createPlaceholderMessage("assistant", "");
+      const optimisticMessages = [...state.messages, userPlaceholder, assistantPlaceholder];
+
+      messagesRef.current = optimisticMessages;
 
       dispatch({
         type: "BATCH",
@@ -1073,7 +1117,7 @@ export function useChatController(
           { type: "SET_ACTIVE_REQUEST_ID", payload: requestId },
           {
             type: "SET_MESSAGES",
-            payload: [...state.messages, userPlaceholder, assistantPlaceholder],
+            payload: optimisticMessages,
           },
           { type: "CLEAR_PENDING_ATTACHMENTS" },
         ],
@@ -1167,9 +1211,14 @@ export function useChatController(
       } catch (err) {
         console.error("ChatController: send failed", err);
         dispatch({ type: "SET_ERROR", payload: err instanceof Error ? err.message : String(err) });
-        const cleaned = messagesRef.current.filter((msg) => msg.id !== assistantPlaceholder.id);
-        messagesRef.current = cleaned;
-        dispatch({ type: "SET_MESSAGES", payload: cleaned });
+        try {
+          await reloadSessionStateFromStorage(state.session.id);
+        } catch (reloadErr) {
+          console.warn("ChatController: failed to resync session after send error", reloadErr);
+          const cleaned = messagesRef.current.filter((msg) => msg.id !== assistantPlaceholder.id);
+          messagesRef.current = cleaned;
+          dispatch({ type: "SET_MESSAGES", payload: cleaned });
+        }
       } finally {
         const tail = finalizeThinkStream(thinkState);
         if (tail.content) {
@@ -1210,13 +1259,16 @@ export function useChatController(
       const requestId = crypto.randomUUID();
 
       const assistantPlaceholder = createPlaceholderMessage("assistant", "");
+      const optimisticMessages = [...state.messages, assistantPlaceholder];
+
+      messagesRef.current = optimisticMessages;
 
       dispatch({
         type: "BATCH",
         actions: [
           { type: "SET_SENDING", payload: true },
           { type: "SET_ACTIVE_REQUEST_ID", payload: requestId },
-          { type: "SET_MESSAGES", payload: [...state.messages, assistantPlaceholder] },
+          { type: "SET_MESSAGES", payload: optimisticMessages },
         ],
       });
 
@@ -1388,6 +1440,10 @@ export function useChatController(
           },
         ],
       });
+      const regeneratingMessages = state.messages.map((msg) =>
+        msg.id === message.id ? { ...msg, content: "", reasoning: undefined } : msg,
+      );
+      messagesRef.current = regeneratingMessages;
 
       const streamBatcher = createStreamBatcher(dispatch);
       const thinkState = createThinkStreamState();
@@ -1670,21 +1726,19 @@ export function useChatController(
         await deleteMessagesAfter(state.session.id, editedMessageId);
       }
 
-      const updatedMessages = messagesRef.current
-        .slice(0, editedMessageIndex + 1)
-        .map((msg) =>
-          msg.id === editedMessageId
-            ? {
-                ...msg,
-                content: updatedContent,
-                variants: (msg.variants ?? []).map((variant) =>
-                  variant.id === (msg.selectedVariantId ?? variant.id)
-                    ? { ...variant, content: updatedContent }
-                    : variant,
-                ),
-              }
-            : msg,
-        );
+      const updatedMessages = messagesRef.current.slice(0, editedMessageIndex + 1).map((msg) =>
+        msg.id === editedMessageId
+          ? {
+              ...msg,
+              content: updatedContent,
+              variants: (msg.variants ?? []).map((variant) =>
+                variant.id === (msg.selectedVariantId ?? variant.id)
+                  ? { ...variant, content: updatedContent }
+                  : variant,
+              ),
+            }
+          : msg,
+      );
       const updatedSession: Session = {
         ...state.session,
         messages: updatedMessages,
