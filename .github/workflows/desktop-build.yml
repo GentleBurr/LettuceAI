@@ -215,7 +215,7 @@ jobs:
     name: Linux Build (CPU)
     needs: prepare_release
     if: ${{ inputs.build_llama_cpu_linux == true }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       APTABASE_KEY: ${{ secrets.APTABASE_KEY }}
 
@@ -342,7 +342,7 @@ jobs:
     name: Linux Build (CUDA)
     needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_cuda_linux == true }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       APTABASE_KEY: ${{ secrets.APTABASE_KEY }}
 
@@ -494,7 +494,7 @@ jobs:
     name: Linux Build (Vulkan)
     needs: prepare_release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_llama_vulkan_linux == true }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       APTABASE_KEY: ${{ secrets.APTABASE_KEY }}
 

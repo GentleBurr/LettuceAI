@@ -166,7 +166,7 @@ jobs:
 
   android:
     needs: prepare_release
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       APTABASE_KEY: ${{ secrets.APTABASE_KEY }}
 
