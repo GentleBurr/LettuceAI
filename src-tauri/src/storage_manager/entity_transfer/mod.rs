@@ -260,6 +260,160 @@ fn normalize_legacy_asset_fields(card: &mut JsonValue) {
     }
 }
 
+fn resolve_v1_scene_for_v2(card: &JsonValue) -> Option<JsonValue> {
+    let payload = card.get("payload")?.as_object()?;
+    let scenes = payload.get("scenes")?.as_array()?;
+    if scenes.is_empty() {
+        return None;
+    }
+
+    let default_scene_id = payload.get("defaultSceneId").and_then(JsonValue::as_str);
+    let picked = default_scene_id
+        .and_then(|id| {
+            scenes.iter().find(|scene| {
+                scene
+                    .get("id")
+                    .and_then(JsonValue::as_str)
+                    .is_some_and(|scene_id| scene_id == id)
+            })
+        })
+        .or_else(|| scenes.first())?;
+
+    let selected_scene_id = picked.get("id").and_then(JsonValue::as_str)?.to_string();
+    let mut scene = picked.as_object()?.clone();
+    let selected_variant_id = scene
+        .remove("selectedVariantId")
+        .and_then(|value| value.as_str().map(|id| id.to_string()));
+
+    let mut merged_variants = scene
+        .get("variants")
+        .and_then(JsonValue::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    for alt_scene in scenes.iter().filter(|scene| {
+        scene
+            .get("id")
+            .and_then(JsonValue::as_str)
+            .is_some_and(|scene_id| scene_id != selected_scene_id)
+    }) {
+        let Some(alt_map) = alt_scene.as_object() else {
+            continue;
+        };
+
+        let mut scene_variant = JsonMap::new();
+        if let Some(id) = alt_map.get("id").cloned() {
+            scene_variant.insert("id".to_string(), id);
+        }
+        if let Some(content) = alt_map.get("content").cloned() {
+            scene_variant.insert("content".to_string(), content);
+        }
+        if let Some(direction) = alt_map.get("direction").cloned() {
+            scene_variant.insert("direction".to_string(), direction);
+        }
+        if let Some(created_at) = alt_map
+            .get("createdAt")
+            .or_else(|| alt_map.get("created_at"))
+            .cloned()
+        {
+            scene_variant.insert("createdAt".to_string(), created_at);
+        }
+        if scene_variant.contains_key("id") && scene_variant.contains_key("content") {
+            merged_variants.push(JsonValue::Object(scene_variant));
+        }
+
+        if let Some(extra_variants) = alt_map.get("variants").and_then(JsonValue::as_array) {
+            merged_variants.extend(extra_variants.iter().cloned());
+        }
+    }
+
+    if !merged_variants.is_empty() {
+        scene.insert(
+            "variants".to_string(),
+            JsonValue::Array(merged_variants.clone()),
+        );
+    }
+
+    let selected_variant = selected_variant_id
+        .filter(|selected_id| {
+            merged_variants.iter().any(|variant| {
+                variant
+                    .get("id")
+                    .and_then(JsonValue::as_str)
+                    .is_some_and(|variant_id| variant_id == selected_id)
+            })
+        })
+        .map(JsonValue::String)
+        .unwrap_or_else(|| JsonValue::from(0));
+
+    scene.insert("selectedVariant".to_string(), selected_variant);
+
+    Some(JsonValue::Object(scene))
+}
+
+fn extract_v2_scene_variants_as_scenes(
+    value: &JsonValue,
+) -> Option<(Vec<SceneExport>, Option<String>)> {
+    let schema_version = value
+        .get("schema")
+        .and_then(|schema| schema.get("version"))
+        .and_then(JsonValue::as_str);
+    if schema_version != Some(SCHEMA_VERSION_V2) {
+        return None;
+    }
+
+    let scene = value.get("payload")?.get("scene")?.as_object()?;
+    let base_id = scene.get("id")?.as_str()?.to_string();
+    let base_content = scene.get("content")?.as_str()?.to_string();
+    let base_direction = scene
+        .get("direction")
+        .and_then(JsonValue::as_str)
+        .map(|value| value.to_string());
+    let base_created_at = scene.get("createdAt").and_then(number_to_i64);
+
+    let mut scenes = vec![SceneExport {
+        id: base_id.clone(),
+        content: base_content,
+        direction: base_direction,
+        created_at: base_created_at,
+        selected_variant_id: None,
+        variants: Vec::new(),
+    }];
+
+    if let Some(variants) = scene.get("variants").and_then(JsonValue::as_array) {
+        for variant in variants {
+            let Some(variant_map) = variant.as_object() else {
+                continue;
+            };
+            let Some(id) = variant_map.get("id").and_then(JsonValue::as_str) else {
+                continue;
+            };
+            let Some(content) = variant_map.get("content").and_then(JsonValue::as_str) else {
+                continue;
+            };
+
+            scenes.push(SceneExport {
+                id: id.to_string(),
+                content: content.to_string(),
+                direction: variant_map
+                    .get("direction")
+                    .and_then(JsonValue::as_str)
+                    .map(|value| value.to_string()),
+                created_at: variant_map.get("createdAt").and_then(number_to_i64),
+                selected_variant_id: None,
+                variants: Vec::new(),
+            });
+        }
+    }
+
+    let default_scene_id = match scene.get("selectedVariant") {
+        Some(JsonValue::String(selected_id)) => Some(selected_id.clone()),
+        _ => Some(base_id),
+    };
+
+    Some((scenes, default_scene_id))
+}
+
 fn normalize_uec_for_read(value: &JsonValue, strict: bool) -> Result<Uec, String> {
     let uec = assert_uec(value, strict)?;
     if uec.schema.version == SCHEMA_VERSION_V2 {
@@ -284,6 +438,7 @@ fn normalize_uec_for_read(value: &JsonValue, strict: bool) -> Result<Uec, String
 }
 
 fn stringify_v2_uec(card: &JsonValue) -> Result<String, String> {
+    let resolved_scene = resolve_v1_scene_for_v2(card);
     let mut upgraded = convert_uec_v1_to_v2(card).map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
@@ -291,6 +446,16 @@ fn stringify_v2_uec(card: &JsonValue) -> Result<String, String> {
             format!("Failed to upgrade UEC v1 payload to v2: {}", e),
         )
     })?;
+
+    if let Some(scene) = resolved_scene {
+        if let Some(payload) = upgraded
+            .get_mut("payload")
+            .and_then(JsonValue::as_object_mut)
+        {
+            payload.insert("scene".to_string(), scene);
+        }
+    }
+
     normalize_v2_asset_fields(&mut upgraded);
 
     serde_json::to_string_pretty(&upgraded).map_err(|e| {
@@ -386,7 +551,7 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
         })
         .unwrap_or_default();
 
-    let scenes = payload
+    let mut scenes = payload
         .get("scenes")
         .and_then(|value| value.as_array())
         .map(|items| {
@@ -444,7 +609,7 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
         })
         .unwrap_or_default();
 
-    let default_scene_id = payload
+    let mut default_scene_id = payload
         .get("defaultSceneId")
         .and_then(|value| value.as_str())
         .map(|value| value.to_string());
@@ -496,6 +661,11 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
 
     let avatar_data = asset_locator_to_string(payload.get("avatar"));
     let background_image_data = asset_locator_to_string(payload.get("chatBackground"));
+
+    if let Some((v2_scenes, v2_default_scene_id)) = extract_v2_scene_variants_as_scenes(value) {
+        scenes = v2_scenes;
+        default_scene_id = v2_default_scene_id;
+    }
 
     Ok(CharacterExportPackage {
         version: 1,
@@ -3057,6 +3227,145 @@ mod tests {
     }
 
     #[test]
+    fn stringify_v2_uec_preserves_scene_variants_and_selected_id() {
+        let mut payload = JsonMap::new();
+        payload.insert("id".into(), JsonValue::String("char-1".to_string()));
+        payload.insert("name".into(), JsonValue::String("Aster Vale".to_string()));
+        payload.insert(
+            "scenes".into(),
+            JsonValue::Array(vec![json!({
+                "id": "scene-1",
+                "content": "Hello there",
+                "selectedVariantId": "variant-2",
+                "variants": [
+                    {
+                        "id": "variant-1",
+                        "content": "Variant one",
+                        "createdAt": 10
+                    },
+                    {
+                        "id": "variant-2",
+                        "content": "Variant two",
+                        "direction": "Second",
+                        "createdAt": 20
+                    }
+                ]
+            })]),
+        );
+        payload.insert(
+            "defaultSceneId".into(),
+            JsonValue::String("scene-1".to_string()),
+        );
+        payload.insert("createdAt".into(), JsonValue::from(1));
+        payload.insert("updatedAt".into(), JsonValue::from(2));
+
+        let v1 = create_character_uec(
+            payload,
+            false,
+            None,
+            None,
+            Some(json!({ "createdAt": 1, "updatedAt": 2, "source": "lettuceai" })),
+            None,
+        );
+
+        let value: JsonValue =
+            serde_json::from_str(&stringify_v2_uec(&v1).expect("v2 json")).expect("valid json");
+        let scene = value
+            .get("payload")
+            .and_then(|payload| payload.get("scene"))
+            .and_then(JsonValue::as_object)
+            .expect("scene object");
+
+        assert_eq!(
+            scene.get("selectedVariant").and_then(JsonValue::as_str),
+            Some("variant-2")
+        );
+        let variants = scene
+            .get("variants")
+            .and_then(JsonValue::as_array)
+            .expect("variants array");
+        assert_eq!(variants.len(), 2);
+        assert_eq!(
+            variants[1].get("id").and_then(JsonValue::as_str),
+            Some("variant-2")
+        );
+        assert_eq!(
+            variants[1].get("direction").and_then(JsonValue::as_str),
+            Some("Second")
+        );
+    }
+
+    #[test]
+    fn stringify_v2_uec_flattens_additional_scenes_into_variants() {
+        let mut payload = JsonMap::new();
+        payload.insert("id".into(), JsonValue::String("char-1".to_string()));
+        payload.insert("name".into(), JsonValue::String("Aster Vale".to_string()));
+        payload.insert(
+            "scenes".into(),
+            JsonValue::Array(vec![
+                json!({
+                    "id": "scene-1",
+                    "content": "Primary scene",
+                    "selectedVariantId": null,
+                    "variants": []
+                }),
+                json!({
+                    "id": "scene-2",
+                    "content": "Second scene",
+                    "direction": "alt",
+                    "createdAt": 20,
+                    "selectedVariantId": null,
+                    "variants": []
+                }),
+                json!({
+                    "id": "scene-3",
+                    "content": "Third scene",
+                    "createdAt": 30,
+                    "selectedVariantId": null,
+                    "variants": []
+                }),
+            ]),
+        );
+        payload.insert(
+            "defaultSceneId".into(),
+            JsonValue::String("scene-1".to_string()),
+        );
+        payload.insert("createdAt".into(), JsonValue::from(1));
+        payload.insert("updatedAt".into(), JsonValue::from(2));
+
+        let v1 = create_character_uec(
+            payload,
+            false,
+            None,
+            None,
+            Some(json!({ "createdAt": 1, "updatedAt": 2, "source": "lettuceai" })),
+            None,
+        );
+
+        let value: JsonValue =
+            serde_json::from_str(&stringify_v2_uec(&v1).expect("v2 json")).expect("valid json");
+        let scene = value
+            .get("payload")
+            .and_then(|payload| payload.get("scene"))
+            .and_then(JsonValue::as_object)
+            .expect("scene object");
+        let variants = scene
+            .get("variants")
+            .and_then(JsonValue::as_array)
+            .expect("variants array");
+
+        assert_eq!(variants.len(), 2);
+        assert_eq!(
+            variants[0].get("id").and_then(JsonValue::as_str),
+            Some("scene-2")
+        );
+        assert_eq!(
+            variants[1].get("id").and_then(JsonValue::as_str),
+            Some("scene-3")
+        );
+    }
+
+    #[test]
     fn parse_uec_character_reads_v2_asset_locators() {
         let card = json!({
             "schema": { "name": "UEC", "version": SCHEMA_VERSION_V2 },
@@ -3096,6 +3405,52 @@ mod tests {
         assert_eq!(
             package.background_image_data.as_deref(),
             Some("https://example.com/bg.png")
+        );
+    }
+
+    #[test]
+    fn parse_uec_character_expands_v2_scene_variants_into_scenes() {
+        let card = json!({
+            "schema": { "name": "UEC", "version": SCHEMA_VERSION_V2 },
+            "kind": "character",
+            "payload": {
+                "id": "char-v2",
+                "name": "Aster Vale",
+                "scene": {
+                    "id": "scene-1",
+                    "content": "Primary scene",
+                    "selectedVariant": "scene-3",
+                    "variants": [
+                        {
+                            "id": "scene-2",
+                            "content": "Second scene",
+                            "direction": "Alt two",
+                            "createdAt": 20
+                        },
+                        {
+                            "id": "scene-3",
+                            "content": "Third scene",
+                            "createdAt": 30
+                        }
+                    ]
+                }
+            },
+            "meta": {
+                "createdAt": 1,
+                "updatedAt": 2,
+                "originalCreatedAt": 1,
+                "originalUpdatedAt": 2
+            }
+        });
+
+        let package = parse_uec_character(&card).expect("v2 character should parse");
+        assert_eq!(package.character.scenes.len(), 3);
+        assert_eq!(package.character.scenes[0].id, "scene-1");
+        assert_eq!(package.character.scenes[1].id, "scene-2");
+        assert_eq!(package.character.scenes[2].id, "scene-3");
+        assert_eq!(
+            package.character.default_scene_id.as_deref(),
+            Some("scene-3")
         );
     }
 }
