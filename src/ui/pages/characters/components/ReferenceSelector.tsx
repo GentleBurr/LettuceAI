@@ -267,8 +267,13 @@ export function ReferenceSelector({
                           size="md"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className={cn(typography.body.size, "font-medium text-fg truncate")}>
-                            {name}
+                          <div className={cn(typography.body.size, "flex items-center gap-2 overflow-hidden")}>
+                            <span className="font-medium text-fg truncate">{name}</span>
+                            {type === "persona" && (item as Persona).nickname && (
+                              <span className="shrink-0 rounded-full border border-fg/15 bg-fg/5 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-fg/60">
+                                {(item as Persona).nickname}
+                              </span>
+                            )}
                           </div>
                           {desc && (
                             <div className="text-sm text-fg/50 line-clamp-2 mt-0.5">{desc}</div>

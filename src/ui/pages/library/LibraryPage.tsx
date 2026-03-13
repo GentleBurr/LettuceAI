@@ -717,9 +717,16 @@ const LibraryCard = memo(
 
         {/* Glass Content Area */}
         <div className="relative z-20 flex w-full flex-col gap-1 p-3">
-          <h3 className={cn(typography.body.size, "font-bold text-fg truncate leading-tight")}>
-            {getItemName(item)}
-          </h3>
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <h3 className={cn(typography.body.size, "font-bold text-fg truncate leading-tight")}>
+              {getItemName(item)}
+            </h3>
+            {item.itemType === "persona" && (item as Persona).nickname && (
+              <span className="shrink-0 rounded-full border border-fg/15 bg-fg/5 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-fg/60">
+                {(item as Persona).nickname}
+              </span>
+            )}
+          </div>
           <p
             className={cn(
               typography.bodySmall.size,
