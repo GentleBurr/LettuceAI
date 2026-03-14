@@ -114,7 +114,7 @@ pub fn fetch_layer_data(
     layer: SyncLayer,
     ids: &[String],
 ) -> Result<Vec<u8>, String> {
-    fetch_layer_data_for_protocol(conn, layer, ids, 4)
+    fetch_layer_data_for_protocol(conn, layer, ids, 5)
 }
 
 pub fn fetch_layer_data_for_protocol(
@@ -152,11 +152,30 @@ type GlobalCoreData = (
     Vec<ProviderCredential>,
     Vec<PromptTemplate>,
     Vec<ModelPricingCache>,
+    Vec<AudioProvider>,
+    Vec<AudioVoiceCache>,
+    Vec<UserVoice>,
     Vec<CreationHelperSession>,
     Vec<GroupCharacter>,
 );
 
-type GlobalsData = (
+type GlobalsDataV5 = (
+    Vec<MetaEntry>,
+    Vec<Settings>,
+    Vec<Persona>,
+    Vec<Model>,
+    Vec<Secret>,
+    Vec<ProviderCredential>,
+    Vec<PromptTemplate>,
+    Vec<ModelPricingCache>,
+    Vec<AudioProvider>,
+    Vec<AudioVoiceCache>,
+    Vec<UserVoice>,
+    Vec<CreationHelperSession>,
+    Vec<GroupCharacter>,
+);
+
+type GlobalsDataV4 = (
     Vec<MetaEntry>,
     Vec<Settings>,
     Vec<Persona>,
@@ -195,9 +214,32 @@ pub fn fetch_globals_for_protocol(
         creds,
         templates,
         pricing,
+        audio_providers,
+        voice_cache,
+        user_voices,
         helper_sessions,
         groups,
     ) = fetch_global_core(conn)?;
+
+    if protocol_version >= 5 {
+        let payload_tuple = (
+            meta,
+            settings,
+            personas,
+            models,
+            secrets,
+            creds,
+            templates,
+            pricing,
+            audio_providers,
+            voice_cache,
+            user_voices,
+            helper_sessions,
+            groups,
+        );
+        return bincode::serialize(&payload_tuple)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e));
+    }
 
     if protocol_version >= 4 {
         let payload_tuple = (
@@ -425,6 +467,65 @@ fn fetch_global_core(conn: &DbConnection) -> Result<GlobalCoreData, String> {
         .collect();
 
     let mut stmt = conn
+        .prepare("SELECT id, provider_type, label, api_key, project_id, location, created_at, updated_at FROM audio_providers")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let audio_providers: Vec<AudioProvider> = stmt
+        .query_map([], |r| {
+            Ok(AudioProvider {
+                id: r.get(0)?,
+                provider_type: r.get(1)?,
+                label: r.get(2)?,
+                api_key: r.get(3)?,
+                project_id: r.get(4)?,
+                location: r.get(5)?,
+                created_at: r.get(6)?,
+                updated_at: r.get(7)?,
+            })
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .map(|r| r.unwrap())
+        .collect();
+
+    let mut stmt = conn
+        .prepare("SELECT id, provider_id, voice_id, name, preview_url, labels, cached_at FROM audio_voice_cache")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let voice_cache: Vec<AudioVoiceCache> = stmt
+        .query_map([], |r| {
+            Ok(AudioVoiceCache {
+                id: r.get(0)?,
+                provider_id: r.get(1)?,
+                voice_id: r.get(2)?,
+                name: r.get(3)?,
+                preview_url: r.get(4)?,
+                labels: r.get(5)?,
+                cached_at: r.get(6)?,
+            })
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .map(|r| r.unwrap())
+        .collect();
+
+    let mut stmt = conn
+        .prepare("SELECT id, provider_id, name, model_id, voice_id, prompt, created_at, updated_at FROM user_voices")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let user_voices: Vec<UserVoice> = stmt
+        .query_map([], |r| {
+            Ok(UserVoice {
+                id: r.get(0)?,
+                provider_id: r.get(1)?,
+                name: r.get(2)?,
+                model_id: r.get(3)?,
+                voice_id: r.get(4)?,
+                prompt: r.get(5)?,
+                created_at: r.get(6)?,
+                updated_at: r.get(7)?,
+            })
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .map(|r| r.unwrap())
+        .collect();
+
+    let mut stmt = conn
         .prepare("SELECT id, creation_goal, status, session_json, uploaded_images_json, created_at, updated_at FROM creation_helper_sessions")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let helper_sessions: Vec<CreationHelperSession> = stmt
@@ -477,6 +578,9 @@ fn fetch_global_core(conn: &DbConnection) -> Result<GlobalCoreData, String> {
         creds,
         templates,
         pricing,
+        audio_providers,
+        voice_cache,
+        user_voices,
         helper_sessions,
         groups,
     ))
@@ -1369,12 +1473,16 @@ fn apply_globals(conn: &mut DbConnection, data: &[u8]) -> Result<(), String> {
         creds,
         templates,
         pricing,
+        audio_providers,
+        voice_cache,
+        user_voices,
         helper_sessions,
         groups,
-    ): GlobalsData = match bincode::deserialize(data) {
+    ): GlobalsDataV5 = match bincode::deserialize(data) {
         Ok(payload) => payload,
         Err(_) => {
             if let Ok((
+                meta,
                 settings,
                 personas,
                 models,
@@ -1382,9 +1490,36 @@ fn apply_globals(conn: &mut DbConnection, data: &[u8]) -> Result<(), String> {
                 creds,
                 templates,
                 pricing,
-                _audio_providers,
-                _voice_cache,
-                _user_voices,
+                helper_sessions,
+                groups,
+            )) = bincode::deserialize::<GlobalsDataV4>(data)
+            {
+                (
+                    meta,
+                    settings,
+                    personas,
+                    models,
+                    secrets,
+                    creds,
+                    templates,
+                    pricing,
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    helper_sessions,
+                    groups,
+                )
+            } else if let Ok((
+                settings,
+                personas,
+                models,
+                secrets,
+                creds,
+                templates,
+                pricing,
+                audio_providers,
+                voice_cache,
+                user_voices,
             )) = bincode::deserialize::<LegacyGlobalsDataV3>(data)
             {
                 (
@@ -1396,6 +1531,9 @@ fn apply_globals(conn: &mut DbConnection, data: &[u8]) -> Result<(), String> {
                     creds,
                     templates,
                     pricing,
+                    audio_providers,
+                    voice_cache,
+                    user_voices,
                     Vec::new(),
                     Vec::new(),
                 )
@@ -1411,6 +1549,9 @@ fn apply_globals(conn: &mut DbConnection, data: &[u8]) -> Result<(), String> {
                     creds,
                     templates,
                     pricing,
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
                     Vec::new(),
                     Vec::new(),
                 )
@@ -1442,6 +1583,9 @@ fn apply_globals(conn: &mut DbConnection, data: &[u8]) -> Result<(), String> {
                     creds,
                     templates,
                     pricing,
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
                     Vec::new(),
                     Vec::new(),
                 )
@@ -1504,6 +1648,59 @@ fn apply_globals(conn: &mut DbConnection, data: &[u8]) -> Result<(), String> {
     for p in pricing {
         tx.execute(r#"INSERT OR REPLACE INTO model_pricing_cache (model_id, pricing_json, cached_at) VALUES (?1, ?2, ?3)"#,
                    params![p.model_id, p.pricing_json, p.cached_at]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    for provider in audio_providers {
+        tx.execute(
+            r#"INSERT OR REPLACE INTO audio_providers (id, provider_type, label, api_key, project_id, location, created_at, updated_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
+            params![
+                provider.id,
+                provider.provider_type,
+                provider.label,
+                provider.api_key,
+                provider.project_id,
+                provider.location,
+                provider.created_at,
+                provider.updated_at
+            ],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    for voice in voice_cache {
+        tx.execute(
+            r#"INSERT OR REPLACE INTO audio_voice_cache (id, provider_id, voice_id, name, preview_url, labels, cached_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+            params![
+                voice.id,
+                voice.provider_id,
+                voice.voice_id,
+                voice.name,
+                voice.preview_url,
+                voice.labels,
+                voice.cached_at
+            ],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    for voice in user_voices {
+        tx.execute(
+            r#"INSERT OR REPLACE INTO user_voices (id, provider_id, name, model_id, voice_id, prompt, created_at, updated_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
+            params![
+                voice.id,
+                voice.provider_id,
+                voice.name,
+                voice.model_id,
+                voice.voice_id,
+                voice.prompt,
+                voice.created_at,
+                voice.updated_at
+            ],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     }
 
     for session in helper_sessions {

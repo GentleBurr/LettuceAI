@@ -17,7 +17,7 @@ use crate::sync::protocol::{Manifest, ManifestV2, P2PMessage, SyncLayer};
 use crate::utils::{log_error, log_info, log_warn};
 use std::path::Path;
 
-const PROTOCOL_VERSION: u32 = 4;
+const PROTOCOL_VERSION: u32 = 5;
 
 fn derive_key(pin: &str, salt: &[u8]) -> [u8; 32] {
     let mut hasher = blake3::Hasher::new_derive_key("lettuce_sync_v1");
