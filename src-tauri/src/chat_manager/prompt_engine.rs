@@ -1675,6 +1675,7 @@ mod tests {
             id: "p1".into(),
             title: "Bob".into(),
             description: "Persona Bob".into(),
+            nickname: None,
             is_default: true,
             created_at: 0,
             updated_at: 0,

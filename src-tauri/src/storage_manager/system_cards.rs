@@ -367,6 +367,19 @@ pub enum AnyUscCard {
     ModelProfile(UscModelProfileCard),
 }
 
+impl std::fmt::Debug for AnyUscCard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match self {
+            AnyUscCard::SystemPromptTemplate(_) => "SystemPromptTemplate",
+            AnyUscCard::Lorebook(_) => "Lorebook",
+            AnyUscCard::ChatTemplate(_) => "ChatTemplate",
+            AnyUscCard::ModelProfile(_) => "ModelProfile",
+        };
+
+        f.debug_tuple("AnyUscCard").field(&kind).finish()
+    }
+}
+
 impl AnyUscCard {
     pub fn kind(&self) -> UscKind {
         match self {

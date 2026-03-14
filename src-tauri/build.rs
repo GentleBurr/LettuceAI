@@ -63,6 +63,7 @@ fn setup_android_libs() -> anyhow::Result<()> {
 
     let targets = vec![
         ("arm64-v8a", "jni/arm64-v8a/libonnxruntime.so"),
+        ("armeabi-v7a", "jni/armeabi-v7a/libonnxruntime.so"),
         ("x86_64", "jni/x86_64/libonnxruntime.so"),
     ];
 
