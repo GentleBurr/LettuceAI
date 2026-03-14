@@ -21,7 +21,6 @@ import { setOnboardingCompleted, setOnboardingSkipped } from "../../../core/stor
 import { storageBridge } from "../../../core/storage/files";
 import logoSvg from "../../../assets/logo.svg";
 import { typography, radius, spacing, interactive, shadows, colors, cn } from "../../design-tokens";
-import { getPlatform } from "../../../core/utils/platform";
 import { useI18n } from "../../../core/i18n/context";
 import { LocaleSelector } from "../../components/LocaleSelector";
 
@@ -30,8 +29,6 @@ export function WelcomePage() {
   const navigate = useNavigate();
   const [showSkipWarning, setShowSkipWarning] = useState(false);
   const [showRestoreBackup, setShowRestoreBackup] = useState(false);
-
-  const platform = getPlatform();
 
   const handleAddProvider = () => {
     navigate("/onboarding/provider");
@@ -190,34 +187,6 @@ export function WelcomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          {/* Beta Warning */}
-          {platform.type === "desktop" && (
-            <div
-              className={cn(
-                "mb-6 w-full rounded-xl border border-amber-400/30 bg-amber-400/10 p-4",
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                <div>
-                  <h3
-                    className={cn(
-                      typography.bodySmall.size,
-                      typography.body.weight,
-                      "text-amber-200",
-                    )}
-                  >
-                    Desktop Beta build
-                  </h3>
-                  <p className={cn(typography.caption.size, "mt-1 text-amber-200/70")}>
-                    You're using the desktop version. Some features may differ from mobile. Report
-                    issues on GitHub.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* CTA Buttons */}
           <div className={cn("w-full", spacing.field)}>
             <button
