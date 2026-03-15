@@ -202,6 +202,8 @@ export function onboardingReducer(
 // Helper functions
 export function getDefaultBaseUrl(providerId: string): string {
   switch (providerId) {
+    case "intenserp":
+      return "http://127.0.0.1:7777/v1";
     case "chutes":
       return "https://api.chutes.ai";
     case "featherless":
@@ -219,6 +221,8 @@ export function getDefaultBaseUrl(providerId: string): string {
 
 export function getDefaultModelName(providerId: string): string {
   switch (providerId) {
+    case "intenserp":
+      return "deepseek-auto";
     case "openai":
       return "gpt-4o";
     case "anthropic":

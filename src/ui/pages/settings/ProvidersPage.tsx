@@ -1,4 +1,14 @@
-import { Trash2, ChevronRight, Edit3, EthernetPort, Cpu, Volume2, Leaf, Sparkles, LayoutDashboard } from "lucide-react";
+import {
+  Trash2,
+  ChevronRight,
+  Edit3,
+  EthernetPort,
+  Cpu,
+  Volume2,
+  Leaf,
+  Sparkles,
+  LayoutDashboard,
+} from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
@@ -69,7 +79,7 @@ export function ProvidersPage() {
 
   const isEngineProvider = !!editorProvider && editorProvider.providerId === "lettuce-engine";
   const isLocalProvider =
-    !!editorProvider && ["ollama", "lmstudio"].includes(editorProvider.providerId);
+    !!editorProvider && ["ollama", "lmstudio", "intenserp"].includes(editorProvider.providerId);
   const isCustomProvider =
     !!editorProvider &&
     (editorProvider.providerId === "custom" || editorProvider.providerId === "custom-anthropic");
@@ -108,9 +118,7 @@ export function ProvidersPage() {
     <div className="flex h-64 flex-col items-center justify-center">
       <EthernetPort className="mb-3 h-12 w-12 text-fg/20" />
       <h3 className="mb-1 text-lg font-medium text-fg">{t("providers.empty.title")}</h3>
-      <p className="mb-4 text-center text-sm text-fg/50">
-        {t("providers.empty.description")}
-      </p>
+      <p className="mb-4 text-center text-sm text-fg/50">{t("providers.empty.description")}</p>
       <button
         onClick={onCreate}
         className="rounded-full border border-accent/40 bg-accent/20 px-6 py-2 text-sm font-medium text-accent/90 transition hover:bg-accent/30 active:scale-[0.99]"
@@ -314,9 +322,7 @@ export function ProvidersPage() {
                 </div>
                 {showApiKeyInput && (
                   <div>
-                    <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                      API Key
-                    </label>
+                    <label className="mb-1 block text-[11px] font-medium text-fg/70">API Key</label>
                     <input
                       type="password"
                       value={apiKey}
@@ -344,9 +350,11 @@ export function ProvidersPage() {
                       placeholder={
                         isEngineProvider
                           ? "http://localhost:8000"
-                          : isLocalProvider
-                            ? "http://localhost:11434"
-                            : "https://api.provider.com"
+                          : editorProvider.providerId === "intenserp"
+                            ? "http://127.0.0.1:7777/v1"
+                            : isLocalProvider
+                              ? "http://localhost:11434"
+                              : "https://api.provider.com"
                       }
                       className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fgplaceholder-fg/40 focus:border-fg/30 focus:outline-none"
                     />
@@ -802,11 +810,7 @@ export function ProvidersPage() {
       )}
 
       {/* Engine Setup Bottom Sheet */}
-      <BottomMenu
-        isOpen={!!engineSetupResult}
-        onClose={dismissEngineSetup}
-        title="Lettuce Engine"
-      >
+      <BottomMenu isOpen={!!engineSetupResult} onClose={dismissEngineSetup} title="Lettuce Engine">
         {engineSetupResult && (
           <div className="space-y-4 pb-2">
             {engineSetupResult.needsSetup ? (
@@ -893,9 +897,7 @@ export function ProvidersPage() {
                 radius.md,
                 "px-3 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2",
                 interactive.active.scale,
-                activeTab === id
-                  ? "bg-fg/10 text-fg"
-                  : cn(colors.text.tertiary, "hover:text-fg"),
+                activeTab === id ? "bg-fg/10 text-fg" : cn(colors.text.tertiary, "hover:text-fg"),
               )}
             >
               <Icon size={16} />

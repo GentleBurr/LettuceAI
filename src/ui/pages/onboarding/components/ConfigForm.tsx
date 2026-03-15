@@ -50,7 +50,7 @@ export function ProviderConfigForm({
   const { t } = useI18n();
   const navigate = useNavigate();
   const isCustomProvider = ["custom", "custom-anthropic"].includes(selectedProviderId);
-  const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId);
+  const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId);
   const showBaseUrl = isCustomProvider || isLocalProvider;
 
   return (
@@ -102,7 +102,13 @@ export function ProviderConfigForm({
             type="text"
             value={baseUrl}
             onChange={(e) => onBaseUrlChange(e.target.value)}
-            placeholder={isLocalProvider ? "http://localhost:11434" : "https://api.provider.com"}
+            placeholder={
+              selectedProviderId === "intenserp"
+                ? "http://127.0.0.1:7777/v1"
+                : isLocalProvider
+                  ? "http://localhost:11434"
+                  : "https://api.provider.com"
+            }
             className="w-full min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
           />
           <p className="text-[11px] text-gray-500">
@@ -321,6 +327,7 @@ export function ModelConfigForm({
   const [searchQuery, setSearchQuery] = useState("");
 
   const isLocalModel = selectedCredential.providerId === "llamacpp";
+  const modelFetchEnabled = !["llamacpp", "intenserp"].includes(selectedCredential.providerId);
   const modelIdLabel = isLocalModel ? "Model Path (GGUF)" : "Model ID";
   const modelIdPlaceholder = isLocalModel ? "/path/to/model.gguf" : "e.g. gpt-4o";
 
@@ -337,8 +344,9 @@ export function ModelConfigForm({
   }, [fetchedModels, searchQuery]);
 
   const fetchModels = async () => {
-    if (selectedCredential.providerId === "llamacpp") {
+    if (!modelFetchEnabled) {
       setFetchedModels([]);
+      setIsManualInput(true);
       return;
     }
     setFetchingModels(true);
@@ -370,13 +378,13 @@ export function ModelConfigForm({
 
   useEffect(() => {
     setFetchedModels([]);
-    setIsManualInput(false);
+    setIsManualInput(!modelFetchEnabled);
     setSearchQuery("");
-    if (selectedCredential.providerId !== "llamacpp") {
+    if (modelFetchEnabled) {
       void fetchModels();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCredential.id, selectedCredential.providerId]);
+  }, [selectedCredential.id, selectedCredential.providerId, modelFetchEnabled]);
 
   return (
     <div className="space-y-4">
@@ -398,7 +406,7 @@ export function ModelConfigForm({
             {modelIdLabel}
           </label>
           <div className="flex items-center gap-3">
-            {!isLocalModel && fetchedModels.length > 0 && (
+            {!isLocalModel && modelFetchEnabled && fetchedModels.length > 0 && (
               <button
                 type="button"
                 onClick={() => setIsManualInput(!isManualInput)}
@@ -407,7 +415,7 @@ export function ModelConfigForm({
                 {isManualInput ? "Show List" : "Manual Input"}
               </button>
             )}
-            {!isLocalModel && (
+            {!isLocalModel && modelFetchEnabled && (
               <button
                 type="button"
                 onClick={fetchModels}
@@ -421,7 +429,7 @@ export function ModelConfigForm({
           </div>
         </div>
 
-        {!isLocalModel && !isManualInput ? (
+        {!isLocalModel && modelFetchEnabled && !isManualInput ? (
           <>
             <button
               type="button"

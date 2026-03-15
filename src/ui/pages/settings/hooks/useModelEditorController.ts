@@ -1046,7 +1046,7 @@ export function useModelEditorController(): ControllerReturn {
   const fetchModels = useCallback(async () => {
     const { editorModel, providers } = state;
     if (!editorModel) return;
-    if (editorModel.providerId === "llamacpp") {
+    if (editorModel.providerId === "llamacpp" || editorModel.providerId === "intenserp") {
       dispatch({ type: "set_fetched_models", payload: [] });
       return;
     }

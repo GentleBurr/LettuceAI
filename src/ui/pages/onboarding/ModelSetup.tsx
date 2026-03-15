@@ -52,6 +52,8 @@ export function ModelSetupPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const isLocalModel = selectedProvider?.providerId === "llamacpp";
+  const modelFetchEnabled =
+    !!selectedProvider && !["llamacpp", "intenserp"].includes(selectedProvider.providerId);
   const modelIdLabel = isLocalModel ? "Model Path (GGUF)" : "Model ID";
   const modelIdPlaceholder = isLocalModel ? "/path/to/model.gguf" : "e.g. gpt-4o";
 
@@ -69,8 +71,9 @@ export function ModelSetupPage() {
 
   const fetchModels = async () => {
     if (!selectedProvider) return;
-    if (selectedProvider.providerId === "llamacpp") {
+    if (!modelFetchEnabled) {
       setFetchedModels([]);
+      setIsManualInput(true);
       return;
     }
     setFetchingModels(true);
@@ -98,13 +101,13 @@ export function ModelSetupPage() {
 
   useEffect(() => {
     setFetchedModels([]);
-    setIsManualInput(false);
+    setIsManualInput(!modelFetchEnabled);
     setSearchQuery("");
-    if (selectedProvider && selectedProvider.providerId !== "llamacpp") {
+    if (modelFetchEnabled) {
       void fetchModels();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProvider?.id, selectedProvider?.providerId]);
+  }, [selectedProvider?.id, selectedProvider?.providerId, modelFetchEnabled]);
 
   if (isLoading) {
     return (
@@ -159,7 +162,7 @@ export function ModelSetupPage() {
             {modelIdLabel}
           </label>
           <div className="flex items-center gap-3">
-            {!isLocalModel && fetchedModels.length > 0 && (
+            {!isLocalModel && modelFetchEnabled && fetchedModels.length > 0 && (
               <button
                 type="button"
                 onClick={() => setIsManualInput(!isManualInput)}
@@ -168,7 +171,7 @@ export function ModelSetupPage() {
                 {isManualInput ? "Show List" : "Manual Input"}
               </button>
             )}
-            {!isLocalModel && (
+            {!isLocalModel && modelFetchEnabled && (
               <button
                 type="button"
                 onClick={fetchModels}
@@ -182,7 +185,7 @@ export function ModelSetupPage() {
           </div>
         </div>
 
-        {!isLocalModel && !isManualInput ? (
+        {!isLocalModel && modelFetchEnabled && !isManualInput ? (
           <>
             <button
               type="button"
@@ -506,6 +509,8 @@ function getProviderDisplayName(providerId: string): string {
   switch (providerId) {
     case "chutes":
       return "Chutes";
+    case "intenserp":
+      return "IntenseRP Next";
     case "openai":
       return "OpenAI";
     case "anthropic":

@@ -17,6 +17,7 @@ import ChutesAIIcon from "../../assets/chutes_ai.jpeg";
 import OllamaIcon from "../../assets/ollama_light.png";
 import LMStudioIcon from "../../assets/lmstudio_light.png";
 import LlamaCppIcon from "../../assets/llama-cpp.svg";
+import IntenserpIcon from "../../assets/intenserp.png";
 
 const ICON_MAP: Record<string, JSX.Element> = {
   openai: <img src={OpenAIIcon} alt="OpenAI" className="h-6 w-6" />,
@@ -35,6 +36,7 @@ const ICON_MAP: Record<string, JSX.Element> = {
   chutes: <img src={ChutesAIIcon} alt="Chutes" className="h-6 w-6" />,
   ollama: <img src={OllamaIcon} alt="Ollama" className="h-6 w-6" />,
   lmstudio: <img src={LMStudioIcon} alt="LM Studio" className="h-6 w-6" />,
+  intenserp: <img src={IntenserpIcon} alt="IntenseRP Next" className="h-6 w-6" />,
   llamacpp: <img src={LlamaCppIcon} alt="llama.cpp" className="h-6 w-6 object-contain" />,
   "lettuce-engine": <Leaf className="h-6 w-6 text-emerald-400" />,
   custom: <Settings className="h-6 w-6 text-gray-400" />,

@@ -149,7 +149,7 @@ export function ProviderSetupPage() {
   );
   const selectedProvider = visibleCapabilities.find((p) => p.id === selectedProviderId);
   const isCustomProvider = ["custom", "custom-anthropic"].includes(selectedProviderId);
-  const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId);
+  const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId);
   const showBaseUrl = Boolean(selectedProvider) && (isCustomProvider || isLocalProvider);
 
   const configFormContent = (
@@ -207,7 +207,13 @@ export function ProviderSetupPage() {
               const pastedText = e.clipboardData.getData("text");
               handleBaseUrlChange(pastedText);
             }}
-            placeholder={isLocalProvider ? "http://localhost:11434" : "https://api.provider.com"}
+            placeholder={
+              selectedProviderId === "intenserp"
+                ? "http://127.0.0.1:7777/v1"
+                : isLocalProvider
+                  ? "http://localhost:11434"
+                  : "https://api.provider.com"
+            }
             className="w-full min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
           />
           <p className="text-[11px] text-gray-500">

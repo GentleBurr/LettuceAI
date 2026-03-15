@@ -64,6 +64,8 @@ export function providerReducer(state: ProviderState, action: ProviderAction): P
 
 export function getDefaultBaseUrl(providerId: string): string {
   switch (providerId) {
+    case "intenserp":
+      return "http://127.0.0.1:7777/v1";
     case "chutes":
       return "https://api.chutes.ai";
     case "featherless":

@@ -201,8 +201,18 @@ export function useOnboardingController(): OnboardingController {
   }, []);
 
   const handleTestConnection = useCallback(async () => {
+    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(
+      state.selectedProviderId || "",
+    );
     const skipValidationProvider = ["chutes"].includes(state.selectedProviderId || "");
-    if (!state.selectedProviderId || skipValidationProvider || !state.apiKey.trim()) return;
+    if (
+      !state.selectedProviderId ||
+      isLocalProvider ||
+      skipValidationProvider ||
+      !state.apiKey.trim()
+    ) {
+      return;
+    }
 
     dispatch({ type: "SET_TESTING", payload: true });
     dispatch({ type: "SET_TEST_RESULT", payload: null });
@@ -243,7 +253,16 @@ export function useOnboardingController(): OnboardingController {
 
   const handleSaveProvider = useCallback(async () => {
     const { selectedProviderId, apiKey, providerLabel, baseUrl } = state;
-    if (!selectedProviderId || !apiKey.trim() || !providerLabel.trim()) return;
+    const isLocalProvider = [
+      "custom",
+      "custom-anthropic",
+      "ollama",
+      "lmstudio",
+      "intenserp",
+    ].includes(selectedProviderId || "");
+    if (!selectedProviderId || !providerLabel.trim() || (!isLocalProvider && !apiKey.trim())) {
+      return;
+    }
 
     dispatch({ type: "SET_SUBMITTING_PROVIDER", payload: true });
     dispatch({ type: "SET_TEST_RESULT", payload: null });
@@ -251,14 +270,11 @@ export function useOnboardingController(): OnboardingController {
     try {
       const credentialId = crypto.randomUUID();
       const trimmedKey = apiKey.trim();
-      const isLocalProvider = ["custom", "custom-anthropic", "ollama", "lmstudio"].includes(
-        selectedProviderId,
-      );
       const requiresVerification =
         !isLocalProvider && ["openai", "anthropic", "openrouter"].includes(selectedProviderId);
 
       // Local providers require base URL
-      if (["ollama", "lmstudio"].includes(selectedProviderId) && !baseUrl?.trim()) {
+      if (["ollama", "lmstudio", "intenserp"].includes(selectedProviderId) && !baseUrl?.trim()) {
         dispatch({
           type: "SET_TEST_RESULT",
           payload: {
@@ -295,7 +311,7 @@ export function useOnboardingController(): OnboardingController {
         id: credentialId,
         providerId: selectedProviderId,
         label: providerLabel.trim(),
-        apiKey: trimmedKey,
+        apiKey: trimmedKey || undefined,
         baseUrl: baseUrl || undefined,
         config: state.config,
       };
@@ -450,17 +466,30 @@ export function useOnboardingController(): OnboardingController {
   }, [state.memoryType, navigate, saveMemorySettings]);
 
   const canTestProvider = useMemo(() => {
+    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(
+      state.selectedProviderId || "",
+    );
     const skipValidationProvider = ["chutes"].includes(state.selectedProviderId || "");
     return Boolean(
-      state.selectedProviderId && !skipValidationProvider && state.apiKey.trim().length > 0,
+      state.selectedProviderId &&
+      !isLocalProvider &&
+      !skipValidationProvider &&
+      state.apiKey.trim().length > 0,
     );
   }, [state.selectedProviderId, state.apiKey]);
 
   const canSaveProvider = useMemo(() => {
+    const isLocalProvider = [
+      "custom",
+      "custom-anthropic",
+      "ollama",
+      "lmstudio",
+      "intenserp",
+    ].includes(state.selectedProviderId || "");
     return Boolean(
       state.selectedProviderId &&
-      state.apiKey.trim().length > 0 &&
-      state.providerLabel.trim().length > 0,
+      state.providerLabel.trim().length > 0 &&
+      (isLocalProvider || state.apiKey.trim().length > 0),
     );
   }, [state.selectedProviderId, state.apiKey, state.providerLabel]);
 

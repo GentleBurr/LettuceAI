@@ -75,7 +75,7 @@ export function useProviderController(): ControllerReturn {
   }, []);
 
   const handleTestConnection = useCallback(async () => {
-    const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId || "");
+    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
     const skipValidationProvider = ["chutes"].includes(selectedProviderId || "");
     if (!selectedProviderId || isLocalProvider || skipValidationProvider || !apiKey.trim()) {
       return;
@@ -131,8 +131,10 @@ export function useProviderController(): ControllerReturn {
   }, [apiKey, baseUrl, selectedProviderId]);
 
   const handleSaveProvider = useCallback(async () => {
-    const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId || "");
-    const isServerLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId || "");
+    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
+    const isServerLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(
+      selectedProviderId || "",
+    );
     if (!selectedProviderId || !label.trim() || (!isLocalProvider && !apiKey.trim())) {
       return;
     }
@@ -228,7 +230,7 @@ export function useProviderController(): ControllerReturn {
   }, [apiKey, baseUrl, label, navigate, selectedProviderId]);
 
   const canTest = useMemo(() => {
-    const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId || "");
+    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
     const skipValidationProvider = ["chutes"].includes(selectedProviderId || "");
     return Boolean(
       selectedProviderId && !isLocalProvider && !skipValidationProvider && apiKey.trim().length > 0,
@@ -236,7 +238,7 @@ export function useProviderController(): ControllerReturn {
   }, [apiKey, selectedProviderId]);
 
   const canSave = useMemo(() => {
-    const isLocalProvider = ["ollama", "lmstudio"].includes(selectedProviderId || "");
+    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
     return Boolean(
       selectedProviderId &&
       label.trim().length > 0 &&

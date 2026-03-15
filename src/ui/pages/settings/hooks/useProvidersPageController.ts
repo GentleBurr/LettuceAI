@@ -157,9 +157,13 @@ export function useProvidersPageController(): ControllerReturn {
 
     try {
       const isEngineProvider = editorProvider.providerId === "lettuce-engine";
-      const isLocalProvider = ["custom", "custom-anthropic", "ollama", "lmstudio"].includes(
-        editorProvider.providerId,
-      );
+      const isLocalProvider = [
+        "custom",
+        "custom-anthropic",
+        "ollama",
+        "lmstudio",
+        "intenserp",
+      ].includes(editorProvider.providerId);
       const requiresVerification =
         !isLocalProvider &&
         !isEngineProvider &&
@@ -226,7 +230,9 @@ export function useProvidersPageController(): ControllerReturn {
         return;
       }
 
-      const requiresBaseUrl = ["ollama", "lmstudio"].includes(editorProvider.providerId);
+      const requiresBaseUrl = ["ollama", "lmstudio", "intenserp"].includes(
+        editorProvider.providerId,
+      );
       if (requiresBaseUrl && !editorProvider.baseUrl?.trim()) {
         dispatch({
           type: "set_validation_error",

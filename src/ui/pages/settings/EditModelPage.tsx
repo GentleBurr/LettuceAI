@@ -521,7 +521,12 @@ export function EditModelPage() {
       providers.find((p) => p.providerId === editorModel.providerId));
   const modelFetchEnabledForSelectedProvider = (() => {
     if (!selectedProviderCredential) return false;
-    if (selectedProviderCredential.providerId === "llamacpp") return false;
+    if (
+      selectedProviderCredential.providerId === "llamacpp" ||
+      selectedProviderCredential.providerId === "intenserp"
+    ) {
+      return false;
+    }
     if (
       selectedProviderCredential.providerId === "custom" ||
       selectedProviderCredential.providerId === "custom-anthropic"
