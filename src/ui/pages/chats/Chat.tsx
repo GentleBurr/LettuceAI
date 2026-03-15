@@ -1605,7 +1605,7 @@ export function ChatConversationPage() {
         onScroll={handleScroll}
       >
         <div
-          className={`${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} px-3 pb-24 pt-4`}
+          className={`${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} px-3 pb-8 pt-4`}
           style={{
             backgroundColor: backgroundImageData
               ? swapPlaces
