@@ -1348,7 +1348,8 @@ export function EditCharacterPage() {
       <AnimatePresence>
         {(editingSceneId !== null || newSceneEditorOpen) && (
           <motion.div
-            className="fixed inset-0 z-50 flex h-full flex-col bg-surface-el/90 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex h-full flex-col bg-surface"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}

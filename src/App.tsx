@@ -99,7 +99,6 @@ import { I18nProvider } from "./core/i18n/context";
 const chatLog = logManager({ component: "Chat" });
 
 function App() {
-  const [isMobile, setIsMobile] = useState(false);
   const platform = useMemo(() => getPlatform(), []);
 
   useEffect(() => {
@@ -119,19 +118,6 @@ function App() {
       style?.remove();
     };
   }, [platform.os]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const media = window.matchMedia("(max-width: 768px)");
-    const update = () => setIsMobile(media.matches);
-    update();
-    if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", update);
-      return () => media.removeEventListener("change", update);
-    }
-    media.addListener(update);
-    return () => media.removeListener(update);
-  }, []);
 
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
@@ -254,9 +240,14 @@ function App() {
           }}
         >
           <div id="app-root" className="min-h-screen bg-surface text-fg antialiased">
-            <Toaster // {isMobile ? "bottom-center" : "top-center"}
+            <Toaster
               position={"top-center"}
-              offset={isMobile ? { bottom: 24 } : { top: 16 }}
+              offset={{ top: 16 }}
+              mobileOffset={{
+                top: "calc(env(safe-area-inset-top) + 80px)",
+                left: 8,
+                right: 8,
+              }}
               toastOptions={{
                 unstyled: true,
                 className: "pointer-events-auto w-full max-w-md",

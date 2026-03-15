@@ -43,6 +43,13 @@ function showToast(
   description?: string,
   options?: ToastActionOptions,
 ) {
+  const handleAction = (callback?: () => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    callback?.();
+    if (options?.id) sonnerToast.dismiss(options.id);
+  };
+
   return sonnerToast(
     <div className="flex items-start gap-3 w-full">
       {variantIcons[variant]}
@@ -54,12 +61,11 @@ function showToast(
         <div className="flex shrink-0 gap-1.5">
           {options?.actionLabel && (
             <button
-              onClick={() => {
-                options.onAction?.();
-                if (options.id) sonnerToast.dismiss(options.id);
-              }}
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={handleAction(options.onAction)}
               className={cn(
-                "shrink-0 rounded-lg border border-fg/30 bg-fg/5 px-3 py-1.5",
+                "shrink-0 touch-manipulation rounded-lg border border-fg/30 bg-fg/5 px-3 py-1.5",
                 "text-xs font-medium text-fg/70",
                 "hover:bg-fg/10 hover:text-fg transition-colors",
               )}
@@ -69,12 +75,11 @@ function showToast(
           )}
           {options?.secondaryLabel && (
             <button
-              onClick={() => {
-                options.onSecondary?.();
-                if (options.id) sonnerToast.dismiss(options.id);
-              }}
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={handleAction(options.onSecondary)}
               className={cn(
-                "shrink-0 rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5",
+                "shrink-0 touch-manipulation rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5",
                 "text-xs font-medium text-danger",
                 "hover:bg-danger/20 transition-colors",
               )}
