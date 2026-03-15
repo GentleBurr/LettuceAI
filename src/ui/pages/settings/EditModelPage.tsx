@@ -59,6 +59,7 @@ import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
 import { useI18n } from "../../../core/i18n/context";
+import { getPlatform } from "../../../core/utils/platform";
 
 type DownloadedGgufModel = {
   modelId: string;
@@ -290,13 +291,16 @@ function CollapsedEditorSectionButton({
 
 export function EditModelPage() {
   const { t } = useI18n();
+  const isMobile = useMemo(() => getPlatform().type === "mobile", []);
   const [showParameterSupport, setShowParameterSupport] = useState(false);
   const [isManualInput, setIsManualInput] = useState(false);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [showOnlyFreeModels, setShowOnlyFreeModels] = useState(false);
-  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>(() => getStoredEditorViewMode());
+  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>(() =>
+    getStoredEditorViewMode(),
+  );
   const [activeAdvancedPanel, setActiveAdvancedPanel] = useState<EditorSectionKey>("generation");
   const [activeSimplePanel, setActiveSimplePanel] = useState<SimpleEditorSectionKey | null>(null);
   const [selectedLlamaQuickPreset, setSelectedLlamaQuickPreset] = useState<
@@ -787,13 +791,17 @@ export function EditModelPage() {
     isLocalModel && isPathOutsideGgufDir(editorModel.name?.trim() ?? "");
   const hasRuntimePanel = isLocalModel || isOllamaModel;
   const runtimePanelTitle = isLocalModel ? "llama.cpp" : isOllamaModel ? "Ollama" : "Runtime";
-  const activeDetailPanel = editorViewMode === "advanced" ? activeAdvancedPanel : activeSimplePanel;
+  const effectiveEditorViewMode: EditorViewMode = isMobile ? "simple" : editorViewMode;
+  const activeDetailPanel =
+    effectiveEditorViewMode === "advanced" ? activeAdvancedPanel : activeSimplePanel;
   const toggleSimplePanel = (panel: SimpleEditorSectionKey) => {
     setActiveSimplePanel((current) => (current === panel ? null : panel));
   };
   const generationSummary =
     [
-      modelAdvancedDraft.temperature != null ? `Temp ${modelAdvancedDraft.temperature.toFixed(2)}` : null,
+      modelAdvancedDraft.temperature != null
+        ? `Temp ${modelAdvancedDraft.temperature.toFixed(2)}`
+        : null,
       modelAdvancedDraft.topP != null ? `Top P ${modelAdvancedDraft.topP.toFixed(2)}` : null,
       modelAdvancedDraft.maxOutputTokens != null
         ? `Max ${modelAdvancedDraft.maxOutputTokens.toLocaleString()}`
@@ -803,7 +811,9 @@ export function EditModelPage() {
       .join(" • ") || "Default sampling and output limits";
   const runtimeSummary = isLocalModel
     ? [
-        modelAdvancedDraft.llamaBatchSize != null ? `Batch ${modelAdvancedDraft.llamaBatchSize}` : null,
+        modelAdvancedDraft.llamaBatchSize != null
+          ? `Batch ${modelAdvancedDraft.llamaBatchSize}`
+          : null,
         modelAdvancedDraft.llamaKvType ? `KV ${modelAdvancedDraft.llamaKvType}` : null,
         modelAdvancedDraft.llamaOffloadKqv === true
           ? "KV cache in VRAM"
@@ -834,7 +844,9 @@ export function EditModelPage() {
       ? "Reasoning disabled"
       : [
           modelAdvancedDraft.reasoningEnabled ? "Enabled" : "Provider default",
-          modelAdvancedDraft.reasoningEffort ? `Effort ${modelAdvancedDraft.reasoningEffort}` : null,
+          modelAdvancedDraft.reasoningEffort
+            ? `Effort ${modelAdvancedDraft.reasoningEffort}`
+            : null,
           modelAdvancedDraft.reasoningBudgetTokens != null
             ? `Budget ${modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()}`
             : null,
@@ -930,8 +942,11 @@ export function EditModelPage() {
     if (typeof window === "undefined") {
       return;
     }
+    if (isMobile) {
+      return;
+    }
     window.localStorage.setItem(MODEL_EDITOR_VIEW_MODE_STORAGE_KEY, editorViewMode);
-  }, [editorViewMode]);
+  }, [editorViewMode, isMobile]);
 
   useEffect(() => {
     if (!isLocalModel) {
@@ -1040,13 +1055,11 @@ export function EditModelPage() {
             </div>
           )}
 
-          <div
-            className="relative xl:pr-[384px]"
-          >
+          <div className="relative xl:pr-[384px]">
             <div
               className={cn(
                 "w-full space-y-6 transition-transform duration-200 ease-in-out xl:max-w-[760px]",
-                editorViewMode === "advanced"
+                effectiveEditorViewMode === "advanced"
                   ? "xl:translate-x-0"
                   : "xl:translate-x-[192px]",
               )}
@@ -1221,45 +1234,46 @@ export function EditModelPage() {
                       </FieldBlock>
                     </div>
                   ) : (
-                    <div className="grid items-start grid-cols-1 gap-x-6 gap-y-2 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                      <label className="text-[13px] font-medium text-fg/72">Display name</label>
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="text-[13px] font-medium text-fg/72">{modelIdLabel}</label>
-                        <div className="flex items-center gap-2">
-                          {fetchedModels.length > 0 && modelFetchEnabledForSelectedProvider && (
-                            <button
-                              type="button"
-                              onClick={() => setIsManualInput(!isManualInput)}
-                              className="rounded-md border border-fg/10 px-2.5 py-1 text-[13px] text-fg/65 transition hover:border-fg/20 hover:bg-fg/5 hover:text-fg/90"
-                            >
-                              {isManualInput ? "Use catalog" : "Enter manually"}
-                            </button>
-                          )}
-                          {modelFetchEnabledForSelectedProvider && (
-                            <button
-                              type="button"
-                              onClick={fetchModels}
-                              disabled={fetchingModels || !editorModel?.providerId}
-                              className="rounded-md border border-fg/10 p-1.5 text-fg/45 transition hover:border-fg/20 hover:bg-fg/5 hover:text-fg/85 disabled:opacity-30"
-                              title="Refresh model list"
-                            >
-                              <RefreshCw
-                                className={cn("h-3.5 w-3.5", fetchingModels && "animate-spin")}
-                              />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                    <div className="grid items-start grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                      <FieldBlock label="Display name">
+                        <input
+                          type="text"
+                          value={editorModel.displayName}
+                          onChange={(e) => handleDisplayNameChange(e.target.value)}
+                          placeholder="e.g. My Favorite ChatGPT"
+                          className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-4 py-3 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
+                        />
+                      </FieldBlock>
 
-                      <input
-                        type="text"
-                        value={editorModel.displayName}
-                        onChange={(e) => handleDisplayNameChange(e.target.value)}
-                        placeholder="e.g. My Favorite ChatGPT"
-                        className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-4 py-3 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
-                      />
-
-                      <div className="space-y-3">
+                      <FieldBlock
+                        label={modelIdLabel}
+                        action={
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {fetchedModels.length > 0 && modelFetchEnabledForSelectedProvider && (
+                              <button
+                                type="button"
+                                onClick={() => setIsManualInput(!isManualInput)}
+                                className="rounded-md border border-fg/10 px-2.5 py-1 text-[13px] text-fg/65 transition hover:border-fg/20 hover:bg-fg/5 hover:text-fg/90"
+                              >
+                                {isManualInput ? "Use catalog" : "Enter manually"}
+                              </button>
+                            )}
+                            {modelFetchEnabledForSelectedProvider && (
+                              <button
+                                type="button"
+                                onClick={fetchModels}
+                                disabled={fetchingModels || !editorModel?.providerId}
+                                className="rounded-md border border-fg/10 p-1.5 text-fg/45 transition hover:border-fg/20 hover:bg-fg/5 hover:text-fg/85 disabled:opacity-30"
+                                title="Refresh model list"
+                              >
+                                <RefreshCw
+                                  className={cn("h-3.5 w-3.5", fetchingModels && "animate-spin")}
+                                />
+                              </button>
+                            )}
+                          </div>
+                        }
+                      >
                         {modelFetchEnabledForSelectedProvider &&
                         !isManualInput &&
                         fetchedModels.length > 0 ? (
@@ -1395,7 +1409,7 @@ export function EditModelPage() {
                               )}
                           </>
                         )}
-                      </div>
+                      </FieldBlock>
                     </div>
                   )}
                 </div>
@@ -1438,7 +1452,7 @@ export function EditModelPage() {
 
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
-                  key={editorViewMode}
+                  key={effectiveEditorViewMode}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
@@ -1448,97 +1462,99 @@ export function EditModelPage() {
                   }}
                   className={cn(
                     "space-y-4",
-                    editorViewMode === "simple" && "flex flex-col gap-2 space-y-0",
+                    effectiveEditorViewMode === "simple" && "flex flex-col gap-2 space-y-0",
                   )}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[13px] font-medium text-fg/78">Editor mode</div>
-                      <div className="mt-1 text-[13px] text-fg/45">
-                        Simple starts collapsed. Advanced keeps the current full editor.
+                  {!isMobile && (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[13px] font-medium text-fg/78">Editor mode</div>
+                        <div className="mt-1 text-[13px] text-fg/45">
+                          Simple starts collapsed. Advanced keeps the current full editor.
+                        </div>
+                      </div>
+                      <div className="inline-flex rounded-lg border border-fg/10 bg-fg/4 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditorViewMode("simple")}
+                          className={cn(
+                            "rounded-md px-3 py-1.5 text-[13px] transition",
+                            editorViewMode === "simple"
+                              ? "bg-fg/10 text-fg"
+                              : "text-fg/55 hover:text-fg/82",
+                          )}
+                        >
+                          Simple
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditorViewMode("advanced")}
+                          className={cn(
+                            "rounded-md px-3 py-1.5 text-[13px] transition",
+                            editorViewMode === "advanced"
+                              ? "bg-fg/10 text-fg"
+                              : "text-fg/55 hover:text-fg/82",
+                          )}
+                        >
+                          Advanced
+                        </button>
                       </div>
                     </div>
-                    <div className="inline-flex rounded-lg border border-fg/10 bg-fg/4 p-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditorViewMode("simple")}
-                        className={cn(
-                          "rounded-md px-3 py-1.5 text-[13px] transition",
-                          editorViewMode === "simple"
-                            ? "bg-fg/10 text-fg"
-                            : "text-fg/55 hover:text-fg/82",
-                        )}
-                      >
-                        Simple
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorViewMode("advanced")}
-                        className={cn(
-                          "rounded-md px-3 py-1.5 text-[13px] transition",
-                          editorViewMode === "advanced"
-                            ? "bg-fg/10 text-fg"
-                            : "text-fg/55 hover:text-fg/82",
-                        )}
-                      >
-                        Advanced
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
-                  {editorViewMode === "advanced" ? (
+                  {effectiveEditorViewMode === "advanced" ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={() => setActiveAdvancedPanel("generation")}
-                      className={cn(
-                        "rounded-lg border px-4 py-3 text-left transition",
-                        activeAdvancedPanel === "generation"
-                          ? "border-fg/22 bg-fg/8 text-fg"
-                          : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
+                      <button
+                        type="button"
+                        onClick={() => setActiveAdvancedPanel("generation")}
+                        className={cn(
+                          "rounded-lg border px-4 py-3 text-left transition",
+                          activeAdvancedPanel === "generation"
+                            ? "border-fg/22 bg-fg/8 text-fg"
+                            : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
+                        )}
+                      >
+                        <div className="text-[13px] font-medium">Generation Parameters</div>
+                        <div className="mt-1 text-[13px] text-fg/45">
+                          Temperature, sampling, penalties, and output limits.
+                        </div>
+                      </button>
+
+                      {hasRuntimePanel && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveAdvancedPanel("runtime")}
+                          className={cn(
+                            "rounded-lg border px-4 py-3 text-left transition",
+                            activeAdvancedPanel === "runtime"
+                              ? "border-fg/22 bg-fg/8 text-fg"
+                              : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
+                          )}
+                        >
+                          <div className="text-[13px] font-medium">Runtime</div>
+                          <div className="mt-1 text-[13px] text-fg/45">
+                            {runtimePanelTitle} execution, memory, and hardware controls.
+                          </div>
+                        </button>
                       )}
-                    >
-                      <div className="text-[13px] font-medium">Generation Parameters</div>
-                      <div className="mt-1 text-[13px] text-fg/45">
-                        Temperature, sampling, penalties, and output limits.
-                      </div>
-                    </button>
 
-                    {hasRuntimePanel && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveAdvancedPanel("runtime")}
-                        className={cn(
-                          "rounded-lg border px-4 py-3 text-left transition",
-                          activeAdvancedPanel === "runtime"
-                            ? "border-fg/22 bg-fg/8 text-fg"
-                            : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
-                        )}
-                      >
-                        <div className="text-[13px] font-medium">Runtime</div>
-                        <div className="mt-1 text-[13px] text-fg/45">
-                          {runtimePanelTitle} execution, memory, and hardware controls.
-                        </div>
-                      </button>
-                    )}
-
-                    {showReasoningSection && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveAdvancedPanel("reasoning")}
-                        className={cn(
-                          "rounded-lg border px-4 py-3 text-left transition",
-                          activeAdvancedPanel === "reasoning"
-                            ? "border-fg/22 bg-fg/8 text-fg"
-                            : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
-                        )}
-                      >
-                        <div className="text-[13px] font-medium">Reasoning</div>
-                        <div className="mt-1 text-[13px] text-fg/45">
-                          Thinking mode, effort, and token budget controls.
-                        </div>
-                      </button>
-                    )}
+                      {showReasoningSection && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveAdvancedPanel("reasoning")}
+                          className={cn(
+                            "rounded-lg border px-4 py-3 text-left transition",
+                            activeAdvancedPanel === "reasoning"
+                              ? "border-fg/22 bg-fg/8 text-fg"
+                              : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
+                          )}
+                        >
+                          <div className="text-[13px] font-medium">Reasoning</div>
+                          <div className="mt-1 text-[13px] text-fg/45">
+                            Thinking mode, effort, and token budget controls.
+                          </div>
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -1587,1643 +1603,711 @@ export function EditModelPage() {
 
                   {activeDetailPanel ? (
                     <motion.div
-                      key={`${editorViewMode}-${activeDetailPanel}`}
+                      key={`${effectiveEditorViewMode}-${activeDetailPanel}`}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="pt-1"
-                      style={editorViewMode === "simple" ? { order: simpleDetailOrder } : undefined}
+                      style={
+                        effectiveEditorViewMode === "simple"
+                          ? { order: simpleDetailOrder }
+                          : undefined
+                      }
                     >
-                    <div className="space-y-8">
-                    {/* Generation Parameters */}
-                    {activeDetailPanel === "generation" && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
-                            Generation Parameters
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setShowParameterSupport(true)}
-                            className="text-fg/40 hover:text-fg/60 transition"
-                          >
-                            <Info size={14} />
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3 xl:gap-x-8">
-                          {/* Temperature */}
+                      <div className="space-y-8">
+                        {/* Generation Parameters */}
+                        {activeDetailPanel === "generation" && (
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Temperature
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Higher = more creative
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocs("models", "temperature")}
-                                  className="text-fg/30 hover:text-fg/60 transition"
-                                  aria-label="Help with temperature"
-                                >
-                                  <HelpCircle size={12} />
-                                </button>
-                              </div>
-                              <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                {modelAdvancedDraft.temperature?.toFixed(2) ?? "0.70"}
-                              </span>
-                            </div>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min={ADVANCED_TEMPERATURE_RANGE.min}
-                              max={ADVANCED_TEMPERATURE_RANGE.max}
-                              step={0.01}
-                              value={modelAdvancedDraft.temperature ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                handleTemperatureChange(raw === "" ? null : Number(raw));
-                              }}
-                              placeholder="0.70"
-                              className={numberInputClassName}
-                            />
-                            <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
-                              <span>{ADVANCED_TEMPERATURE_RANGE.min}</span>
-                              <span>{ADVANCED_TEMPERATURE_RANGE.max}</span>
-                            </div>
-                          </div>
-
-                          {/* Top P */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Top P
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Lower = more focused
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocs("models", "top-p")}
-                                  className="text-fg/30 hover:text-fg/60 transition"
-                                  aria-label="Help with top p"
-                                >
-                                  <HelpCircle size={12} />
-                                </button>
-                              </div>
-                              <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                {modelAdvancedDraft.topP?.toFixed(2) ?? "1.00"}
-                              </span>
-                            </div>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min={ADVANCED_TOP_P_RANGE.min}
-                              max={ADVANCED_TOP_P_RANGE.max}
-                              step={0.01}
-                              value={modelAdvancedDraft.topP ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                handleTopPChange(raw === "" ? null : Number(raw));
-                              }}
-                              placeholder="1.00"
-                              className={numberInputClassName}
-                            />
-                            <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
-                              <span>{ADVANCED_TOP_P_RANGE.min}</span>
-                              <span>{ADVANCED_TOP_P_RANGE.max}</span>
-                            </div>
-                          </div>
-
-                          {/* Max Tokens */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Max Output Tokens
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Limit response length
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocs("models", "max-output-tokens")}
-                                  className="text-fg/30 hover:text-fg/60 transition"
-                                  aria-label="Help with max output tokens"
-                                >
-                                  <HelpCircle size={12} />
-                                </button>
-                              </div>
-                              <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                {modelAdvancedDraft.maxOutputTokens
-                                  ? modelAdvancedDraft.maxOutputTokens.toLocaleString()
-                                  : "Auto"}
-                              </span>
-                            </div>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min={ADVANCED_MAX_TOKENS_RANGE.min}
-                              max={ADVANCED_MAX_TOKENS_RANGE.max}
-                              step={1}
-                              value={modelAdvancedDraft.maxOutputTokens || ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                const next = raw === "" ? null : Number(raw);
-                                handleMaxTokensChange(
-                                  next === null || !Number.isFinite(next) || next === 0
-                                    ? null
-                                    : Math.trunc(next),
-                                );
-                              }}
-                              placeholder="Auto"
-                              className={numberInputClassName}
-                            />
-                            <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
-                              <span>Auto</span>
-                              <span>{ADVANCED_MAX_TOKENS_RANGE.max.toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          {/* Top K */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Top K
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Sample from top K tokens
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocs("models", "top-k-if-supported")}
-                                  className="text-fg/30 hover:text-fg/60 transition"
-                                  aria-label="Help with top k"
-                                >
-                                  <HelpCircle size={12} />
-                                </button>
-                              </div>
-                              <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                {modelAdvancedDraft.topK ? modelAdvancedDraft.topK : "Auto"}
-                              </span>
-                            </div>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min={ADVANCED_TOP_K_RANGE.min}
-                              max={ADVANCED_TOP_K_RANGE.max}
-                              step={1}
-                              value={modelAdvancedDraft.topK || ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                const next = raw === "" ? null : Number(raw);
-                                handleTopKChange(
-                                  next === null || !Number.isFinite(next) || next === 0
-                                    ? null
-                                    : Math.trunc(next),
-                                );
-                              }}
-                              placeholder="Auto"
-                              className={numberInputClassName}
-                            />
-                            <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
-                              <span>Auto</span>
-                              <span>{ADVANCED_TOP_K_RANGE.max}</span>
-                            </div>
-                          </div>
-
-                          {/* Penalties - Frequency */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Frequency Penalty
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Reduce word repetition
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocs("models", "frequency-penalty")}
-                                  className="text-fg/30 hover:text-fg/60 transition"
-                                  aria-label="Help with frequency penalty"
-                                >
-                                  <HelpCircle size={12} />
-                                </button>
-                              </div>
-                              <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                {modelAdvancedDraft.frequencyPenalty?.toFixed(2) ?? "0.00"}
-                              </span>
-                            </div>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min={ADVANCED_FREQUENCY_PENALTY_RANGE.min}
-                              max={ADVANCED_FREQUENCY_PENALTY_RANGE.max}
-                              step={0.01}
-                              value={modelAdvancedDraft.frequencyPenalty ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                handleFrequencyPenaltyChange(raw === "" ? null : Number(raw));
-                              }}
-                              placeholder="0.00"
-                              className={numberInputClassName}
-                            />
-                            <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
-                              <span>{ADVANCED_FREQUENCY_PENALTY_RANGE.min}</span>
-                              <span>{ADVANCED_FREQUENCY_PENALTY_RANGE.max}</span>
-                            </div>
-                          </div>
-
-                          {/* Penalties - Presence */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Presence Penalty
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Encourage new topics
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocs("models", "presence-penalty")}
-                                  className="text-fg/30 hover:text-fg/60 transition"
-                                  aria-label="Help with presence penalty"
-                                >
-                                  <HelpCircle size={12} />
-                                </button>
-                              </div>
-                              <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                {modelAdvancedDraft.presencePenalty?.toFixed(2) ?? "0.00"}
-                              </span>
-                            </div>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min={ADVANCED_PRESENCE_PENALTY_RANGE.min}
-                              max={ADVANCED_PRESENCE_PENALTY_RANGE.max}
-                              step={0.01}
-                              value={modelAdvancedDraft.presencePenalty ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                handlePresencePenaltyChange(raw === "" ? null : Number(raw));
-                              }}
-                              placeholder="0.00"
-                              className={numberInputClassName}
-                            />
-                            <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
-                              <span>{ADVANCED_PRESENCE_PENALTY_RANGE.min}</span>
-                              <span>{ADVANCED_PRESENCE_PENALTY_RANGE.max}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Local llama.cpp Settings */}
-                    {activeDetailPanel === "runtime" && isLocalModel && (
-                      <div className="space-y-4">
-                        <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
-                          Local Inference (llama.cpp)
-                        </label>
-
-                        <div className="space-y-6">
-                          {/* 1. Memory & Context */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                  Memory & Context
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Context window and VRAM optimization
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Context Length */}
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="space-y-0.5">
-                                    <span className="block text-[13px] font-medium text-fg/70">
-                                      Context Length
-                                    </span>
-                                    <span className="block text-[13px] text-fg/40">
-                                      Override llama.cpp context window
-                                    </span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => openDocs("models", "context-length")}
-                                    className="text-fg/30 hover:text-fg/60 transition"
-                                    aria-label="Help with context length"
-                                  >
-                                    <HelpCircle size={12} />
-                                  </button>
-                                </div>
-                                <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                  {modelAdvancedDraft.contextLength
-                                    ? modelAdvancedDraft.contextLength.toLocaleString()
-                                    : "Auto"}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,420px)_minmax(260px,1fr)] xl:items-start">
-                                <div className="space-y-3">
-                                  <input
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={ADVANCED_CONTEXT_LENGTH_RANGE.min}
-                                    max={contextLimit}
-                                    step={1}
-                                    value={modelAdvancedDraft.contextLength || ""}
-                                    onChange={(e) => {
-                                      const raw = e.target.value;
-                                      const next = raw === "" ? null : Number(raw);
-                                      handleContextLengthChange(
-                                        next === null || !Number.isFinite(next) || next === 0
-                                          ? null
-                                          : Math.trunc(next),
-                                      );
-                                    }}
-                                    placeholder="Auto"
-                                    className={numberInputClassName}
-                                  />
-                                  <div className="mt-1 flex justify-between px-0.5 text-[13px] text-fg/30">
-                                    <span>Auto</span>
-                                    <span>{contextLimit.toLocaleString()}</span>
-                                  </div>
-                                  {llamaContextLoading && (
-                                    <p className="text-[13px] text-fg/40">
-                                      Calculating memory limits for this model...
-                                    </p>
-                                  )}
-                                  {llamaContextError && (
-                                    <p className="text-[13px] text-warning/80">
-                                      {llamaContextError}
-                                    </p>
-                                  )}
-                                  {showContextWarning && (
-                                    <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-[13px] text-warning/80">
-                                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                                      <span>
-                                        Are you sure? This may not run on your device. We recommend{" "}
-                                        {recommendedContextLength?.toLocaleString()} tokens.
-                                      </span>
-                                    </div>
-                                  )}
-                                  {showContextCritical && (
-                                    <div className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-[13px] text-danger/80">
-                                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                                      <span>
-                                        This model likely won&apos;t fit in memory on your device.
-                                        Try a smaller model or a much shorter context.
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {(llamaContextInfo ||
-                                  availableRamGiB ||
-                                  availableVramGiB ||
-                                  modelSizeGiB) && (
-                                  <div className="rounded-lg border border-fg/8 bg-fg/4 px-4 py-3 text-[13px] leading-5 text-fg/52">
-                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                      <div>
-                                        <div className="text-fg/38">Max supported</div>
-                                        <div className="font-mono text-fg/78">
-                                          {llamaContextInfo
-                                            ? llamaContextInfo.maxContextLength.toLocaleString()
-                                            : contextLimit.toLocaleString()}
-                                        </div>
-                                      </div>
-                                      {recommendedContextLength !== null && (
-                                        <div>
-                                          <div className="text-fg/38">Recommended</div>
-                                          <div className="font-mono text-fg/78">
-                                            {recommendedContextLength.toLocaleString()}
-                                          </div>
-                                        </div>
-                                      )}
-                                      {availableRamGiB && (
-                                        <div>
-                                          <div className="text-fg/38">Available RAM</div>
-                                          <div className="font-mono text-fg/78">
-                                            {availableRamGiB} GB
-                                          </div>
-                                        </div>
-                                      )}
-                                      {availableVramGiB && (
-                                        <div>
-                                          <div className="text-fg/38">Available VRAM</div>
-                                          <div className="font-mono text-fg/78">
-                                            {availableVramGiB} GB
-                                          </div>
-                                        </div>
-                                      )}
-                                      {modelSizeGiB && (
-                                        <div>
-                                          <div className="text-fg/38">Model size</div>
-                                          <div className="font-mono text-fg/78">
-                                            {modelSizeGiB} GB
-                                          </div>
-                                        </div>
-                                      )}
-                                      <div>
-                                        <div className="text-fg/38">Context cache</div>
-                                        <div className="font-mono text-fg/78">
-                                          {contextCacheLocationLabel}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    {!selectedContextLength &&
-                                      recommendedContextLength &&
-                                      recommendedContextLength > 0 && (
-                                        <p className="mt-3 border-t border-fg/8 pt-3">
-                                          Auto will use the recommended context length.
-                                        </p>
-                                      )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    KV Cache Type
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Quantize KV cache to save VRAM
-                                  </span>
-                                </div>
-                                <select
-                                  value={modelAdvancedDraft.llamaKvType ?? "auto"}
-                                  onChange={(e) =>
-                                    handleLlamaKvTypeChange(
-                                      e.target.value === "auto"
-                                        ? null
-                                        : (e.target.value as NonNullable<
-                                            typeof modelAdvancedDraft.llamaKvType
-                                          >),
-                                    )
-                                  }
-                                  className={selectInputClassName}
-                                >
-                                  {LLAMA_KV_TYPE_OPTIONS.map((option) => (
-                                    <option
-                                      key={option.value}
-                                      value={option.value}
-                                      className="bg-[#16171d]"
-                                    >
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Offload KQV
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    KV cache &amp; KQV ops on GPU
-                                  </span>
-                                </div>
-                                <select
-                                  value={
-                                    modelAdvancedDraft.llamaOffloadKqv === null ||
-                                    modelAdvancedDraft.llamaOffloadKqv === undefined
-                                      ? "auto"
-                                      : modelAdvancedDraft.llamaOffloadKqv
-                                        ? "on"
-                                        : "off"
-                                  }
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    handleLlamaOffloadKqvChange(
-                                      val === "auto" ? null : val === "on",
-                                    );
-                                  }}
-                                  className={selectInputClassName}
-                                >
-                                  <option value="auto" className="bg-[#16171d]">
-                                    Auto
-                                  </option>
-                                  <option value="on" className="bg-[#16171d]">
-                                    On
-                                  </option>
-                                  <option value="off" className="bg-[#16171d]">
-                                    Off
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    RoPE Base
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Frequency base override
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_LLAMA_ROPE_FREQ_BASE_RANGE.min}
-                                  max={ADVANCED_LLAMA_ROPE_FREQ_BASE_RANGE.max}
-                                  step={0.1}
-                                  value={modelAdvancedDraft.llamaRopeFreqBase ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleLlamaRopeFreqBaseChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    RoPE Scale
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Frequency scale override
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_LLAMA_ROPE_FREQ_SCALE_RANGE.min}
-                                  max={ADVANCED_LLAMA_ROPE_FREQ_SCALE_RANGE.max}
-                                  step={0.01}
-                                  value={modelAdvancedDraft.llamaRopeFreqScale ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleLlamaRopeFreqScaleChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 2. Performance */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                  Performance
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Hardware acceleration and threading
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-3 rounded-xl border border-fg/10 bg-surface-el/10 p-3">
-                              <span className="block text-[13px] font-medium text-fg/70">
-                                Quick Presets
-                              </span>
-                              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                                <button
-                                  type="button"
-                                  onClick={() => applyLlamaPreset("balanced")}
-                                  className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
-                                >
-                                  Balanced
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => applyLlamaPreset("throughput")}
-                                  className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
-                                >
-                                  Throughput
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => applyLlamaPreset("vram")}
-                                  className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
-                                >
-                                  VRAM Saver
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => applyLlamaPreset("cpu_ram")}
-                                  className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
-                                >
-                                  CPU + RAM
-                                </button>
-                              </div>
-                              {selectedLlamaQuickPreset && (
-                                <div className="flex flex-wrap gap-2 border-t border-fg/8 pt-3">
-                                  {LLAMA_QUICK_PRESET_DETAILS[selectedLlamaQuickPreset].map(
-                                    (detail) => (
-                                      <span
-                                        key={detail}
-                                        className="rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1 text-[13px] text-fg/62"
-                                      >
-                                        {detail}
-                                      </span>
-                                    ),
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    GPU Layers
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Offload layers to GPU (0 = CPU only)
-                                  </span>
-                                </div>
-                                <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
-                                  {modelAdvancedDraft.llamaGpuLayers !== null &&
-                                  modelAdvancedDraft.llamaGpuLayers !== undefined
-                                    ? modelAdvancedDraft.llamaGpuLayers
-                                    : "Auto"}
-                                </span>
-                              </div>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={ADVANCED_LLAMA_GPU_LAYERS_RANGE.min}
-                                max={ADVANCED_LLAMA_GPU_LAYERS_RANGE.max}
-                                step={1}
-                                value={modelAdvancedDraft.llamaGpuLayers ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const next = raw === "" ? null : Number(raw);
-                                  handleLlamaGpuLayersChange(
-                                    next === null || !Number.isFinite(next) || next < 0
-                                      ? null
-                                      : Math.trunc(next),
-                                  );
-                                }}
-                                placeholder="Auto"
-                                className={numberInputClassName}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Threads
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Inference</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_LLAMA_THREADS_RANGE.min}
-                                  max={ADVANCED_LLAMA_THREADS_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.llamaThreads ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleLlamaThreadsChange(
-                                      next === null || !Number.isFinite(next) || next <= 0
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Batch Threads
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Processing</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_LLAMA_THREADS_BATCH_RANGE.min}
-                                  max={ADVANCED_LLAMA_THREADS_BATCH_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.llamaThreadsBatch ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleLlamaThreadsBatchChange(
-                                      next === null || !Number.isFinite(next) || next <= 0
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Batch Size
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Prompt chunk</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_LLAMA_BATCH_SIZE_RANGE.min}
-                                  max={ADVANCED_LLAMA_BATCH_SIZE_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.llamaBatchSize ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleLlamaBatchSizeChange(
-                                      next === null || !Number.isFinite(next) || next <= 0
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="512"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Flash Attention
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Optimization</span>
-                                </div>
-                                <select
-                                  value={modelAdvancedDraft.llamaFlashAttention ?? "auto"}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    handleLlamaFlashAttentionChange(
-                                      val === "auto" ? null : (val as "enabled" | "disabled"),
-                                    );
-                                  }}
-                                  className={selectInputClassName}
-                                >
-                                  <option value="auto" className="bg-[#16171d]">
-                                    Auto
-                                  </option>
-                                  <option value="enabled" className="bg-[#16171d]">
-                                    Enabled
-                                  </option>
-                                  <option value="disabled" className="bg-[#16171d]">
-                                    Disabled
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 3. Sampling & Quality */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                  Sampling & Quality
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Local-only sampler overrides
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Sampler Profile
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Tuned local defaults for stability or reasoning
-                                </span>
-                              </div>
-                              <select
-                                value={selectedSamplerProfile}
-                                onChange={(e) =>
-                                  handleLlamaSamplerProfileChange(
-                                    e.target.value as
-                                      | "balanced"
-                                      | "creative"
-                                      | "stable"
-                                      | "reasoning",
-                                  )
-                                }
-                                className={selectInputClassName}
-                              >
-                                {LLAMA_SAMPLER_PROFILE_OPTIONS.map((option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                    className="bg-[#16171d]"
-                                  >
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="flex flex-wrap gap-2 pt-1">
-                                {LLAMA_SAMPLER_PROFILE_DETAILS[selectedSamplerProfile].map(
-                                  (detail) => (
-                                    <span
-                                      key={detail}
-                                      className="rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1 text-[13px] text-fg/62"
-                                    >
-                                      {detail}
-                                    </span>
-                                  ),
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Min P
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Local override
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={0}
-                                  max={1}
-                                  step="0.01"
-                                  value={modelAdvancedDraft.llamaMinP ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value.trim();
-                                    handleLlamaMinPChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Default"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Typical P
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Local override
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={0}
-                                  max={1}
-                                  step="0.01"
-                                  value={modelAdvancedDraft.llamaTypicalP ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value.trim();
-                                    handleLlamaTypicalPChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Default"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Seed
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Leave blank for random
-                                </span>
-                              </div>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={ADVANCED_LLAMA_SEED_RANGE.min}
-                                max={ADVANCED_LLAMA_SEED_RANGE.max}
-                                step={1}
-                                value={modelAdvancedDraft.llamaSeed ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const next = raw === "" ? null : Number(raw);
-                                  handleLlamaSeedChange(
-                                    next === null || !Number.isFinite(next) || next < 0
-                                      ? null
-                                      : Math.trunc(next),
-                                  );
-                                }}
-                                placeholder="Random"
-                                className={numberInputClassName}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 4. Chat Templates */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                  Prompting & Templates
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Format controls and fallbacks
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Template Override
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Jinja template or internal name
-                                </span>
-                              </div>
-                              <textarea
-                                value={modelAdvancedDraft.llamaChatTemplateOverride ?? ""}
-                                onChange={(e) =>
-                                  handleLlamaChatTemplateOverrideChange(
-                                    e.target.value === "" ? null : e.target.value,
-                                  )
-                                }
-                                rows={2}
-                                placeholder="Prefer embedded GGUF template"
-                                className={selectInputClassName}
-                              />
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Template Preset
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Fallback if GGUF has no template
-                                </span>
-                              </div>
-                              <select
-                                value={modelAdvancedDraft.llamaChatTemplatePreset ?? "auto"}
-                                onChange={(e) =>
-                                  handleLlamaChatTemplatePresetChange(
-                                    e.target.value === "auto" ? null : e.target.value,
-                                  )
-                                }
-                                className={selectInputClassName}
-                              >
-                                {LLAMA_CHAT_TEMPLATE_PRESET_OPTIONS.map((option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                    className="bg-[#16171d]"
-                                  >
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Raw Completion Fallback
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Only for raw-tuned models
-                                </span>
-                              </div>
-                              <select
-                                value={
-                                  modelAdvancedDraft.llamaRawCompletionFallback === true
-                                    ? "enabled"
-                                    : modelAdvancedDraft.llamaRawCompletionFallback === false
-                                      ? "disabled"
-                                      : "default"
-                                }
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  handleLlamaRawCompletionFallbackChange(
-                                    val === "default" ? null : val === "enabled",
-                                  );
-                                }}
-                                className={selectInputClassName}
-                              >
-                                <option value="default" className="bg-[#16171d]">
-                                  Default (disabled)
-                                </option>
-                                <option value="enabled" className="bg-[#16171d]">
-                                  Enabled
-                                </option>
-                                <option value="disabled" className="bg-[#16171d]">
-                                  Disabled
-                                </option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Ollama Settings */}
-                    {activeDetailPanel === "runtime" && isOllamaModel && (
-                      <div className="space-y-4">
-                        <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
-                          Local Inference (Ollama)
-                        </label>
-
-                        <div className="space-y-6">
-                          {/* 1. Memory & Tokens */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                Memory & Tokens
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Context Length
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Num Ctx</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_OLLAMA_NUM_CTX_RANGE.min}
-                                  max={ADVANCED_OLLAMA_NUM_CTX_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.ollamaNumCtx ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleOllamaNumCtxChange(
-                                      next === null || !Number.isFinite(next) || next < 0
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Max Predict
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Num Predict</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_OLLAMA_NUM_PREDICT_RANGE.min}
-                                  max={ADVANCED_OLLAMA_NUM_PREDICT_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.ollamaNumPredict ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleOllamaNumPredictChange(
-                                      next === null || !Number.isFinite(next) || next < 0
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Num Keep
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Tokens to keep from prompt
-                                </span>
-                              </div>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={ADVANCED_OLLAMA_NUM_KEEP_RANGE.min}
-                                max={ADVANCED_OLLAMA_NUM_KEEP_RANGE.max}
-                                step={1}
-                                value={modelAdvancedDraft.ollamaNumKeep ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const next = raw === "" ? null : Number(raw);
-                                  handleOllamaNumKeepChange(
-                                    next === null || !Number.isFinite(next) || next < 0
-                                      ? null
-                                      : Math.trunc(next),
-                                  );
-                                }}
-                                placeholder="Auto"
-                                className={numberInputClassName}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 2. Performance */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                Performance
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Num GPU
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Layers offload
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_OLLAMA_NUM_GPU_RANGE.min}
-                                  max={ADVANCED_OLLAMA_NUM_GPU_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.ollamaNumGpu ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleOllamaNumGpuChange(
-                                      next === null || !Number.isFinite(next) || next < 0
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Num Thread
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">CPU threads</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={ADVANCED_OLLAMA_NUM_THREAD_RANGE.min}
-                                  max={ADVANCED_OLLAMA_NUM_THREAD_RANGE.max}
-                                  step={1}
-                                  value={modelAdvancedDraft.ollamaNumThread ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const next = raw === "" ? null : Number(raw);
-                                    handleOllamaNumThreadChange(
-                                      next === null || !Number.isFinite(next) || next < 1
-                                        ? null
-                                        : Math.trunc(next),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Num Batch
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Processing batch
-                                </span>
-                              </div>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={ADVANCED_OLLAMA_NUM_BATCH_RANGE.min}
-                                max={ADVANCED_OLLAMA_NUM_BATCH_RANGE.max}
-                                step={1}
-                                value={modelAdvancedDraft.ollamaNumBatch ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const next = raw === "" ? null : Number(raw);
-                                  handleOllamaNumBatchChange(
-                                    next === null || !Number.isFinite(next) || next < 1
-                                      ? null
-                                      : Math.trunc(next),
-                                  );
-                                }}
-                                placeholder="Auto"
-                                className={numberInputClassName}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 3. Sampling */}
-                          <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                Sampling & Penalties
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    TFS Z
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">Tail-free</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_OLLAMA_TFS_Z_RANGE.min}
-                                  max={ADVANCED_OLLAMA_TFS_Z_RANGE.max}
-                                  step={0.01}
-                                  value={modelAdvancedDraft.ollamaTfsZ ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleOllamaTfsZChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Repeat Penalty
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Punish repetition
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_OLLAMA_REPEAT_PENALTY_RANGE.min}
-                                  max={ADVANCED_OLLAMA_REPEAT_PENALTY_RANGE.max}
-                                  step={0.01}
-                                  value={modelAdvancedDraft.ollamaRepeatPenalty ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleOllamaRepeatPenaltyChange(
-                                      raw === "" ? null : Number(raw),
-                                    );
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Min P
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Min-p sampling
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_OLLAMA_MIN_P_RANGE.min}
-                                  max={ADVANCED_OLLAMA_MIN_P_RANGE.max}
-                                  step={0.01}
-                                  value={modelAdvancedDraft.ollamaMinP ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleOllamaMinPChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Typical P
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Typical sampling
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_OLLAMA_TYPICAL_P_RANGE.min}
-                                  max={ADVANCED_OLLAMA_TYPICAL_P_RANGE.max}
-                                  step={0.01}
-                                  value={modelAdvancedDraft.ollamaTypicalP ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleOllamaTypicalPChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Mirostat
-                                </span>
-                                <span className="block text-[13px] text-fg/40">0=off, 1, 2</span>
-                              </div>
-                              <select
-                                value={
-                                  modelAdvancedDraft.ollamaMirostat === null ||
-                                  modelAdvancedDraft.ollamaMirostat === undefined
-                                    ? "auto"
-                                    : modelAdvancedDraft.ollamaMirostat.toString()
-                                }
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  handleOllamaMirostatChange(val === "auto" ? null : Number(val));
-                                }}
-                                className={selectInputClassName}
-                              >
-                                <option value="auto" className="bg-[#16171d]">
-                                  Auto
-                                </option>
-                                <option value="0" className="bg-[#16171d]">
-                                  0 (Off)
-                                </option>
-                                <option value="1" className="bg-[#16171d]">
-                                  1
-                                </option>
-                                <option value="2" className="bg-[#16171d]">
-                                  2
-                                </option>
-                              </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Tau
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Target entropy
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_OLLAMA_MIROSTAT_TAU_RANGE.min}
-                                  max={ADVANCED_OLLAMA_MIROSTAT_TAU_RANGE.max}
-                                  step={0.1}
-                                  value={modelAdvancedDraft.ollamaMirostatTau ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleOllamaMirostatTauChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="space-y-0.5">
-                                  <span className="block text-[13px] font-medium text-fg/70">
-                                    Eta
-                                  </span>
-                                  <span className="block text-[13px] text-fg/40">
-                                    Learning rate
-                                  </span>
-                                </div>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={ADVANCED_OLLAMA_MIROSTAT_ETA_RANGE.min}
-                                  max={ADVANCED_OLLAMA_MIROSTAT_ETA_RANGE.max}
-                                  step={0.01}
-                                  value={modelAdvancedDraft.ollamaMirostatEta ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    handleOllamaMirostatEtaChange(raw === "" ? null : Number(raw));
-                                  }}
-                                  placeholder="Auto"
-                                  className={numberInputClassName}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Seed
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Random if blank
-                                </span>
-                              </div>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={ADVANCED_OLLAMA_SEED_RANGE.min}
-                                max={ADVANCED_OLLAMA_SEED_RANGE.max}
-                                step={1}
-                                value={modelAdvancedDraft.ollamaSeed ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const next = raw === "" ? null : Number(raw);
-                                  handleOllamaSeedChange(
-                                    next === null || !Number.isFinite(next) || next < 0
-                                      ? null
-                                      : Math.trunc(next),
-                                  );
-                                }}
-                                placeholder="Random"
-                                className={numberInputClassName}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 4. Stop Sequences */}
-                          <div className="space-y-4 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
-                            <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
-                              <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                Stop Sequences
-                              </span>
-                            </div>
-                            <textarea
-                              value={ollamaStopText}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                const next = raw
-                                  .split(/[\n,]+/)
-                                  .map((s) => s.trim())
-                                  .filter((s) => s.length > 0);
-                                handleOllamaStopChange(next.length > 0 ? next : null);
-                              }}
-                              placeholder="e.g. \n\n###\nUser:\n"
-                              rows={2}
-                              className={textAreaInputClassName}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reasoning Section (Thinking) */}
-                    {activeDetailPanel === "reasoning" && showReasoningSection && (
-                      <div className="space-y-4">
-                        <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
-                          Reasoning (Thinking)
-                        </label>
-
-                        <div className="space-y-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Brain size={14} className="text-warning" />
-                              <div className="space-y-0.5">
-                                <span className="block text-[13px] font-medium text-fg/70">
-                                  Enabled
-                                </span>
-                                <span className="block text-[13px] text-fg/40">
-                                  Show thinking process
-                                </span>
-                              </div>
+                              <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                                Generation Parameters
+                              </label>
                               <button
                                 type="button"
-                                onClick={() => openDocs("models", "reasoning-mode")}
-                                className="text-fg/30 hover:text-fg/60 transition"
-                                aria-label="Help with reasoning mode"
+                                onClick={() => setShowParameterSupport(true)}
+                                className="text-fg/40 hover:text-fg/60 transition"
                               >
-                                <HelpCircle size={12} />
+                                <Info size={14} />
                               </button>
                             </div>
-                            {!isAutoReasoning && (
-                              <label className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200">
-                                <input
-                                  type="checkbox"
-                                  checked={modelAdvancedDraft.reasoningEnabled || false}
-                                  onChange={(e) => handleReasoningEnabledChange(e.target.checked)}
-                                  className="sr-only"
-                                />
-                                <span
-                                  className={cn(
-                                    "inline-block h-full w-full rounded-full transition-colors duration-200",
-                                    modelAdvancedDraft.reasoningEnabled ? "bg-warning" : "bg-fg/10",
-                                  )}
-                                />
-                                <span
-                                  className={cn(
-                                    "absolute h-3.5 w-3.5 transform rounded-full bg-fg transition-transform duration-200",
-                                    modelAdvancedDraft.reasoningEnabled
-                                      ? "translate-x-4.5"
-                                      : "translate-x-1",
-                                  )}
-                                />
-                              </label>
-                            )}
-                          </div>
 
-                          {(modelAdvancedDraft.reasoningEnabled || isAutoReasoning) && (
-                            <div className="space-y-8 pl-4 border-l border-fg/10 mt-4">
-                              {showEffortOptions && (
-                                <div className="space-y-3">
-                                  <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
-                                    Reasoning Effort
+                            <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3 xl:gap-x-8">
+                              {/* Temperature */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Temperature
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Higher = more creative
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocs("models", "temperature")}
+                                      className="text-fg/30 hover:text-fg/60 transition"
+                                      aria-label="Help with temperature"
+                                    >
+                                      <HelpCircle size={12} />
+                                    </button>
+                                  </div>
+                                  <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                    {modelAdvancedDraft.temperature?.toFixed(2) ?? "0.70"}
                                   </span>
-                                  <div className="grid grid-cols-4 gap-2">
-                                    {([null, "low", "medium", "high"] as const).map((level) => (
-                                      <button
-                                        key={level || "auto"}
-                                        type="button"
-                                        onClick={() => handleReasoningEffortChange(level)}
-                                        className={cn(
-                                          "rounded-lg py-1.5 text-[13px] font-bold uppercase transition",
-                                          modelAdvancedDraft.reasoningEffort === level
-                                            ? "bg-warning/20 text-warning border border-warning/30"
-                                            : "bg-fg/5 text-fg/30 border border-transparent hover:text-fg/50",
-                                        )}
-                                      >
-                                        {level || "auto"}
-                                      </button>
-                                    ))}
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={ADVANCED_TEMPERATURE_RANGE.min}
+                                  max={ADVANCED_TEMPERATURE_RANGE.max}
+                                  step={0.01}
+                                  value={modelAdvancedDraft.temperature ?? ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    handleTemperatureChange(raw === "" ? null : Number(raw));
+                                  }}
+                                  placeholder="0.70"
+                                  className={numberInputClassName}
+                                />
+                                <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
+                                  <span>{ADVANCED_TEMPERATURE_RANGE.min}</span>
+                                  <span>{ADVANCED_TEMPERATURE_RANGE.max}</span>
+                                </div>
+                              </div>
+
+                              {/* Top P */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Top P
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Lower = more focused
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocs("models", "top-p")}
+                                      className="text-fg/30 hover:text-fg/60 transition"
+                                      aria-label="Help with top p"
+                                    >
+                                      <HelpCircle size={12} />
+                                    </button>
+                                  </div>
+                                  <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                    {modelAdvancedDraft.topP?.toFixed(2) ?? "1.00"}
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={ADVANCED_TOP_P_RANGE.min}
+                                  max={ADVANCED_TOP_P_RANGE.max}
+                                  step={0.01}
+                                  value={modelAdvancedDraft.topP ?? ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    handleTopPChange(raw === "" ? null : Number(raw));
+                                  }}
+                                  placeholder="1.00"
+                                  className={numberInputClassName}
+                                />
+                                <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
+                                  <span>{ADVANCED_TOP_P_RANGE.min}</span>
+                                  <span>{ADVANCED_TOP_P_RANGE.max}</span>
+                                </div>
+                              </div>
+
+                              {/* Max Tokens */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Max Output Tokens
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Limit response length
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocs("models", "max-output-tokens")}
+                                      className="text-fg/30 hover:text-fg/60 transition"
+                                      aria-label="Help with max output tokens"
+                                    >
+                                      <HelpCircle size={12} />
+                                    </button>
+                                  </div>
+                                  <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                    {modelAdvancedDraft.maxOutputTokens
+                                      ? modelAdvancedDraft.maxOutputTokens.toLocaleString()
+                                      : "Auto"}
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={ADVANCED_MAX_TOKENS_RANGE.min}
+                                  max={ADVANCED_MAX_TOKENS_RANGE.max}
+                                  step={1}
+                                  value={modelAdvancedDraft.maxOutputTokens || ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const next = raw === "" ? null : Number(raw);
+                                    handleMaxTokensChange(
+                                      next === null || !Number.isFinite(next) || next === 0
+                                        ? null
+                                        : Math.trunc(next),
+                                    );
+                                  }}
+                                  placeholder="Auto"
+                                  className={numberInputClassName}
+                                />
+                                <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
+                                  <span>Auto</span>
+                                  <span>{ADVANCED_MAX_TOKENS_RANGE.max.toLocaleString()}</span>
+                                </div>
+                              </div>
+
+                              {/* Top K */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Top K
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Sample from top K tokens
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocs("models", "top-k-if-supported")}
+                                      className="text-fg/30 hover:text-fg/60 transition"
+                                      aria-label="Help with top k"
+                                    >
+                                      <HelpCircle size={12} />
+                                    </button>
+                                  </div>
+                                  <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                    {modelAdvancedDraft.topK ? modelAdvancedDraft.topK : "Auto"}
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={ADVANCED_TOP_K_RANGE.min}
+                                  max={ADVANCED_TOP_K_RANGE.max}
+                                  step={1}
+                                  value={modelAdvancedDraft.topK || ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const next = raw === "" ? null : Number(raw);
+                                    handleTopKChange(
+                                      next === null || !Number.isFinite(next) || next === 0
+                                        ? null
+                                        : Math.trunc(next),
+                                    );
+                                  }}
+                                  placeholder="Auto"
+                                  className={numberInputClassName}
+                                />
+                                <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
+                                  <span>Auto</span>
+                                  <span>{ADVANCED_TOP_K_RANGE.max}</span>
+                                </div>
+                              </div>
+
+                              {/* Penalties - Frequency */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Frequency Penalty
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Reduce word repetition
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocs("models", "frequency-penalty")}
+                                      className="text-fg/30 hover:text-fg/60 transition"
+                                      aria-label="Help with frequency penalty"
+                                    >
+                                      <HelpCircle size={12} />
+                                    </button>
+                                  </div>
+                                  <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                    {modelAdvancedDraft.frequencyPenalty?.toFixed(2) ?? "0.00"}
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={ADVANCED_FREQUENCY_PENALTY_RANGE.min}
+                                  max={ADVANCED_FREQUENCY_PENALTY_RANGE.max}
+                                  step={0.01}
+                                  value={modelAdvancedDraft.frequencyPenalty ?? ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    handleFrequencyPenaltyChange(raw === "" ? null : Number(raw));
+                                  }}
+                                  placeholder="0.00"
+                                  className={numberInputClassName}
+                                />
+                                <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
+                                  <span>{ADVANCED_FREQUENCY_PENALTY_RANGE.min}</span>
+                                  <span>{ADVANCED_FREQUENCY_PENALTY_RANGE.max}</span>
+                                </div>
+                              </div>
+
+                              {/* Penalties - Presence */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Presence Penalty
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Encourage new topics
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocs("models", "presence-penalty")}
+                                      className="text-fg/30 hover:text-fg/60 transition"
+                                      aria-label="Help with presence penalty"
+                                    >
+                                      <HelpCircle size={12} />
+                                    </button>
+                                  </div>
+                                  <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                    {modelAdvancedDraft.presencePenalty?.toFixed(2) ?? "0.00"}
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={ADVANCED_PRESENCE_PENALTY_RANGE.min}
+                                  max={ADVANCED_PRESENCE_PENALTY_RANGE.max}
+                                  step={0.01}
+                                  value={modelAdvancedDraft.presencePenalty ?? ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    handlePresencePenaltyChange(raw === "" ? null : Number(raw));
+                                  }}
+                                  placeholder="0.00"
+                                  className={numberInputClassName}
+                                />
+                                <div className="flex justify-between text-[13px] text-fg/30 px-0.5 mt-1">
+                                  <span>{ADVANCED_PRESENCE_PENALTY_RANGE.min}</span>
+                                  <span>{ADVANCED_PRESENCE_PENALTY_RANGE.max}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Local llama.cpp Settings */}
+                        {activeDetailPanel === "runtime" && isLocalModel && (
+                          <div className="space-y-4">
+                            <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                              Local Inference (llama.cpp)
+                            </label>
+
+                            <div className="space-y-6">
+                              {/* 1. Memory & Context */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                      Memory & Context
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Context window and VRAM optimization
+                                    </span>
                                   </div>
                                 </div>
-                              )}
 
-                              {(reasoningSupport === "budget-only" ||
-                                reasoningSupport === "dynamic") && (
+                                {/* Context Length */}
                                 <div className="space-y-4">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
-                                      Budget Tokens
+                                    <div className="flex items-center gap-2">
+                                      <div className="space-y-0.5">
+                                        <span className="block text-[13px] font-medium text-fg/70">
+                                          Context Length
+                                        </span>
+                                        <span className="block text-[13px] text-fg/40">
+                                          Override llama.cpp context window
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDocs("models", "context-length")}
+                                        className="text-fg/30 hover:text-fg/60 transition"
+                                        aria-label="Help with context length"
+                                      >
+                                        <HelpCircle size={12} />
+                                      </button>
+                                    </div>
+                                    <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                      {modelAdvancedDraft.contextLength
+                                        ? modelAdvancedDraft.contextLength.toLocaleString()
+                                        : "Auto"}
                                     </span>
-                                    <span className="font-mono text-[13px] text-warning">
-                                      {modelAdvancedDraft.reasoningBudgetTokens
-                                        ? modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,420px)_minmax(260px,1fr)] xl:items-start">
+                                    <div className="space-y-3">
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={ADVANCED_CONTEXT_LENGTH_RANGE.min}
+                                        max={contextLimit}
+                                        step={1}
+                                        value={modelAdvancedDraft.contextLength || ""}
+                                        onChange={(e) => {
+                                          const raw = e.target.value;
+                                          const next = raw === "" ? null : Number(raw);
+                                          handleContextLengthChange(
+                                            next === null || !Number.isFinite(next) || next === 0
+                                              ? null
+                                              : Math.trunc(next),
+                                          );
+                                        }}
+                                        placeholder="Auto"
+                                        className={numberInputClassName}
+                                      />
+                                      <div className="mt-1 flex justify-between px-0.5 text-[13px] text-fg/30">
+                                        <span>Auto</span>
+                                        <span>{contextLimit.toLocaleString()}</span>
+                                      </div>
+                                      {llamaContextLoading && (
+                                        <p className="text-[13px] text-fg/40">
+                                          Calculating memory limits for this model...
+                                        </p>
+                                      )}
+                                      {llamaContextError && (
+                                        <p className="text-[13px] text-warning/80">
+                                          {llamaContextError}
+                                        </p>
+                                      )}
+                                      {showContextWarning && (
+                                        <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-[13px] text-warning/80">
+                                          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                                          <span>
+                                            Are you sure? This may not run on your device. We
+                                            recommend {recommendedContextLength?.toLocaleString()}{" "}
+                                            tokens.
+                                          </span>
+                                        </div>
+                                      )}
+                                      {showContextCritical && (
+                                        <div className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-[13px] text-danger/80">
+                                          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                                          <span>
+                                            This model likely won&apos;t fit in memory on your
+                                            device. Try a smaller model or a much shorter context.
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {(llamaContextInfo ||
+                                      availableRamGiB ||
+                                      availableVramGiB ||
+                                      modelSizeGiB) && (
+                                      <div className="rounded-lg border border-fg/8 bg-fg/4 px-4 py-3 text-[13px] leading-5 text-fg/52">
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                          <div>
+                                            <div className="text-fg/38">Max supported</div>
+                                            <div className="font-mono text-fg/78">
+                                              {llamaContextInfo
+                                                ? llamaContextInfo.maxContextLength.toLocaleString()
+                                                : contextLimit.toLocaleString()}
+                                            </div>
+                                          </div>
+                                          {recommendedContextLength !== null && (
+                                            <div>
+                                              <div className="text-fg/38">Recommended</div>
+                                              <div className="font-mono text-fg/78">
+                                                {recommendedContextLength.toLocaleString()}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {availableRamGiB && (
+                                            <div>
+                                              <div className="text-fg/38">Available RAM</div>
+                                              <div className="font-mono text-fg/78">
+                                                {availableRamGiB} GB
+                                              </div>
+                                            </div>
+                                          )}
+                                          {availableVramGiB && (
+                                            <div>
+                                              <div className="text-fg/38">Available VRAM</div>
+                                              <div className="font-mono text-fg/78">
+                                                {availableVramGiB} GB
+                                              </div>
+                                            </div>
+                                          )}
+                                          {modelSizeGiB && (
+                                            <div>
+                                              <div className="text-fg/38">Model size</div>
+                                              <div className="font-mono text-fg/78">
+                                                {modelSizeGiB} GB
+                                              </div>
+                                            </div>
+                                          )}
+                                          <div>
+                                            <div className="text-fg/38">Context cache</div>
+                                            <div className="font-mono text-fg/78">
+                                              {contextCacheLocationLabel}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        {!selectedContextLength &&
+                                          recommendedContextLength &&
+                                          recommendedContextLength > 0 && (
+                                            <p className="mt-3 border-t border-fg/8 pt-3">
+                                              Auto will use the recommended context length.
+                                            </p>
+                                          )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        KV Cache Type
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Quantize KV cache to save VRAM
+                                      </span>
+                                    </div>
+                                    <select
+                                      value={modelAdvancedDraft.llamaKvType ?? "auto"}
+                                      onChange={(e) =>
+                                        handleLlamaKvTypeChange(
+                                          e.target.value === "auto"
+                                            ? null
+                                            : (e.target.value as NonNullable<
+                                                typeof modelAdvancedDraft.llamaKvType
+                                              >),
+                                        )
+                                      }
+                                      className={selectInputClassName}
+                                    >
+                                      {LLAMA_KV_TYPE_OPTIONS.map((option) => (
+                                        <option
+                                          key={option.value}
+                                          value={option.value}
+                                          className="bg-[#16171d]"
+                                        >
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Offload KQV
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        KV cache &amp; KQV ops on GPU
+                                      </span>
+                                    </div>
+                                    <select
+                                      value={
+                                        modelAdvancedDraft.llamaOffloadKqv === null ||
+                                        modelAdvancedDraft.llamaOffloadKqv === undefined
+                                          ? "auto"
+                                          : modelAdvancedDraft.llamaOffloadKqv
+                                            ? "on"
+                                            : "off"
+                                      }
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        handleLlamaOffloadKqvChange(
+                                          val === "auto" ? null : val === "on",
+                                        );
+                                      }}
+                                      className={selectInputClassName}
+                                    >
+                                      <option value="auto" className="bg-[#16171d]">
+                                        Auto
+                                      </option>
+                                      <option value="on" className="bg-[#16171d]">
+                                        On
+                                      </option>
+                                      <option value="off" className="bg-[#16171d]">
+                                        Off
+                                      </option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        RoPE Base
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Frequency base override
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_LLAMA_ROPE_FREQ_BASE_RANGE.min}
+                                      max={ADVANCED_LLAMA_ROPE_FREQ_BASE_RANGE.max}
+                                      step={0.1}
+                                      value={modelAdvancedDraft.llamaRopeFreqBase ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleLlamaRopeFreqBaseChange(
+                                          raw === "" ? null : Number(raw),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        RoPE Scale
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Frequency scale override
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_LLAMA_ROPE_FREQ_SCALE_RANGE.min}
+                                      max={ADVANCED_LLAMA_ROPE_FREQ_SCALE_RANGE.max}
+                                      step={0.01}
+                                      value={modelAdvancedDraft.llamaRopeFreqScale ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleLlamaRopeFreqScaleChange(
+                                          raw === "" ? null : Number(raw),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 2. Performance */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                      Performance
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Hardware acceleration and threading
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3 rounded-xl border border-fg/10 bg-surface-el/10 p-3">
+                                  <span className="block text-[13px] font-medium text-fg/70">
+                                    Quick Presets
+                                  </span>
+                                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => applyLlamaPreset("balanced")}
+                                      className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
+                                    >
+                                      Balanced
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => applyLlamaPreset("throughput")}
+                                      className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
+                                    >
+                                      Throughput
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => applyLlamaPreset("vram")}
+                                      className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
+                                    >
+                                      VRAM Saver
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => applyLlamaPreset("cpu_ram")}
+                                      className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
+                                    >
+                                      CPU + RAM
+                                    </button>
+                                  </div>
+                                  {selectedLlamaQuickPreset && (
+                                    <div className="flex flex-wrap gap-2 border-t border-fg/8 pt-3">
+                                      {LLAMA_QUICK_PRESET_DETAILS[selectedLlamaQuickPreset].map(
+                                        (detail) => (
+                                          <span
+                                            key={detail}
+                                            className="rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1 text-[13px] text-fg/62"
+                                          >
+                                            {detail}
+                                          </span>
+                                        ),
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        GPU Layers
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Offload layers to GPU (0 = CPU only)
+                                      </span>
+                                    </div>
+                                    <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
+                                      {modelAdvancedDraft.llamaGpuLayers !== null &&
+                                      modelAdvancedDraft.llamaGpuLayers !== undefined
+                                        ? modelAdvancedDraft.llamaGpuLayers
                                         : "Auto"}
                                     </span>
                                   </div>
                                   <input
                                     type="number"
                                     inputMode="numeric"
-                                    min={ADVANCED_REASONING_BUDGET_RANGE.min}
-                                    max={ADVANCED_REASONING_BUDGET_RANGE.max}
-                                    step={1024}
-                                    value={modelAdvancedDraft.reasoningBudgetTokens || ""}
+                                    min={ADVANCED_LLAMA_GPU_LAYERS_RANGE.min}
+                                    max={ADVANCED_LLAMA_GPU_LAYERS_RANGE.max}
+                                    step={1}
+                                    value={modelAdvancedDraft.llamaGpuLayers ?? ""}
                                     onChange={(e) => {
                                       const raw = e.target.value;
                                       const next = raw === "" ? null : Number(raw);
-                                      handleReasoningBudgetChange(
-                                        next === null || !Number.isFinite(next) || next === 0
+                                      handleLlamaGpuLayersChange(
+                                        next === null || !Number.isFinite(next) || next < 0
                                           ? null
                                           : Math.trunc(next),
                                       );
@@ -3232,96 +2316,1063 @@ export function EditModelPage() {
                                     className={numberInputClassName}
                                   />
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Threads
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Inference
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_LLAMA_THREADS_RANGE.min}
+                                      max={ADVANCED_LLAMA_THREADS_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.llamaThreads ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleLlamaThreadsChange(
+                                          next === null || !Number.isFinite(next) || next <= 0
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Batch Threads
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Processing
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_LLAMA_THREADS_BATCH_RANGE.min}
+                                      max={ADVANCED_LLAMA_THREADS_BATCH_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.llamaThreadsBatch ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleLlamaThreadsBatchChange(
+                                          next === null || !Number.isFinite(next) || next <= 0
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Batch Size
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Prompt chunk
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_LLAMA_BATCH_SIZE_RANGE.min}
+                                      max={ADVANCED_LLAMA_BATCH_SIZE_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.llamaBatchSize ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleLlamaBatchSizeChange(
+                                          next === null || !Number.isFinite(next) || next <= 0
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="512"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Flash Attention
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Optimization
+                                      </span>
+                                    </div>
+                                    <select
+                                      value={modelAdvancedDraft.llamaFlashAttention ?? "auto"}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        handleLlamaFlashAttentionChange(
+                                          val === "auto" ? null : (val as "enabled" | "disabled"),
+                                        );
+                                      }}
+                                      className={selectInputClassName}
+                                    >
+                                      <option value="auto" className="bg-[#16171d]">
+                                        Auto
+                                      </option>
+                                      <option value="enabled" className="bg-[#16171d]">
+                                        Enabled
+                                      </option>
+                                      <option value="disabled" className="bg-[#16171d]">
+                                        Disabled
+                                      </option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 3. Sampling & Quality */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                      Sampling & Quality
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Local-only sampler overrides
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Sampler Profile
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Tuned local defaults for stability or reasoning
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={selectedSamplerProfile}
+                                    onChange={(e) =>
+                                      handleLlamaSamplerProfileChange(
+                                        e.target.value as
+                                          | "balanced"
+                                          | "creative"
+                                          | "stable"
+                                          | "reasoning",
+                                      )
+                                    }
+                                    className={selectInputClassName}
+                                  >
+                                    {LLAMA_SAMPLER_PROFILE_OPTIONS.map((option) => (
+                                      <option
+                                        key={option.value}
+                                        value={option.value}
+                                        className="bg-[#16171d]"
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <div className="flex flex-wrap gap-2 pt-1">
+                                    {LLAMA_SAMPLER_PROFILE_DETAILS[selectedSamplerProfile].map(
+                                      (detail) => (
+                                        <span
+                                          key={detail}
+                                          className="rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1 text-[13px] text-fg/62"
+                                        >
+                                          {detail}
+                                        </span>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Min P
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Local override
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      max={1}
+                                      step="0.01"
+                                      value={modelAdvancedDraft.llamaMinP ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value.trim();
+                                        handleLlamaMinPChange(raw === "" ? null : Number(raw));
+                                      }}
+                                      placeholder="Default"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Typical P
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Local override
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      max={1}
+                                      step="0.01"
+                                      value={modelAdvancedDraft.llamaTypicalP ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value.trim();
+                                        handleLlamaTypicalPChange(raw === "" ? null : Number(raw));
+                                      }}
+                                      placeholder="Default"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Seed
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Leave blank for random
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={ADVANCED_LLAMA_SEED_RANGE.min}
+                                    max={ADVANCED_LLAMA_SEED_RANGE.max}
+                                    step={1}
+                                    value={modelAdvancedDraft.llamaSeed ?? ""}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const next = raw === "" ? null : Number(raw);
+                                      handleLlamaSeedChange(
+                                        next === null || !Number.isFinite(next) || next < 0
+                                          ? null
+                                          : Math.trunc(next),
+                                      );
+                                    }}
+                                    placeholder="Random"
+                                    className={numberInputClassName}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* 4. Chat Templates */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                      Prompting & Templates
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Format controls and fallbacks
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Template Override
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Jinja template or internal name
+                                    </span>
+                                  </div>
+                                  <textarea
+                                    value={modelAdvancedDraft.llamaChatTemplateOverride ?? ""}
+                                    onChange={(e) =>
+                                      handleLlamaChatTemplateOverrideChange(
+                                        e.target.value === "" ? null : e.target.value,
+                                      )
+                                    }
+                                    rows={2}
+                                    placeholder="Prefer embedded GGUF template"
+                                    className={selectInputClassName}
+                                  />
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Template Preset
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Fallback if GGUF has no template
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={modelAdvancedDraft.llamaChatTemplatePreset ?? "auto"}
+                                    onChange={(e) =>
+                                      handleLlamaChatTemplatePresetChange(
+                                        e.target.value === "auto" ? null : e.target.value,
+                                      )
+                                    }
+                                    className={selectInputClassName}
+                                  >
+                                    {LLAMA_CHAT_TEMPLATE_PRESET_OPTIONS.map((option) => (
+                                      <option
+                                        key={option.value}
+                                        value={option.value}
+                                        className="bg-[#16171d]"
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Raw Completion Fallback
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Only for raw-tuned models
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={
+                                      modelAdvancedDraft.llamaRawCompletionFallback === true
+                                        ? "enabled"
+                                        : modelAdvancedDraft.llamaRawCompletionFallback === false
+                                          ? "disabled"
+                                          : "default"
+                                    }
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      handleLlamaRawCompletionFallbackChange(
+                                        val === "default" ? null : val === "enabled",
+                                      );
+                                    }}
+                                    className={selectInputClassName}
+                                  >
+                                    <option value="default" className="bg-[#16171d]">
+                                      Default (disabled)
+                                    </option>
+                                    <option value="enabled" className="bg-[#16171d]">
+                                      Enabled
+                                    </option>
+                                    <option value="disabled" className="bg-[#16171d]">
+                                      Disabled
+                                    </option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ollama Settings */}
+                        {activeDetailPanel === "runtime" && isOllamaModel && (
+                          <div className="space-y-4">
+                            <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                              Local Inference (Ollama)
+                            </label>
+
+                            <div className="space-y-6">
+                              {/* 1. Memory & Tokens */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                    Memory & Tokens
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Context Length
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">Num Ctx</span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_OLLAMA_NUM_CTX_RANGE.min}
+                                      max={ADVANCED_OLLAMA_NUM_CTX_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.ollamaNumCtx ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleOllamaNumCtxChange(
+                                          next === null || !Number.isFinite(next) || next < 0
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Max Predict
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Num Predict
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_OLLAMA_NUM_PREDICT_RANGE.min}
+                                      max={ADVANCED_OLLAMA_NUM_PREDICT_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.ollamaNumPredict ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleOllamaNumPredictChange(
+                                          next === null || !Number.isFinite(next) || next < 0
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Num Keep
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Tokens to keep from prompt
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={ADVANCED_OLLAMA_NUM_KEEP_RANGE.min}
+                                    max={ADVANCED_OLLAMA_NUM_KEEP_RANGE.max}
+                                    step={1}
+                                    value={modelAdvancedDraft.ollamaNumKeep ?? ""}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const next = raw === "" ? null : Number(raw);
+                                      handleOllamaNumKeepChange(
+                                        next === null || !Number.isFinite(next) || next < 0
+                                          ? null
+                                          : Math.trunc(next),
+                                      );
+                                    }}
+                                    placeholder="Auto"
+                                    className={numberInputClassName}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* 2. Performance */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                    Performance
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Num GPU
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Layers offload
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_OLLAMA_NUM_GPU_RANGE.min}
+                                      max={ADVANCED_OLLAMA_NUM_GPU_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.ollamaNumGpu ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleOllamaNumGpuChange(
+                                          next === null || !Number.isFinite(next) || next < 0
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Num Thread
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        CPU threads
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={ADVANCED_OLLAMA_NUM_THREAD_RANGE.min}
+                                      max={ADVANCED_OLLAMA_NUM_THREAD_RANGE.max}
+                                      step={1}
+                                      value={modelAdvancedDraft.ollamaNumThread ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const next = raw === "" ? null : Number(raw);
+                                        handleOllamaNumThreadChange(
+                                          next === null || !Number.isFinite(next) || next < 1
+                                            ? null
+                                            : Math.trunc(next),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Num Batch
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Processing batch
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={ADVANCED_OLLAMA_NUM_BATCH_RANGE.min}
+                                    max={ADVANCED_OLLAMA_NUM_BATCH_RANGE.max}
+                                    step={1}
+                                    value={modelAdvancedDraft.ollamaNumBatch ?? ""}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const next = raw === "" ? null : Number(raw);
+                                      handleOllamaNumBatchChange(
+                                        next === null || !Number.isFinite(next) || next < 1
+                                          ? null
+                                          : Math.trunc(next),
+                                      );
+                                    }}
+                                    placeholder="Auto"
+                                    className={numberInputClassName}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* 3. Sampling */}
+                              <div className="space-y-6 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                    Sampling & Penalties
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        TFS Z
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Tail-free
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_OLLAMA_TFS_Z_RANGE.min}
+                                      max={ADVANCED_OLLAMA_TFS_Z_RANGE.max}
+                                      step={0.01}
+                                      value={modelAdvancedDraft.ollamaTfsZ ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleOllamaTfsZChange(raw === "" ? null : Number(raw));
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Repeat Penalty
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Punish repetition
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_OLLAMA_REPEAT_PENALTY_RANGE.min}
+                                      max={ADVANCED_OLLAMA_REPEAT_PENALTY_RANGE.max}
+                                      step={0.01}
+                                      value={modelAdvancedDraft.ollamaRepeatPenalty ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleOllamaRepeatPenaltyChange(
+                                          raw === "" ? null : Number(raw),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Min P
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Min-p sampling
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_OLLAMA_MIN_P_RANGE.min}
+                                      max={ADVANCED_OLLAMA_MIN_P_RANGE.max}
+                                      step={0.01}
+                                      value={modelAdvancedDraft.ollamaMinP ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleOllamaMinPChange(raw === "" ? null : Number(raw));
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Typical P
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Typical sampling
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_OLLAMA_TYPICAL_P_RANGE.min}
+                                      max={ADVANCED_OLLAMA_TYPICAL_P_RANGE.max}
+                                      step={0.01}
+                                      value={modelAdvancedDraft.ollamaTypicalP ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleOllamaTypicalPChange(raw === "" ? null : Number(raw));
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Mirostat
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      0=off, 1, 2
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={
+                                      modelAdvancedDraft.ollamaMirostat === null ||
+                                      modelAdvancedDraft.ollamaMirostat === undefined
+                                        ? "auto"
+                                        : modelAdvancedDraft.ollamaMirostat.toString()
+                                    }
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      handleOllamaMirostatChange(
+                                        val === "auto" ? null : Number(val),
+                                      );
+                                    }}
+                                    className={selectInputClassName}
+                                  >
+                                    <option value="auto" className="bg-[#16171d]">
+                                      Auto
+                                    </option>
+                                    <option value="0" className="bg-[#16171d]">
+                                      0 (Off)
+                                    </option>
+                                    <option value="1" className="bg-[#16171d]">
+                                      1
+                                    </option>
+                                    <option value="2" className="bg-[#16171d]">
+                                      2
+                                    </option>
+                                  </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Tau
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Target entropy
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_OLLAMA_MIROSTAT_TAU_RANGE.min}
+                                      max={ADVANCED_OLLAMA_MIROSTAT_TAU_RANGE.max}
+                                      step={0.1}
+                                      value={modelAdvancedDraft.ollamaMirostatTau ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleOllamaMirostatTauChange(
+                                          raw === "" ? null : Number(raw),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Eta
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Learning rate
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={ADVANCED_OLLAMA_MIROSTAT_ETA_RANGE.min}
+                                      max={ADVANCED_OLLAMA_MIROSTAT_ETA_RANGE.max}
+                                      step={0.01}
+                                      value={modelAdvancedDraft.ollamaMirostatEta ?? ""}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        handleOllamaMirostatEtaChange(
+                                          raw === "" ? null : Number(raw),
+                                        );
+                                      }}
+                                      placeholder="Auto"
+                                      className={numberInputClassName}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Seed
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Random if blank
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={ADVANCED_OLLAMA_SEED_RANGE.min}
+                                    max={ADVANCED_OLLAMA_SEED_RANGE.max}
+                                    step={1}
+                                    value={modelAdvancedDraft.ollamaSeed ?? ""}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const next = raw === "" ? null : Number(raw);
+                                      handleOllamaSeedChange(
+                                        next === null || !Number.isFinite(next) || next < 0
+                                          ? null
+                                          : Math.trunc(next),
+                                      );
+                                    }}
+                                    placeholder="Random"
+                                    className={numberInputClassName}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* 4. Stop Sequences */}
+                              <div className="space-y-4 rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-2 border-l-2 border-accent/30 pl-3">
+                                  <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
+                                    Stop Sequences
+                                  </span>
+                                </div>
+                                <textarea
+                                  value={ollamaStopText}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const next = raw
+                                      .split(/[\n,]+/)
+                                      .map((s) => s.trim())
+                                      .filter((s) => s.length > 0);
+                                    handleOllamaStopChange(next.length > 0 ? next : null);
+                                  }}
+                                  placeholder="e.g. \n\n###\nUser:\n"
+                                  rows={2}
+                                  className={textAreaInputClassName}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Reasoning Section (Thinking) */}
+                        {activeDetailPanel === "reasoning" && showReasoningSection && (
+                          <div className="space-y-4">
+                            <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                              Reasoning (Thinking)
+                            </label>
+
+                            <div className="space-y-6">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Brain size={14} className="text-warning" />
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Enabled
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Show thinking process
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => openDocs("models", "reasoning-mode")}
+                                    className="text-fg/30 hover:text-fg/60 transition"
+                                    aria-label="Help with reasoning mode"
+                                  >
+                                    <HelpCircle size={12} />
+                                  </button>
+                                </div>
+                                {!isAutoReasoning && (
+                                  <label className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={modelAdvancedDraft.reasoningEnabled || false}
+                                      onChange={(e) =>
+                                        handleReasoningEnabledChange(e.target.checked)
+                                      }
+                                      className="sr-only"
+                                    />
+                                    <span
+                                      className={cn(
+                                        "inline-block h-full w-full rounded-full transition-colors duration-200",
+                                        modelAdvancedDraft.reasoningEnabled
+                                          ? "bg-warning"
+                                          : "bg-fg/10",
+                                      )}
+                                    />
+                                    <span
+                                      className={cn(
+                                        "absolute h-3.5 w-3.5 transform rounded-full bg-fg transition-transform duration-200",
+                                        modelAdvancedDraft.reasoningEnabled
+                                          ? "translate-x-4.5"
+                                          : "translate-x-1",
+                                      )}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+
+                              {(modelAdvancedDraft.reasoningEnabled || isAutoReasoning) && (
+                                <div className="space-y-8 pl-4 border-l border-fg/10 mt-4">
+                                  {showEffortOptions && (
+                                    <div className="space-y-3">
+                                      <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
+                                        Reasoning Effort
+                                      </span>
+                                      <div className="grid grid-cols-4 gap-2">
+                                        {([null, "low", "medium", "high"] as const).map((level) => (
+                                          <button
+                                            key={level || "auto"}
+                                            type="button"
+                                            onClick={() => handleReasoningEffortChange(level)}
+                                            className={cn(
+                                              "rounded-lg py-1.5 text-[13px] font-bold uppercase transition",
+                                              modelAdvancedDraft.reasoningEffort === level
+                                                ? "bg-warning/20 text-warning border border-warning/30"
+                                                : "bg-fg/5 text-fg/30 border border-transparent hover:text-fg/50",
+                                            )}
+                                          >
+                                            {level || "auto"}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {(reasoningSupport === "budget-only" ||
+                                    reasoningSupport === "dynamic") && (
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
+                                          Budget Tokens
+                                        </span>
+                                        <span className="font-mono text-[13px] text-warning">
+                                          {modelAdvancedDraft.reasoningBudgetTokens
+                                            ? modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()
+                                            : "Auto"}
+                                        </span>
+                                      </div>
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={ADVANCED_REASONING_BUDGET_RANGE.min}
+                                        max={ADVANCED_REASONING_BUDGET_RANGE.max}
+                                        step={1024}
+                                        value={modelAdvancedDraft.reasoningBudgetTokens || ""}
+                                        onChange={(e) => {
+                                          const raw = e.target.value;
+                                          const next = raw === "" ? null : Number(raw);
+                                          handleReasoningBudgetChange(
+                                            next === null || !Number.isFinite(next) || next === 0
+                                              ? null
+                                              : Math.trunc(next),
+                                          );
+                                        }}
+                                        placeholder="Auto"
+                                        className={numberInputClassName}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {activeDetailPanel === "capabilities" && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
-                            Capabilities
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => openDocs("imagegen", "model-capabilities")}
-                            className="text-fg/40 transition hover:text-fg/60"
-                            aria-label="Help with capabilities"
-                          >
-                            <HelpCircle size={14} />
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <div className="space-y-3">
-                            <p className="text-[13px] font-medium text-fg/72">Input</p>
-                            {["image", "audio"].map((scope) => (
-                              <button
-                                key={scope}
-                                type="button"
-                                onClick={() =>
-                                  toggleScope(
-                                    "inputScopes",
-                                    scope as any,
-                                    !editorModel.inputScopes?.includes(scope as any),
-                                  )
-                                }
-                                className={cn(
-                                  "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[13px] transition",
-                                  editorModel.inputScopes?.includes(scope as any)
-                                    ? "border-accent/25 bg-accent/10 text-accent"
-                                    : "border-fg/10 bg-fg/5 text-fg/55 hover:border-fg/20 hover:bg-fg/8 hover:text-fg/85",
-                                )}
-                              >
-                                <span className="capitalize">{scope}</span>
-                                {editorModel.inputScopes?.includes(scope as any) ? (
-                                  <Check size={14} />
-                                ) : null}
-                              </button>
-                            ))}
                           </div>
-
-                          <div className="space-y-3">
-                            <p className="text-[13px] font-medium text-fg/72">Output</p>
-                            {["image", "audio"].map((scope) => (
+                        )}
+                        {activeDetailPanel === "capabilities" && (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                                Capabilities
+                              </label>
                               <button
-                                key={scope}
                                 type="button"
-                                onClick={() =>
-                                  toggleScope(
-                                    "outputScopes",
-                                    scope as any,
-                                    !editorModel.outputScopes?.includes(scope as any),
-                                  )
-                                }
-                                className={cn(
-                                  "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[13px] transition",
-                                  editorModel.outputScopes?.includes(scope as any)
-                                    ? "border-accent/25 bg-accent/10 text-accent"
-                                    : "border-fg/10 bg-fg/5 text-fg/55 hover:border-fg/20 hover:bg-fg/8 hover:text-fg/85",
-                                )}
+                                onClick={() => openDocs("imagegen", "model-capabilities")}
+                                className="text-fg/40 transition hover:text-fg/60"
+                                aria-label="Help with capabilities"
                               >
-                                <span className="capitalize">{scope}</span>
-                                {editorModel.outputScopes?.includes(scope as any) ? (
-                                  <Check size={14} />
-                                ) : null}
+                                <HelpCircle size={14} />
                               </button>
-                            ))}
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div className="space-y-3">
+                                <p className="text-[13px] font-medium text-fg/72">Input</p>
+                                {["image", "audio"].map((scope) => (
+                                  <button
+                                    key={scope}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleScope(
+                                        "inputScopes",
+                                        scope as any,
+                                        !editorModel.inputScopes?.includes(scope as any),
+                                      )
+                                    }
+                                    className={cn(
+                                      "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[13px] transition",
+                                      editorModel.inputScopes?.includes(scope as any)
+                                        ? "border-accent/25 bg-accent/10 text-accent"
+                                        : "border-fg/10 bg-fg/5 text-fg/55 hover:border-fg/20 hover:bg-fg/8 hover:text-fg/85",
+                                    )}
+                                  >
+                                    <span className="capitalize">{scope}</span>
+                                    {editorModel.inputScopes?.includes(scope as any) ? (
+                                      <Check size={14} />
+                                    ) : null}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="space-y-3">
+                                <p className="text-[13px] font-medium text-fg/72">Output</p>
+                                {["image", "audio"].map((scope) => (
+                                  <button
+                                    key={scope}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleScope(
+                                        "outputScopes",
+                                        scope as any,
+                                        !editorModel.outputScopes?.includes(scope as any),
+                                      )
+                                    }
+                                    className={cn(
+                                      "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[13px] transition",
+                                      editorModel.outputScopes?.includes(scope as any)
+                                        ? "border-accent/25 bg-accent/10 text-accent"
+                                        : "border-fg/10 bg-fg/5 text-fg/55 hover:border-fg/20 hover:bg-fg/8 hover:text-fg/85",
+                                    )}
+                                  >
+                                    <span className="capitalize">{scope}</span>
+                                    {editorModel.outputScopes?.includes(scope as any) ? (
+                                      <Check size={14} />
+                                    ) : null}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </div>
                     </motion.div>
-                  ) : editorViewMode === "simple" ? (
+                  ) : effectiveEditorViewMode === "simple" ? (
                     <div
                       className="rounded-lg border border-dashed border-fg/10 px-4 py-6 text-[13px] text-fg/45"
                       style={{ order: 50 }}
                     >
-                      Open a section to adjust its settings. The advanced editor stays available when
-                      you need the full form.
+                      Open a section to adjust its settings. The advanced editor stays available
+                      when you need the full form.
                     </div>
                   ) : null}
                 </motion.div>
@@ -3329,7 +3380,7 @@ export function EditModelPage() {
             </div>
 
             <AnimatePresence initial={false}>
-              {editorViewMode === "advanced" && (
+              {effectiveEditorViewMode === "advanced" && (
                 <motion.aside
                   key="advanced-sidebar"
                   initial={{ opacity: 0, x: 18 }}
@@ -3446,20 +3497,20 @@ export function EditModelPage() {
                       <div className="space-y-3 text-[13px] leading-relaxed text-fg/65">
                         {isLocalModel && (
                           <p>
-                            Local llama.cpp models use the file path above. The runtime settings in the
-                            advanced section only apply to this provider.
+                            Local llama.cpp models use the file path above. The runtime settings in
+                            the advanced section only apply to this provider.
                           </p>
                         )}
                         {!isLocalModel && !modelFetchEnabledForSelectedProvider && (
                           <p>
-                            This provider does not expose model discovery here, so the model identifier
-                            must be entered manually.
+                            This provider does not expose model discovery here, so the model
+                            identifier must be entered manually.
                           </p>
                         )}
                         {shouldShowMoveReminder && (
                           <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-warning/85">
-                            Saving will ask whether this GGUF file should be moved into your local model
-                            library.
+                            Saving will ask whether this GGUF file should be moved into your local
+                            model library.
                           </div>
                         )}
                       </div>
