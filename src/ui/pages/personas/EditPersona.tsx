@@ -288,7 +288,7 @@ export function EditPersonaPage() {
                   rows={10}
                   placeholder={t("personas.edit.descriptionPlaceholder")}
                   className={cn(
-                    "min-h-35 max-h-[24rem] w-full resize-y border bg-surface-el/20 px-4 py-3.5 text-sm leading-relaxed text-fg placeholder-fg/40 backdrop-blur-xl xl:min-h-[18rem]",
+                    "min-h-35 max-h-96 w-full resize-y border bg-surface-el/20 px-4 py-3.5 text-sm leading-relaxed text-fg placeholder-fg/40 backdrop-blur-xl xl:min-h-72",
                     radius.md,
                     interactive.transition.default,
                     "focus:border-fg/30 focus:bg-surface-el/30 focus:outline-none",

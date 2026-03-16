@@ -1205,7 +1205,7 @@ export function ColorCustomizationPage() {
                   {t("colorCustomization.settingsCardsOpacityDesc")}
                 </div>
               </div>
-              <div className="min-w-[3.5rem] rounded-md border border-fg/10 bg-fg/5 px-2.5 py-1 text-right text-xs font-medium text-fg">
+              <div className="min-w-14 rounded-md border border-fg/10 bg-fg/5 px-2.5 py-1 text-right text-xs font-medium text-fg">
                 {settingsCardOpacity}%
               </div>
             </div>
@@ -1218,7 +1218,7 @@ export function ColorCustomizationPage() {
               onChange={(event) =>
                 handleSettingsCardOpacityChange(Number.parseInt(event.target.value, 10))
               }
-              className="mt-4 w-full accent-[var(--color-accent)]"
+              className="mt-4 w-full accent-accent"
             />
           </div>
         </div>

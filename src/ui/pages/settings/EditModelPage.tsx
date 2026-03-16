@@ -1060,13 +1060,13 @@ export function EditModelPage() {
             </div>
           )}
 
-          <div className="relative xl:pr-[384px]">
+          <div className="relative xl:pr-96">
             <div
               className={cn(
-                "w-full space-y-6 transition-transform duration-200 ease-in-out xl:max-w-[760px]",
+                "w-full space-y-6 transition-transform duration-200 ease-in-out xl:max-w-190",
                 effectiveEditorViewMode === "advanced"
                   ? "xl:translate-x-0"
-                  : "xl:translate-x-[192px]",
+                  : "xl:translate-x-48",
               )}
             >
               <EditorPanel
@@ -3395,7 +3395,7 @@ export function EditModelPage() {
                     duration: EDITOR_FADE_DURATION,
                     ease: "easeInOut",
                   }}
-                  className="space-y-6 xl:absolute xl:right-0 xl:top-0 xl:w-[360px]"
+                  className="space-y-6 xl:absolute xl:right-0 xl:top-0 xl:w-90"
                 >
                   <EditorPanel
                     title="Current configuration"

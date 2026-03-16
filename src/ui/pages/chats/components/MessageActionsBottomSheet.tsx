@@ -415,7 +415,7 @@ export function MessageActionsBottomSheet({
                 onChange={(event) => setEditDraft(event.target.value)}
                 rows={14}
                 className={cn(
-                  "min-h-[360px] w-full p-3 text-sm text-white placeholder-white/40",
+                  "min-h-90 w-full p-3 text-sm text-white placeholder-white/40",
                   "border border-white/10 bg-black/30",
                   "focus:border-white/20 focus:outline-none resize-none",
                   radius.lg,
