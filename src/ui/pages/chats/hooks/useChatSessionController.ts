@@ -228,6 +228,18 @@ export function useChatSessionController({
         }
 
         if (!cancelled) {
+          const rawSavedDraft = localStorage.getItem(`chat_draft_${normalizedSession.id}`);
+          let savedDraft = "";
+          if (rawSavedDraft) {
+            try {
+              const parsed = JSON.parse(rawSavedDraft);
+              savedDraft = parsed.text || "";
+            } catch (e) {
+              // Legacy format or corrupted
+              savedDraft = rawSavedDraft;
+            }
+          }
+
           recordSessionTimestamp(normalizedSession.updatedAt);
           dispatch({
             type: "BATCH",
@@ -236,6 +248,7 @@ export function useChatSessionController({
               { type: "SET_PERSONA", payload: selectedPersona },
               { type: "SET_SESSION", payload: normalizedSession },
               { type: "SET_MESSAGES", payload: orderedMessages },
+              { type: "SET_DRAFT", payload: savedDraft ?? "" },
             ],
           });
         }

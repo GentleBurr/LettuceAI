@@ -235,6 +235,7 @@ export function useChatStreamingController({
           actions: [
             { type: "SET_SESSION", payload: updatedSession },
             { type: "SET_MESSAGES", payload: replaced },
+            { type: "CLEAR_DRAFT" },
             {
               type: "TRANSFER_REASONING",
               payload: { fromId: assistantPlaceholder.id, toId: result.assistantMessage.id },
@@ -246,6 +247,7 @@ export function useChatStreamingController({
           actions: [
             { type: "SET_SESSION", payload: updatedSession },
             { type: "SET_MESSAGES", payload: replaced },
+            { type: "CLEAR_DRAFT" },
             {
               type: "TRANSFER_REASONING",
               payload: { fromId: assistantPlaceholder.id, toId: result.assistantMessage.id },
