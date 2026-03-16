@@ -130,8 +130,6 @@ export function useChatStreamingController({
       const optimisticMessages = [...state.messages, userPlaceholder, assistantPlaceholder];
 
       messagesRef.current = optimisticMessages;
-      // The attachments are cleared in the state via BATCH/CLEAR_PENDING_ATTACHMENTS.
-      // The draft will be cleared only after the send succeeds.
 
       dispatch({
         type: "BATCH",
@@ -140,7 +138,6 @@ export function useChatStreamingController({
           { type: "SET_ACTIVE_REQUEST_ID", payload: requestId },
           { type: "SET_MESSAGES", payload: optimisticMessages },
           { type: "CLEAR_PENDING_ATTACHMENTS" },
-          { type: "CLEAR_DRAFT" },
         ],
       });
       applyLiveChatAction(currentSessionId, state, {
@@ -150,7 +147,6 @@ export function useChatStreamingController({
           { type: "SET_ACTIVE_REQUEST_ID", payload: requestId },
           { type: "SET_MESSAGES", payload: optimisticMessages },
           { type: "SET_ERROR", payload: null },
-          { type: "CLEAR_DRAFT" },
         ],
       });
 
@@ -239,6 +235,7 @@ export function useChatStreamingController({
           actions: [
             { type: "SET_SESSION", payload: updatedSession },
             { type: "SET_MESSAGES", payload: replaced },
+            { type: "CLEAR_DRAFT" },
             {
               type: "TRANSFER_REASONING",
               payload: { fromId: assistantPlaceholder.id, toId: result.assistantMessage.id },
@@ -250,6 +247,7 @@ export function useChatStreamingController({
           actions: [
             { type: "SET_SESSION", payload: updatedSession },
             { type: "SET_MESSAGES", payload: replaced },
+            { type: "CLEAR_DRAFT" },
             {
               type: "TRANSFER_REASONING",
               payload: { fromId: assistantPlaceholder.id, toId: result.assistantMessage.id },
