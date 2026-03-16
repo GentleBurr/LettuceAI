@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import { abortMessage } from "../../../../core/chat/manager";
 import type { Session, StoredMessage } from "../../../../core/storage/schemas";
+import { applyLiveChatAction } from "./chatLiveState";
 import type { ChatControllerModuleContext } from "./chatControllerShared";
 
 interface UseChatAbortControllerArgs {
@@ -30,8 +31,37 @@ function removePlaceholderMessages(messages: StoredMessage[]): StoredMessage[] {
 export function useChatAbortController({ context }: UseChatAbortControllerArgs) {
   const { state, dispatch, messagesRef, persistSession, log } = context;
 
+  const releaseLiveRequestOwnership = useCallback(() => {
+    if (!state.session) return;
+    applyLiveChatAction(state.session.id, state, {
+      type: "BATCH",
+      actions: [
+        { type: "SET_SENDING", payload: false },
+        { type: "SET_ACTIVE_REQUEST_ID", payload: null },
+      ],
+    });
+  }, [state]);
+
+  const syncLiveStateAfterAbort = useCallback(
+    (messages: StoredMessage[], session?: Session) => {
+      if (!state.session) return;
+      applyLiveChatAction(state.session.id, state, {
+        type: "BATCH",
+        actions: [
+          ...(session ? [{ type: "SET_SESSION" as const, payload: session }] : []),
+          { type: "SET_MESSAGES", payload: messages },
+          { type: "SET_SENDING", payload: false },
+          { type: "SET_ACTIVE_REQUEST_ID", payload: null },
+        ],
+      });
+    },
+    [state],
+  );
+
   const handleAbort = useCallback(async () => {
     if (!state.activeRequestId || !state.session) return;
+
+    releaseLiveRequestOwnership();
 
     try {
       await abortMessage(state.activeRequestId);
@@ -54,17 +84,19 @@ export function useChatAbortController({ context }: UseChatAbortControllerArgs) 
             { type: "SET_MESSAGES", payload: messagesWithoutPlaceholders },
           ],
         });
+        syncLiveStateAfterAbort(messagesWithoutPlaceholders, updatedSession);
         log.info("successfully saved session after abort");
       } catch (saveError) {
         log.error("failed to save incomplete messages after abort", saveError);
         messagesRef.current = messagesWithoutPlaceholders;
         dispatch({ type: "SET_MESSAGES", payload: messagesWithoutPlaceholders });
+        syncLiveStateAfterAbort(messagesWithoutPlaceholders);
       }
     } catch (error) {
       log.error("abort failed", error);
 
       try {
-        const messagesWithoutPlaceholders = removePlaceholderMessages(state.messages);
+        const messagesWithoutPlaceholders = removePlaceholderMessages(messagesRef.current);
         const updatedSession: Session = {
           ...state.session,
           messages: messagesWithoutPlaceholders,
@@ -79,12 +111,15 @@ export function useChatAbortController({ context }: UseChatAbortControllerArgs) 
             { type: "SET_MESSAGES", payload: messagesWithoutPlaceholders },
           ],
         });
+        syncLiveStateAfterAbort(messagesWithoutPlaceholders, updatedSession);
       } catch (saveError) {
         log.error("failed to save after abort error", saveError);
-        const cleanedMessages = state.messages.filter(
+        const cleanedMessages = messagesRef.current.filter(
           (message) => !message.id.startsWith("placeholder-") || message.content.trim().length > 0,
         );
+        messagesRef.current = cleanedMessages;
         dispatch({ type: "SET_MESSAGES", payload: cleanedMessages });
+        syncLiveStateAfterAbort(cleanedMessages);
       }
     }
 
@@ -95,7 +130,15 @@ export function useChatAbortController({ context }: UseChatAbortControllerArgs) 
         { type: "SET_ACTIVE_REQUEST_ID", payload: null },
       ],
     });
-  }, [dispatch, log, messagesRef, persistSession, state]);
+  }, [
+    dispatch,
+    log,
+    messagesRef,
+    persistSession,
+    releaseLiveRequestOwnership,
+    state,
+    syncLiveStateAfterAbort,
+  ]);
 
   return { handleAbort };
 }

@@ -15,7 +15,7 @@ import {
   finalizeThinkStream,
 } from "../../../../core/utils/thinkTags";
 import { type ChatControllerPagingContext, isStartingSceneMessage } from "./chatControllerShared";
-import { applyLiveChatAction, setLiveChatState } from "./chatLiveState";
+import { applyLiveChatAction, getLiveChatState, setLiveChatState } from "./chatLiveState";
 
 const INITIAL_MESSAGE_LIMIT = 50;
 
@@ -115,6 +115,10 @@ export function useChatStreamingController({
 }: UseChatStreamingControllerArgs) {
   const { state, dispatch, messagesRef, hasMoreMessagesBeforeRef } = context;
 
+  const requestOwnsSession = useCallback((sessionId: string, requestId: string) => {
+    return getLiveChatState(sessionId)?.activeRequestId === requestId;
+  }, []);
+
   const handleSend = useCallback(
     async (
       message: string,
@@ -156,6 +160,9 @@ export function useChatStreamingController({
 
       try {
         unlistenNormalized = await listen<any>(`api-normalized://${requestId}`, (event) => {
+          if (!requestOwnsSession(currentSessionId, requestId)) {
+            return;
+          }
           try {
             const payload =
               typeof event.payload === "string" ? JSON.parse(event.payload) : event.payload;
@@ -218,6 +225,10 @@ export function useChatStreamingController({
           attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
         });
 
+        if (!requestOwnsSession(currentSessionId, requestId)) {
+          return;
+        }
+
         const replaced = messagesRef.current.map((msg) => {
           if (msg.id === userPlaceholder.id) return result.userMessage;
           if (msg.id === assistantPlaceholder.id) return result.assistantMessage;
@@ -266,6 +277,9 @@ export function useChatStreamingController({
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
         console.error("ChatStreamingController: send failed", err);
+        if (!requestOwnsSession(currentSessionId, requestId)) {
+          return;
+        }
         dispatch({ type: "SET_ERROR", payload: error });
         applyLiveChatAction(currentSessionId, state, { type: "SET_ERROR", payload: error });
         try {
@@ -284,6 +298,13 @@ export function useChatStreamingController({
           });
         }
       } finally {
+        const isActiveRequest = requestOwnsSession(currentSessionId, requestId);
+        if (!isActiveRequest) {
+          streamBatcher.cancel();
+          if (unlistenNormalized) unlistenNormalized();
+          return;
+        }
+
         const tail = finalizeThinkStream(thinkState);
         if (tail.content) {
           dispatch({
@@ -320,6 +341,7 @@ export function useChatStreamingController({
     [
       dispatch,
       messagesRef,
+      requestOwnsSession,
       reloadSessionStateFromStorage,
       runInChatImageGeneration,
       state,
@@ -361,6 +383,9 @@ export function useChatStreamingController({
 
       try {
         unlistenNormalized = await listen<any>(`api-normalized://${requestId}`, (event) => {
+          if (!requestOwnsSession(currentSessionId, requestId)) {
+            return;
+          }
           try {
             const payload =
               typeof event.payload === "string" ? JSON.parse(event.payload) : event.payload;
@@ -421,6 +446,10 @@ export function useChatStreamingController({
           requestId,
         });
 
+        if (!requestOwnsSession(currentSessionId, requestId)) {
+          return;
+        }
+
         const replaced = messagesRef.current.map((msg) =>
           msg.id === assistantPlaceholder.id ? result.assistantMessage : msg,
         );
@@ -465,6 +494,9 @@ export function useChatStreamingController({
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
         console.error("ChatStreamingController: continue failed", err);
+        if (!requestOwnsSession(currentSessionId, requestId)) {
+          return;
+        }
         dispatch({ type: "SET_ERROR", payload: error });
         applyLiveChatAction(currentSessionId, state, { type: "SET_ERROR", payload: error });
 
@@ -481,6 +513,13 @@ export function useChatStreamingController({
           });
         }
       } finally {
+        const isActiveRequest = requestOwnsSession(currentSessionId, requestId);
+        if (!isActiveRequest) {
+          streamBatcher.cancel();
+          if (unlistenNormalized) unlistenNormalized();
+          return;
+        }
+
         const tail = finalizeThinkStream(thinkState);
         if (tail.content) {
           dispatch({
@@ -514,7 +553,14 @@ export function useChatStreamingController({
         setLiveChatState(currentSessionId, null);
       }
     },
-    [dispatch, messagesRef, runInChatImageGeneration, state, triggerTypingHaptic],
+    [
+      dispatch,
+      messagesRef,
+      requestOwnsSession,
+      runInChatImageGeneration,
+      state,
+      triggerTypingHaptic,
+    ],
   );
 
   const handleRegenerate = useCallback(
@@ -578,6 +624,9 @@ export function useChatStreamingController({
 
       try {
         unlistenNormalized = await listen<any>(`api-normalized://${requestId}`, (event) => {
+          if (!requestOwnsSession(currentSessionId, requestId)) {
+            return;
+          }
           try {
             const payload =
               typeof event.payload === "string" ? JSON.parse(event.payload) : event.payload;
@@ -637,6 +686,10 @@ export function useChatStreamingController({
           requestId,
         });
 
+        if (!requestOwnsSession(currentSessionId, requestId)) {
+          return;
+        }
+
         const replaced = messagesRef.current.map((candidate) =>
           candidate.id === message.id ? result.assistantMessage : candidate,
         );
@@ -680,6 +733,9 @@ export function useChatStreamingController({
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
         console.error("ChatStreamingController: regenerate failed", err);
+        if (!requestOwnsSession(currentSessionId, requestId)) {
+          return;
+        }
         dispatch({ type: "SET_ERROR", payload: error });
         applyLiveChatAction(currentSessionId, state, { type: "SET_ERROR", payload: error });
         const meta = await getSessionMeta(state.session.id).catch(() => null);
@@ -712,6 +768,13 @@ export function useChatStreamingController({
           });
         }
       } finally {
+        const isActiveRequest = requestOwnsSession(currentSessionId, requestId);
+        if (!isActiveRequest) {
+          streamBatcher.cancel();
+          if (unlistenNormalized) unlistenNormalized();
+          return;
+        }
+
         const tail = finalizeThinkStream(thinkState);
         if (tail.content) {
           dispatch({
@@ -751,6 +814,7 @@ export function useChatStreamingController({
       hasMoreMessagesBeforeRef,
       isStartingSceneMessage,
       messagesRef,
+      requestOwnsSession,
       runInChatImageGeneration,
       state,
       triggerTypingHaptic,
