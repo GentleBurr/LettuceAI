@@ -12,6 +12,7 @@ interface ChatFooterProps {
   sending: boolean;
   character: Character;
   onSendMessage: () => Promise<void>;
+  emptyDraftAction?: "continue" | "send";
   onAbort?: () => Promise<void>;
   hasBackgroundImage?: boolean;
   footerOverlayClassName?: string;
@@ -29,6 +30,7 @@ export function ChatFooter({
   error,
   sending,
   onSendMessage,
+  emptyDraftAction = "continue",
   onAbort,
   hasBackgroundImage,
   footerOverlayClassName,
@@ -42,6 +44,7 @@ export function ChatFooter({
   const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
   const hasAttachments = pendingAttachments.length > 0;
+  const usesSendAction = hasDraft || hasAttachments || emptyDraftAction === "send";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -244,29 +247,31 @@ export function ChatFooter({
             radius.full,
             sending && onAbort
               ? "border border-red-400/40 bg-red-400/20 text-red-100"
-              : hasDraft || hasAttachments
+              : usesSendAction
                 ? "border border-emerald-400/40 bg-emerald-400/20 text-emerald-100"
                 : "border border-white/15 bg-white/10 text-white/70",
             interactive.transition.fast,
             interactive.active.scale,
             sending && onAbort && "hover:border-red-400/60 hover:bg-red-400/30",
+            !sending && usesSendAction && "hover:border-emerald-400/60 hover:bg-emerald-400/30",
             !sending &&
-              (hasDraft || hasAttachments) &&
-              "hover:border-emerald-400/60 hover:bg-emerald-400/30",
-            !sending && !hasDraft && !hasAttachments && "hover:border-white/25 hover:bg-white/15",
+              !hasDraft &&
+              !hasAttachments &&
+              !usesSendAction &&
+              "hover:border-white/25 hover:bg-white/15",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
           title={
             sending && onAbort
               ? t("chats.footer.stopGeneration")
-              : hasDraft || hasAttachments
+              : usesSendAction
                 ? t("chats.footer.sendMessage")
                 : t("chats.footer.continueConversation")
           }
           aria-label={
             sending && onAbort
               ? t("chats.footer.stopGeneration")
-              : hasDraft || hasAttachments
+              : usesSendAction
                 ? t("chats.footer.sendMessage")
                 : t("chats.footer.continueConversation")
           }
@@ -275,7 +280,7 @@ export function ChatFooter({
             <Square size={18} fill="currentColor" />
           ) : sending ? (
             <span className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          ) : hasDraft || hasAttachments ? (
+          ) : usesSendAction ? (
             <SendHorizonal size={18} />
           ) : (
             <ChevronsRight size={18} />
