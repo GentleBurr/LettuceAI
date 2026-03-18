@@ -17,7 +17,7 @@ use crate::{
     utils::{log_error, log_info, log_warn},
 };
 
-use super::ApiRequest;
+use super::{ApiRequest, ApiRequestError};
 
 fn enforce_pure_mode_on_text(
     app: &tauri::AppHandle,
@@ -188,7 +188,7 @@ pub(crate) async fn handle_streaming_response(
     status: reqwest::StatusCode,
     ok: bool,
     url_for_log: &str,
-) -> Result<Value, String> {
+) -> Result<(Value, bool), ApiRequestError> {
     let mut collected: Vec<u8> = Vec::new();
     let event_name = format!("api://{}", request_id);
     let mut body_stream = response.bytes_stream();
@@ -274,7 +274,12 @@ pub(crate) async fn handle_streaming_response(
                             use tauri::Manager;
                             let registry = app.state::<AbortRegistry>();
                             registry.unregister(&request_id);
-                            return Err("Response blocked by Pure Mode. Try rephrasing your message.".to_string());
+                            return Err(ApiRequestError {
+                                message: "Response blocked by Pure Mode. Try rephrasing your message."
+                                    .to_string(),
+                                cancelled: false,
+                                emitted_once: text_emitted,
+                            });
                         }
                         collected.extend_from_slice(&chunk);
                     }
@@ -288,7 +293,11 @@ pub(crate) async fn handle_streaming_response(
                         use tauri::Manager;
                         let registry = app.state::<AbortRegistry>();
                         registry.unregister(&request_id);
-                        return Err(e.to_string());
+                        return Err(ApiRequestError {
+                            message: e.to_string(),
+                            cancelled: false,
+                            emitted_once: text_emitted,
+                        });
                     }
                     None => {
                         // Stream complete
@@ -316,11 +325,11 @@ pub(crate) async fn handle_streaming_response(
             status: None,
         };
         emit_normalized(app, &request_id, NormalizedEvent::Error { envelope });
-        return Err(crate::utils::err_msg(
-            module_path!(),
-            line!(),
-            "Request aborted by user",
-        ));
+        return Err(ApiRequestError {
+            message: crate::utils::err_msg(module_path!(), line!(), "Request aborted by user"),
+            cancelled: true,
+            emitted_once: text_emitted,
+        });
     }
 
     let text = String::from_utf8_lossy(&collected).to_string();
@@ -338,12 +347,19 @@ pub(crate) async fn handle_streaming_response(
     if !text_emitted && ok {
         if let Some(content) = chat_request::extract_text(&value, req.provider_id.as_deref()) {
             if !content.is_empty() {
-                enforce_pure_mode_on_text(app, req, Some(&request_id), &content)?;
+                enforce_pure_mode_on_text(app, req, Some(&request_id), &content).map_err(
+                    |message| ApiRequestError {
+                        message,
+                        cancelled: false,
+                        emitted_once: false,
+                    },
+                )?;
                 log_info(
                     app,
                     "api_request",
                     "[api_request] non-SSE response detected, emitting content as delta",
                 );
+                text_emitted = true;
                 emit_normalized(app, &request_id, NormalizedEvent::Delta { text: content });
             }
         }
@@ -376,7 +392,7 @@ pub(crate) async fn handle_streaming_response(
         emit_normalized(app, &request_id, NormalizedEvent::Error { envelope });
     }
 
-    Ok(value)
+    Ok((value, text_emitted))
 }
 
 pub(crate) async fn handle_non_streaming_response(

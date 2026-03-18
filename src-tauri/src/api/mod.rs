@@ -37,6 +37,7 @@ pub struct ApiResponse {
     pub ok: bool,
     pub headers: HashMap<String, String>,
     pub data: Value,
+    pub emitted_once: bool,
 }
 
 impl ApiResponse {
@@ -45,19 +46,44 @@ impl ApiResponse {
     }
 }
 
-#[tauri::command]
-pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiResponse, String> {
+#[derive(Debug, Clone)]
+pub struct ApiRequestError {
+    pub message: String,
+    pub cancelled: bool,
+    pub emitted_once: bool,
+}
+
+impl From<ApiRequestError> for String {
+    fn from(value: ApiRequestError) -> Self {
+        value.message
+    }
+}
+
+pub(crate) async fn api_request_detailed(
+    app: tauri::AppHandle,
+    req: ApiRequest,
+) -> Result<ApiResponse, ApiRequestError> {
     log_info(&app, "api_request", "started");
 
     if llama_cpp::is_llama_cpp(req.provider_id.as_deref()) {
-        return llama_cpp::handle_local_request(app, req).await;
+        return llama_cpp::handle_local_request(app, req)
+            .await
+            .map_err(|message| ApiRequestError {
+                message,
+                cancelled: false,
+                emitted_once: false,
+            });
     }
 
     let client = match transport::build_client(req.timeout_ms) {
         Ok(c) => c,
         Err(e) => {
             log_error(&app, "api_request", format!("client build error: {}", e));
-            return Err(e.to_string());
+            return Err(ApiRequestError {
+                message: e.to_string(),
+                cancelled: false,
+                emitted_once: false,
+            });
         }
     };
 
@@ -71,7 +97,11 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
                 "api_request",
                 format!("[api_request] invalid method: {}", method_str),
             );
-            return Err(e.to_string());
+            return Err(ApiRequestError {
+                message: e.to_string(),
+                cancelled: false,
+                emitted_once: false,
+            });
         }
     };
 
@@ -175,7 +205,11 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
                     registry.unregister(req_id);
                 }
                 emit_abort();
-                return Err("Request was cancelled by user".to_string());
+                return Err(ApiRequestError {
+                    message: "Request was cancelled by user".to_string(),
+                    cancelled: true,
+                    emitted_once: false,
+                });
             }
             response = transport::send_with_retries(&app, "api_request", request_builder, 2) => {
                 match response {
@@ -198,7 +232,11 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
                             "api_request",
                             format!("[api_request] request error for {}: {}", url_for_log, err),
                         );
-                        return Err(err.to_string());
+                        return Err(ApiRequestError {
+                            message: err.to_string(),
+                            cancelled: false,
+                            emitted_once: false,
+                        });
                     }
                 }
             }
@@ -219,7 +257,11 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
                     "api_request",
                     format!("[api_request] request error for {}: {}", url_for_log, err),
                 );
-                return Err(err.to_string());
+                return Err(ApiRequestError {
+                    message: err.to_string(),
+                    cancelled: false,
+                    emitted_once: false,
+                });
             }
         }
     };
@@ -249,7 +291,7 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
         }
     }
 
-    let data = if stream && request_id.is_some() {
+    let (data, emitted_once) = if stream && request_id.is_some() {
         handle_streaming_response(
             &app,
             &req,
@@ -270,7 +312,11 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
                         registry.unregister(req_id);
                     }
                     emit_abort();
-                    return Err("Request was cancelled by user".to_string());
+                    return Err(ApiRequestError {
+                        message: "Request was cancelled by user".to_string(),
+                        cancelled: true,
+                        emitted_once: false,
+                    });
                 }
                 result = handle_non_streaming_response(&app, &req, response, request_id.clone(), status, ok) => result,
             }
@@ -285,7 +331,14 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
             registry.unregister(req_id);
         }
 
-        result?
+        (
+            result.map_err(|message| ApiRequestError {
+                message,
+                cancelled: false,
+                emitted_once: false,
+            })?,
+            false,
+        )
     };
 
     log_info(
@@ -302,7 +355,13 @@ pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiRe
         ok,
         headers,
         data,
+        emitted_once,
     })
+}
+
+#[tauri::command]
+pub async fn api_request(app: tauri::AppHandle, req: ApiRequest) -> Result<ApiResponse, String> {
+    api_request_detailed(app, req).await.map_err(String::from)
 }
 
 #[tauri::command]
