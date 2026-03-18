@@ -1888,7 +1888,6 @@ mod desktop {
             ok: true,
             headers: HashMap::new(),
             data,
-            emitted_once: false,
         })
     }
 }

@@ -1,17 +1,15 @@
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
-use std::fs;
 use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
 use rusqlite::{params, OptionalExtension};
 
-use crate::api::{api_request, api_request_detailed, ApiRequest, ApiResponse};
+use crate::api::{api_request, ApiRequest, ApiResponse};
 use crate::chat_manager::storage::{get_base_prompt, PromptType};
 use crate::dynamic_memory_run_manager::{DynamicMemoryCancellationToken, DynamicMemoryRunManager};
 use crate::embedding_model;
 use crate::storage_manager::db::open_db;
-use crate::storage_manager::legacy::storage_root;
 use crate::utils::{emit_toast, log_error, log_info, log_warn, now_millis};
 
 use super::dynamic_memory::{
@@ -1591,6 +1589,7 @@ fn load_attachment_data(app: &AppHandle, message: &StoredMessage) -> StoredMessa
     loaded_message
 }
 
+<<<<<<< HEAD
 fn rollback_failed_chat_completion(
     app: &AppHandle,
     session: &mut Session,
@@ -1688,6 +1687,8 @@ fn take_aborted_request(app: &AppHandle, request_id: Option<&str>) -> bool {
     registry.take_aborted(request_id)
 }
 
+=======
+>>>>>>> parent of 0b9bda8 (fix(chat): preserve aborted and partial streamed turns)
 fn role_swap_enabled(flag: Option<bool>) -> bool {
     flag.unwrap_or(false)
 }
@@ -1852,7 +1853,6 @@ pub async fn chat_completion(
     );
 
     let now = now_millis()?;
-    let previous_updated_at = session.updated_at;
 
     let user_msg_id = uuid::Uuid::new_v4().to_string();
 
@@ -1895,8 +1895,6 @@ pub async fn chat_completion(
             "updatedAt": session.updated_at,
         }),
     );
-
-    let user_message_id = user_msg.id.clone();
 
     let prompt_entries = if swap_places {
         let (prompt_character, prompt_persona) = swapped_prompt_entities(&character, persona);
@@ -2168,8 +2166,6 @@ pub async fn chat_completion(
     let mut fallback_from_model_id: Option<String> = None;
     let mut successful_response = None;
     let mut last_error = "request failed".to_string();
-    let mut last_error_cancelled = false;
-    let mut last_error_emitted_once = false;
     let mut fallback_toast_shown = false;
 
     for (idx, (attempt_model, attempt_provider_cred, is_fallback_attempt)) in
@@ -2190,21 +2186,11 @@ pub async fn chat_completion(
                     ),
                 );
                 last_error = err;
-                last_error_cancelled = false;
-                last_error_emitted_once = false;
                 if has_next_attempt {
                     emit_fallback_retry_toast(&app, &mut fallback_toast_shown);
                     continue;
                 }
-                return rollback_failed_chat_completion(
-                    &app,
-                    &mut session,
-                    &user_message_id,
-                    previous_updated_at,
-                    last_error_cancelled,
-                    last_error_emitted_once,
-                    last_error,
-                );
+                return Err(last_error);
             }
         };
 
@@ -2332,7 +2318,7 @@ pub async fn chat_completion(
             provider_id: Some(attempt_provider_cred.provider_id.clone()),
         };
 
-        let api_response = match api_request_detailed(app.clone(), api_request_payload).await {
+        let api_response = match api_request(app.clone(), api_request_payload).await {
             Ok(resp) => resp,
             Err(err) => {
                 log_error(
@@ -2340,25 +2326,15 @@ pub async fn chat_completion(
                     "chat_completion",
                     format!(
                         "api_request failed model={} provider={} err={}",
-                        attempt_model.name, attempt_provider_cred.provider_id, err.message
+                        attempt_model.name, attempt_provider_cred.provider_id, err
                     ),
                 );
-                last_error = err.message;
-                last_error_cancelled = err.cancelled;
-                last_error_emitted_once = err.emitted_once;
-                if has_next_attempt && !last_error_cancelled && !last_error_emitted_once {
+                last_error = err;
+                if has_next_attempt {
                     emit_fallback_retry_toast(&app, &mut fallback_toast_shown);
                     continue;
                 }
-                return rollback_failed_chat_completion(
-                    &app,
-                    &mut session,
-                    &user_message_id,
-                    previous_updated_at,
-                    last_error_cancelled,
-                    last_error_emitted_once,
-                    last_error,
-                );
+                return Err(last_error);
             }
         };
 
@@ -2437,22 +2413,12 @@ pub async fn chat_completion(
                 format!("provider error: {}", &combined_error),
             );
             last_error = combined_error;
-            last_error_cancelled = false;
-            last_error_emitted_once = api_response.emitted_once;
 
-            if has_next_attempt && !last_error_emitted_once {
+            if has_next_attempt {
                 emit_fallback_retry_toast(&app, &mut fallback_toast_shown);
                 continue;
             }
-            return rollback_failed_chat_completion(
-                &app,
-                &mut session,
-                &user_message_id,
-                previous_updated_at,
-                last_error_cancelled,
-                last_error_emitted_once,
-                last_error,
-            );
+            return Err(last_error);
         }
 
         selected_model = attempt_model;
@@ -2469,17 +2435,7 @@ pub async fn chat_completion(
 
     let api_response = match successful_response {
         Some(resp) => resp,
-        None => {
-            return rollback_failed_chat_completion(
-                &app,
-                &mut session,
-                &user_message_id,
-                previous_updated_at,
-                last_error_cancelled,
-                last_error_emitted_once,
-                last_error,
-            );
-        }
+        None => return Err(last_error),
     };
 
     if take_aborted_request(&app, request_id.as_deref()) {
@@ -2553,15 +2509,7 @@ pub async fn chat_completion(
                 "hasSseMarker": has_sse_marker
             }),
         );
-        return rollback_failed_chat_completion(
-            &app,
-            &mut session,
-            &user_message_id,
-            previous_updated_at,
-            false,
-            false,
-            error_detail.to_string(),
-        );
+        return Err(error_detail.to_string());
     }
 
     // Post-generation content filter check
@@ -2577,13 +2525,7 @@ pub async fn chat_completion(
                         result.score, result.matched_terms
                     ),
                 );
-                return rollback_failed_chat_completion(
-                    &app,
-                    &mut session,
-                    &user_message_id,
-                    previous_updated_at,
-                    false,
-                    false,
+                return Err(
                     "Response blocked by Pure Mode. Try rephrasing your message.".to_string(),
                 );
             }
