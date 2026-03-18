@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, Cursor};
@@ -5,6 +6,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const ORT_VERSION: &str = "1.22.0";
+
+fn macos_primary_dylib_name() -> String {
+    format!("libonnxruntime.{}.dylib", ORT_VERSION)
+}
 
 fn main() {
     println!("cargo:rerun-if-env-changed=ORT_LIB_LOCATION");
@@ -225,7 +230,7 @@ fn setup_macos_libs() -> anyhow::Result<()> {
     let resource_dir = ensure_resource_dir()?;
 
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-    let archive_arch = match target_arch.as_str() {
+    let expected_arch = match target_arch.as_str() {
         "aarch64" => "arm64",
         "x86_64" => "x86_64",
         _ => {
@@ -241,7 +246,7 @@ fn setup_macos_libs() -> anyhow::Result<()> {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
             copy_macos_dylibs_from_dir(Path::new(trimmed), &resource_dir)?;
-            validate_macos_ort_dylibs(&resource_dir, archive_arch, false)?;
+            validate_macos_ort_dylibs(&resource_dir, expected_arch, false)?;
             println!(
                 "cargo:warning=ORT_LIB_LOCATION is set for macOS build ({}); copied ONNX Runtime dylibs into {:?}.",
                 trimmed, resource_dir
@@ -250,11 +255,11 @@ fn setup_macos_libs() -> anyhow::Result<()> {
         }
     }
 
-    let dylib_path = resource_dir.join("libonnxruntime.dylib");
+    let dylib_path = resource_dir.join(macos_primary_dylib_name());
     let shared_path = resource_dir.join("libonnxruntime_providers_shared.dylib");
     let coreml_path = resource_dir.join("libonnxruntime_providers_coreml.dylib");
-    if dylib_path.exists() {
-        match validate_macos_ort_dylibs(&resource_dir, archive_arch, false) {
+    if dylib_path.exists() || resource_dir.join("libonnxruntime.dylib").exists() {
+        match validate_macos_ort_dylibs(&resource_dir, expected_arch, false) {
             Ok(()) => {
                 if !shared_path.exists() {
                     println!(
@@ -275,25 +280,25 @@ fn setup_macos_libs() -> anyhow::Result<()> {
             Err(err) => {
                 println!(
                     "cargo:warning=Existing macOS ONNX Runtime dylibs are invalid for target arch '{}': {}. Refreshing download.",
-                    archive_arch, err
+                    expected_arch, err
                 );
             }
         }
     }
 
     let archive_url = format!(
-        "https://github.com/microsoft/onnxruntime/releases/download/v{0}/onnxruntime-osx-{1}-{0}.tgz",
-        ORT_VERSION, archive_arch
+        "https://github.com/microsoft/onnxruntime/releases/download/v{0}/onnxruntime-osx-universal2-{0}.tgz",
+        ORT_VERSION
     );
-    let lib_dir_in_archive = format!("onnxruntime-osx-{}-{}/lib/", archive_arch, ORT_VERSION);
+    let lib_dir_in_archive = format!("onnxruntime-osx-universal2-{}/lib/", ORT_VERSION);
 
     println!(
-        "cargo:warning=Downloading ONNX Runtime macOS v{} ({})...",
-        ORT_VERSION, archive_arch
+        "cargo:warning=Downloading ONNX Runtime macOS v{} (universal2, target {})...",
+        ORT_VERSION, expected_arch
     );
     let response = reqwest::blocking::get(&archive_url)?.bytes()?;
     extract_tgz_dylibs_from_dir(&response, &lib_dir_in_archive, &resource_dir)?;
-    validate_macos_ort_dylibs(&resource_dir, archive_arch, false)?;
+    validate_macos_ort_dylibs(&resource_dir, expected_arch, false)?;
     if !shared_path.exists() {
         println!(
             "cargo:warning=Downloaded macOS ONNX Runtime does not include libonnxruntime_providers_shared.dylib; embeddings may rely on runtime-fetched providers."
@@ -323,6 +328,7 @@ fn copy_macos_dylibs_from_dir(src_dir: &Path, dest_dir: &Path) -> anyhow::Result
     let mut has_main_dylib = false;
     let mut has_shared_provider = false;
     let mut has_coreml_provider = false;
+    let primary_name = macos_primary_dylib_name();
 
     for entry in fs::read_dir(src_dir)? {
         let entry = entry?;
@@ -342,6 +348,7 @@ fn copy_macos_dylibs_from_dir(src_dir: &Path, dest_dir: &Path) -> anyhow::Result
             "libonnxruntime.dylib" => has_main_dylib = true,
             "libonnxruntime_providers_shared.dylib" => has_shared_provider = true,
             "libonnxruntime_providers_coreml.dylib" => has_coreml_provider = true,
+            name if name == primary_name => has_main_dylib = true,
             _ => {}
         }
     }
@@ -355,7 +362,8 @@ fn copy_macos_dylibs_from_dir(src_dir: &Path, dest_dir: &Path) -> anyhow::Result
 
     if !has_main_dylib {
         anyhow::bail!(
-            "ORT_LIB_LOCATION is missing libonnxruntime.dylib: {}",
+            "ORT_LIB_LOCATION is missing {} (or libonnxruntime.dylib): {}",
+            primary_name,
             src_dir.display()
         );
     }
@@ -405,12 +413,21 @@ fn validate_macos_ort_dylibs(
     expected_arch: &str,
     require_coreml: bool,
 ) -> anyhow::Result<()> {
-    let main = dylib_dir.join("libonnxruntime.dylib");
+    let main = dylib_dir.join(macos_primary_dylib_name());
+    let fallback_main = dylib_dir.join("libonnxruntime.dylib");
     let shared = dylib_dir.join("libonnxruntime_providers_shared.dylib");
     let coreml = dylib_dir.join("libonnxruntime_providers_coreml.dylib");
+    let main = if main.exists() { main } else { fallback_main };
 
     if !main.exists() {
-        anyhow::bail!("Missing libonnxruntime.dylib in {}", dylib_dir.display());
+        anyhow::bail!(
+            "Missing {} (or libonnxruntime.dylib) in {}",
+            macos_primary_dylib_name(),
+            dylib_dir.display()
+        );
+    }
+    if fs::metadata(&main)?.len() == 0 {
+        anyhow::bail!("Dylib '{}' is empty", main.display());
     }
     if require_coreml && !coreml.exists() {
         anyhow::bail!(
@@ -434,6 +451,9 @@ fn validate_macos_ort_dylibs(
             expected_arch
         );
     }
+    if shared.exists() && fs::metadata(&shared)?.len() == 0 {
+        anyhow::bail!("Dylib '{}' is empty", shared.display());
+    }
 
     if coreml.exists() && !dylib_supports_arch(&coreml, expected_arch)? {
         anyhow::bail!(
@@ -441,6 +461,9 @@ fn validate_macos_ort_dylibs(
             coreml.display(),
             expected_arch
         );
+    }
+    if coreml.exists() && fs::metadata(&coreml)?.len() == 0 {
+        anyhow::bail!("Dylib '{}' is empty", coreml.display());
     }
 
     Ok(())
@@ -476,7 +499,8 @@ fn extract_tgz_dylibs_from_dir(
     let reader = Cursor::new(bytes);
     let tar = flate2::read::GzDecoder::new(reader);
     let mut archive = tar::Archive::new(tar);
-    let mut extracted_count = 0usize;
+    let mut extracted_files: HashMap<String, Vec<u8>> = HashMap::new();
+    let mut linked_files: Vec<(String, String)> = Vec::new();
 
     for entry in archive.entries()? {
         let mut entry = entry?;
@@ -487,14 +511,44 @@ fn extract_tgz_dylibs_from_dir(
         let Some(filename) = Path::new(&path).file_name() else {
             continue;
         };
-        fs::create_dir_all(dest_dir)?;
-        let out_path = dest_dir.join(filename);
-        let mut outfile = fs::File::create(&out_path)?;
-        io::copy(&mut entry, &mut outfile)?;
-        extracted_count += 1;
+        let filename = filename.to_string_lossy().to_string();
+        let entry_type = entry.header().entry_type();
+
+        if entry_type.is_symlink() || entry_type.is_hard_link() {
+            let Some(target_name) = entry.link_name()?.and_then(|target| {
+                target
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+            }) else {
+                anyhow::bail!("Unable to resolve linked dylib target for '{}'", path);
+            };
+            linked_files.push((filename, target_name));
+            continue;
+        }
+
+        let mut contents = Vec::new();
+        io::copy(&mut entry, &mut contents)?;
+        extracted_files.insert(filename, contents);
     }
 
-    if extracted_count == 0 {
+    for (filename, contents) in &extracted_files {
+        fs::create_dir_all(dest_dir)?;
+        fs::write(dest_dir.join(filename), contents)?;
+    }
+
+    for (filename, target_name) in linked_files {
+        let Some(target_contents) = extracted_files.get(&target_name) else {
+            anyhow::bail!(
+                "Linked dylib '{}' points to missing target '{}'",
+                filename,
+                target_name
+            );
+        };
+        fs::create_dir_all(dest_dir)?;
+        fs::write(dest_dir.join(filename), target_contents)?;
+    }
+
+    if extracted_files.is_empty() {
         anyhow::bail!(
             "No .dylib entries found under '{}' in ONNX Runtime archive",
             entry_dir

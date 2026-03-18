@@ -649,15 +649,28 @@ fn configure_onnxruntime_dylib(app: &tauri::AppHandle) {
             }
         }
 
-        let lib_name = if cfg!(target_os = "windows") {
-            "onnxruntime.dll"
+        let candidates = if cfg!(target_os = "windows") {
+            vec![
+                "onnxruntime/onnxruntime.dll".to_string(),
+                "onnxruntime.dll".to_string(),
+            ]
         } else if cfg!(target_os = "macos") {
-            "libonnxruntime.dylib"
+            let versioned = format!(
+                "libonnxruntime.{}.dylib",
+                crate::embedding_model::ORT_VERSION
+            );
+            vec![
+                format!("onnxruntime/{}", versioned),
+                versioned,
+                "onnxruntime/libonnxruntime.dylib".to_string(),
+                "libonnxruntime.dylib".to_string(),
+            ]
         } else {
-            "libonnxruntime.so"
+            vec![
+                "onnxruntime/libonnxruntime.so".to_string(),
+                "libonnxruntime.so".to_string(),
+            ]
         };
-
-        let candidates = [format!("onnxruntime/{}", lib_name), lib_name.to_string()];
         let resolved_path = candidates.into_iter().find_map(|candidate| {
             app.path()
                 .resolve(candidate, BaseDirectory::Resource)
@@ -687,10 +700,7 @@ fn configure_onnxruntime_dylib(app: &tauri::AppHandle) {
                 utils::log_warn(
                     app,
                     "embedding_debug",
-                    format!(
-                        "Failed to resolve ONNX Runtime resource path for {} in bundled resources",
-                        lib_name
-                    ),
+                    "Failed to resolve ONNX Runtime resource path in bundled resources",
                 );
             }
         }

@@ -1,11 +1,16 @@
 use super::*;
 use crate::utils::log_info;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use tauri::path::BaseDirectory;
 use tauri::Manager;
+
+fn macos_primary_dylib_name() -> String {
+    format!("libonnxruntime.{}.dylib", ORT_VERSION)
+}
 
 pub(super) async fn ensure_ort_init(app: &AppHandle) -> Result<(), String> {
     if ORT_INITIALIZED.load(Ordering::Acquire) {
@@ -97,7 +102,7 @@ async fn resolve_or_download_onnxruntime(app: &AppHandle) -> Result<PathBuf, Str
         let trimmed = value.trim();
         if !trimmed.is_empty() {
             let path = Path::new(trimmed);
-            if path.exists() {
+            if is_nonempty_file(path) {
                 if cfg!(target_os = "windows") {
                     let shared = path
                         .parent()
@@ -124,6 +129,15 @@ async fn resolve_or_download_onnxruntime(app: &AppHandle) -> Result<PathBuf, Str
                 } else {
                     return Ok(path.to_path_buf());
                 }
+            } else if path.exists() {
+                crate::utils::log_warn(
+                    app,
+                    "embedding_debug",
+                    format!(
+                        "ORT_DYLIB_PATH points to an empty or invalid file at {}; ignoring it.",
+                        path.display()
+                    ),
+                );
             }
         }
     }
@@ -150,7 +164,7 @@ async fn resolve_or_download_onnxruntime(app: &AppHandle) -> Result<PathBuf, Str
 
     let download_info = ort_download_info()?;
     let dest_path = ort_dir.join(download_info.lib_name);
-    if dest_path.exists() {
+    if is_nonempty_file(&dest_path) {
         if cfg!(target_os = "windows") {
             let shared = ort_dir.join("onnxruntime_providers_shared.dll");
             if shared.exists() {
@@ -162,6 +176,8 @@ async fn resolve_or_download_onnxruntime(app: &AppHandle) -> Result<PathBuf, Str
         } else {
             return Ok(dest_path);
         }
+    } else if dest_path.exists() {
+        let _ = fs::remove_file(&dest_path);
     }
 
     let client = reqwest::Client::new();
@@ -191,7 +207,7 @@ async fn resolve_or_download_onnxruntime(app: &AppHandle) -> Result<PathBuf, Str
 
     extract_onnxruntime_archive(&download_info, &bytes, &dest_path, &ort_dir)?;
 
-    if !dest_path.exists() {
+    if !is_nonempty_file(&dest_path) {
         return Err(crate::utils::err_msg(
             module_path!(),
             line!(),
@@ -266,27 +282,29 @@ fn ort_download_info() -> Result<OrtDownloadInfo, String> {
         }),
         ("macos", "aarch64") => Ok(OrtDownloadInfo {
             archive_url: format!(
-                "https://github.com/microsoft/onnxruntime/releases/download/v{0}/onnxruntime-osx-arm64-{0}.tgz",
+                "https://github.com/microsoft/onnxruntime/releases/download/v{0}/onnxruntime-osx-universal2-{0}.tgz",
                 ORT_VERSION
             ),
             lib_path_in_archive: format!(
-                "onnxruntime-osx-arm64-{}/lib/libonnxruntime.dylib",
-                ORT_VERSION
+                "onnxruntime-osx-universal2-{}/lib/{}",
+                ORT_VERSION,
+                macos_primary_dylib_name()
             ),
-            lib_name: "libonnxruntime.dylib",
-            lib_dir_in_archive: Some(format!("onnxruntime-osx-arm64-{}/lib/", ORT_VERSION)),
+            lib_name: Box::leak(macos_primary_dylib_name().into_boxed_str()),
+            lib_dir_in_archive: Some(format!("onnxruntime-osx-universal2-{}/lib/", ORT_VERSION)),
         }),
         ("macos", "x86_64") => Ok(OrtDownloadInfo {
             archive_url: format!(
-                "https://github.com/microsoft/onnxruntime/releases/download/v{0}/onnxruntime-osx-x86_64-{0}.tgz",
+                "https://github.com/microsoft/onnxruntime/releases/download/v{0}/onnxruntime-osx-universal2-{0}.tgz",
                 ORT_VERSION
             ),
             lib_path_in_archive: format!(
-                "onnxruntime-osx-x86_64-{}/lib/libonnxruntime.dylib",
-                ORT_VERSION
+                "onnxruntime-osx-universal2-{}/lib/{}",
+                ORT_VERSION,
+                macos_primary_dylib_name()
             ),
-            lib_name: "libonnxruntime.dylib",
-            lib_dir_in_archive: Some(format!("onnxruntime-osx-x86_64-{}/lib/", ORT_VERSION)),
+            lib_name: Box::leak(macos_primary_dylib_name().into_boxed_str()),
+            lib_dir_in_archive: Some(format!("onnxruntime-osx-universal2-{}/lib/", ORT_VERSION)),
         }),
         _ => Err(crate::utils::err_msg(
             module_path!(),
@@ -348,6 +366,8 @@ fn extract_onnxruntime_archive(
     if download_info.archive_url.ends_with(".tgz") {
         let tar = flate2::read::GzDecoder::new(reader);
         let mut archive = tar::Archive::new(tar);
+        let mut extracted_files: HashMap<String, Vec<u8>> = HashMap::new();
+        let mut linked_files: Vec<(String, String)> = Vec::new();
         for entry in archive
             .entries()
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
@@ -372,11 +392,31 @@ fn extract_onnxruntime_archive(
                         })?
                         .to_string_lossy()
                         .to_string();
-                    let out_path = ort_dir.join(filename);
-                    let mut outfile = fs::File::create(&out_path)
+                    let entry_type = entry.header().entry_type();
+                    if entry_type.is_symlink() || entry_type.is_hard_link() {
+                        let target_name = entry
+                            .link_name()
+                            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+                            .and_then(|target| {
+                                target
+                                    .file_name()
+                                    .map(|name| name.to_string_lossy().to_string())
+                            })
+                            .ok_or_else(|| {
+                                crate::utils::err_msg(
+                                    module_path!(),
+                                    line!(),
+                                    format!("Invalid ONNX Runtime linked entry: {}", path),
+                                )
+                            })?;
+                        linked_files.push((filename, target_name));
+                        continue;
+                    }
+
+                    let mut contents = Vec::new();
+                    std::io::copy(&mut entry, &mut contents)
                         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-                    std::io::copy(&mut entry, &mut outfile)
-                        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+                    extracted_files.insert(filename, contents);
                 }
             } else if path == download_info.lib_path_in_archive {
                 let mut outfile = fs::File::create(dest_path)
@@ -386,7 +426,28 @@ fn extract_onnxruntime_archive(
                 return Ok(());
             }
         }
-        if download_info.lib_dir_in_archive.is_some() && dest_path.exists() {
+        if download_info.lib_dir_in_archive.is_some() {
+            for (filename, contents) in &extracted_files {
+                fs::write(ort_dir.join(filename), contents)
+                    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            }
+
+            for (filename, target_name) in linked_files {
+                let target_contents = extracted_files.get(&target_name).ok_or_else(|| {
+                    crate::utils::err_msg(
+                        module_path!(),
+                        line!(),
+                        format!(
+                            "Linked ONNX Runtime dylib '{}' points to missing target '{}'",
+                            filename, target_name
+                        ),
+                    )
+                })?;
+                fs::write(ort_dir.join(filename), target_contents)
+                    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            }
+        }
+        if download_info.lib_dir_in_archive.is_some() && is_nonempty_file(dest_path) {
             return Ok(());
         }
         return Err(crate::utils::err_msg(
@@ -457,26 +518,42 @@ fn log_missing_macos_provider_dylibs(app: &AppHandle, ort_dir: &Path, dylib_path
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn resolve_bundled_onnxruntime(app: &AppHandle) -> Option<PathBuf> {
-    let lib_name = if cfg!(target_os = "windows") {
-        "onnxruntime.dll"
+    let candidates = if cfg!(target_os = "windows") {
+        vec![
+            "onnxruntime/onnxruntime.dll".to_string(),
+            "onnxruntime.dll".to_string(),
+        ]
     } else if cfg!(target_os = "macos") {
-        "libonnxruntime.dylib"
+        let versioned = macos_primary_dylib_name();
+        vec![
+            format!("onnxruntime/{}", versioned),
+            versioned,
+            "onnxruntime/libonnxruntime.dylib".to_string(),
+            "libonnxruntime.dylib".to_string(),
+        ]
     } else {
-        "libonnxruntime.so"
+        vec![
+            "onnxruntime/libonnxruntime.so".to_string(),
+            "libonnxruntime.so".to_string(),
+        ]
     };
-
-    let candidates = [format!("onnxruntime/{}", lib_name), lib_name.to_string()];
 
     for candidate in candidates {
         let Ok(path) = app.path().resolve(&candidate, BaseDirectory::Resource) else {
             continue;
         };
-        if path.exists() {
+        if is_nonempty_file(&path) {
             return Some(path);
         }
     }
 
     None
+}
+
+fn is_nonempty_file(path: &Path) -> bool {
+    fs::metadata(path)
+        .map(|metadata| metadata.is_file() && metadata.len() > 0)
+        .unwrap_or(false)
 }
 
 trait IntoInitResult {
