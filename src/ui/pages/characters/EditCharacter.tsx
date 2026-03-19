@@ -584,6 +584,8 @@ export function EditCharacterPage() {
                         <AvatarPicker
                           currentAvatarPath={avatarPath}
                           onAvatarChange={(path) => setFields({ avatarPath: path })}
+                          promptSubjectName={name}
+                          promptSubjectDescription={definition}
                           avatarCrop={avatarCrop}
                           onAvatarCropChange={(crop) => setFields({ avatarCrop: crop })}
                           avatarRoundPath={avatarRoundPath}

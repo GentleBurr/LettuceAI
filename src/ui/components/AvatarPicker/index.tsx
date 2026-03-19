@@ -7,14 +7,17 @@ import type { AvatarCrop } from "../../../core/storage/schemas";
 import { AvatarImage } from "../AvatarImage";
 
 import { AvatarSourceMenu } from "./AvatarSourceMenu";
+import { AvatarCurrentEditMenu } from "./AvatarCurrentEditMenu";
 import { AvatarGenerationSheet } from "./AvatarGenerationSheet";
 import { AvatarPositionModal } from "./AvatarPositionModal";
 
-export { AvatarSourceMenu, AvatarGenerationSheet, AvatarPositionModal };
+export { AvatarSourceMenu, AvatarCurrentEditMenu, AvatarGenerationSheet, AvatarPositionModal };
 
 interface AvatarPickerProps {
   currentAvatarPath: string;
   onAvatarChange: (path: string) => void;
+  promptSubjectName?: string;
+  promptSubjectDescription?: string;
   avatarCrop?: AvatarCrop | null;
   onAvatarCropChange?: (crop: AvatarCrop | null) => void;
   avatarRoundPath?: string | null;
@@ -29,6 +32,8 @@ interface AvatarPickerProps {
 export function AvatarPicker({
   currentAvatarPath,
   onAvatarChange,
+  promptSubjectName,
+  promptSubjectDescription,
   avatarCrop,
   onAvatarCropChange,
   avatarRoundPath,
@@ -38,10 +43,12 @@ export function AvatarPicker({
   size = "lg",
 }: AvatarPickerProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showEditCurrentMenu, setShowEditCurrentMenu] = useState(false);
   const [showGenerationSheet, setShowGenerationSheet] = useState(false);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
   const [hasImageGenModels, setHasImageGenModels] = useState(false);
+  const [generationMode, setGenerationMode] = useState<"create" | "edit-current">("create");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -92,10 +99,20 @@ export function AvatarPicker({
   }, []);
 
   const handleEditCurrent = useCallback(() => {
-    if (currentAvatarPath) {
-      setPendingImageSrc(currentAvatarPath);
-      setShowPositionModal(true);
-    }
+    if (!currentAvatarPath) return;
+    setShowEditCurrentMenu(true);
+  }, [currentAvatarPath]);
+
+  const handleRepositionCurrent = useCallback(() => {
+    if (!currentAvatarPath) return;
+    setPendingImageSrc(currentAvatarPath);
+    setShowPositionModal(true);
+  }, [currentAvatarPath]);
+
+  const handleEditCurrentWithAI = useCallback(() => {
+    if (!currentAvatarPath) return;
+    setGenerationMode("edit-current");
+    setShowGenerationSheet(true);
   }, [currentAvatarPath]);
 
   const handlePositionConfirm = useCallback(
@@ -179,17 +196,36 @@ export function AvatarPicker({
       <AvatarSourceMenu
         isOpen={showMenu}
         onClose={() => setShowMenu(false)}
-        onGenerateImage={() => setShowGenerationSheet(true)}
+        onGenerateImage={() => {
+          setGenerationMode("create");
+          setShowGenerationSheet(true);
+        }}
         onChooseImage={handleChooseImage}
         onEditCurrent={handleEditCurrent}
         hasImageGenerationModels={hasImageGenModels}
         hasCurrentAvatar={!!currentAvatarPath}
       />
 
+      <AvatarCurrentEditMenu
+        isOpen={showEditCurrentMenu}
+        onClose={() => setShowEditCurrentMenu(false)}
+        onReposition={handleRepositionCurrent}
+        onEditWithAI={handleEditCurrentWithAI}
+        hasImageGenerationModels={hasImageGenModels}
+      />
+
       <AvatarGenerationSheet
         isOpen={showGenerationSheet}
-        onClose={() => setShowGenerationSheet(false)}
+        onClose={() => {
+          setShowGenerationSheet(false);
+          setGenerationMode("create");
+        }}
         onImageGenerated={handleGeneratedImage}
+        subjectName={promptSubjectName}
+        subjectDescription={promptSubjectDescription}
+        initialImageSrc={generationMode === "edit-current" ? currentAvatarPath : null}
+        startInEditMode={generationMode === "edit-current"}
+        hidePromptNavigation={generationMode === "edit-current"}
       />
 
       {pendingImageSrc && (

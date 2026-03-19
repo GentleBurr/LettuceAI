@@ -16,6 +16,8 @@ export {
   resetDynamicMemoryTemplate,
   resetHelpMeReplyTemplate,
   resetHelpMeReplyConversationalTemplate,
+  resetAvatarGenerationTemplate,
+  resetAvatarEditTemplate,
   getRequiredTemplateVariables,
   validateTemplateVariables,
 } from "./index";

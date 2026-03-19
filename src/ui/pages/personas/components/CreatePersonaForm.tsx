@@ -76,6 +76,8 @@ export function CreatePersonaForm({
               <AvatarPicker
                 currentAvatarPath={avatarPath ?? ""}
                 onAvatarChange={handleAvatarChange}
+                promptSubjectName={title}
+                promptSubjectDescription={description}
                 avatarCrop={avatarCrop}
                 onAvatarCropChange={handleAvatarCropChange}
                 avatarRoundPath={avatarRoundPath}

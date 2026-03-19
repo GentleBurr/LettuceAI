@@ -2212,6 +2212,7 @@ fn build_image_request(
             model: model_name.to_string(),
             provider_id: provider_id.to_string(),
             credential_id: credential_id.to_string(),
+            input_images: None,
             size: arguments
                 .get("size")
                 .and_then(|v| v.as_str())

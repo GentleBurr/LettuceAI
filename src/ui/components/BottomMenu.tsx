@@ -56,6 +56,7 @@ export interface BottomMenuProps {
   location?: "top" | "bottom";
   children: ReactNode;
   className?: string;
+  leftAction?: ReactNode;
   rightAction?: ReactNode;
 }
 
@@ -67,6 +68,7 @@ export function BottomMenu({
   location = "bottom",
   children,
   className = "",
+  leftAction,
   rightAction,
 }: BottomMenuProps) {
   const { t } = useI18n();
@@ -229,12 +231,13 @@ export function BottomMenu({
             )}
 
             <div
-              className={`flex items-center justify-between px-6 ${isBottomMenu ? "pb-4" : "pt-4 pb-4"} shrink-0`}
+              className={`grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-6 ${isBottomMenu ? "pb-4" : "pt-4 pb-4"} shrink-0`}
             >
-              <h3 id={titleId} className="text-lg font-semibold text-white">
+              <div className="flex min-w-0 items-center justify-start">{leftAction}</div>
+              <h3 id={titleId} className="text-center text-lg font-semibold text-white">
                 {resolvedTitle}
               </h3>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center justify-end gap-2">
                 {rightAction}
                 {includeExitIcon && (
                   <button

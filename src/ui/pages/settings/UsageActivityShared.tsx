@@ -40,6 +40,7 @@ export function getOperationColor(type: string): string {
     continue: "#22d3ee",
     summary: "var(--color-warning)",
     memory_manager: "var(--color-accent)",
+    image_generation: "var(--color-accent)",
     group_chat_message: "var(--color-info)",
     group_chat_regenerate: "var(--color-secondary)",
     group_chat_continue: "#22d3ee",
@@ -55,6 +56,7 @@ export function getOperationLabel(type: string): string {
     continue: "Continue",
     summary: "Summary",
     memory_manager: "Memory",
+    image_generation: "Image Gen",
     group_chat_message: "Group Chat",
     group_chat_regenerate: "Group Regen",
     group_chat_continue: "Group Continue",
@@ -63,43 +65,28 @@ export function getOperationLabel(type: string): string {
   return labels[type.toLowerCase()] || type;
 }
 
-function parseMetadataNumber(
-  metadata: RequestUsage["metadata"],
-  key: string,
-): number | null {
+function parseMetadataNumber(metadata: RequestUsage["metadata"], key: string): number | null {
   const raw = metadata?.[key];
   if (!raw) return null;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function DetailStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function DetailStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className={cn(
-      "px-3 py-2.5",
-      components.card.base,
-      "bg-fg/5 border-fg/10"
-    )}>
-      <div className={cn(
-        typography.overline.size,
-        typography.overline.weight,
-        typography.overline.tracking,
-        typography.overline.transform,
-        "text-fg/40"
-      )}>
+    <div className={cn("px-3 py-2.5", components.card.base, "bg-fg/5 border-fg/10")}>
+      <div
+        className={cn(
+          typography.overline.size,
+          typography.overline.weight,
+          typography.overline.tracking,
+          typography.overline.transform,
+          "text-fg/40",
+        )}
+      >
         {label}
       </div>
-      <div className={cn(
-        typography.body.size,
-        typography.body.weight,
-        "mt-1 text-fg"
-      )}>
+      <div className={cn(typography.body.size, typography.body.weight, "mt-1 text-fg")}>
         {value}
       </div>
     </div>
@@ -117,10 +104,10 @@ export function ActivityItem({
 }) {
   const clickable = Boolean(onClick);
   const opColor = getOperationColor(request.operationType);
-  
+
   // Robust background color calculation that works with both hex and var()
-  const bgStyle = opColor.includes("var") 
-    ? `color-mix(in srgb, ${opColor}, transparent 88%)` 
+  const bgStyle = opColor.includes("var")
+    ? `color-mix(in srgb, ${opColor}, transparent 88%)`
     : `${opColor}18`;
 
   return (
@@ -130,7 +117,7 @@ export function ActivityItem({
       onClick={() => onClick?.(request)}
       className={cn(
         "flex w-full items-center gap-3 px-3 py-3 text-left transition-all duration-200",
-        clickable ? "hover:bg-fg/5 active:scale-[0.99]" : ""
+        clickable ? "hover:bg-fg/5 active:scale-[0.99]" : "",
       )}
     >
       <div
@@ -141,11 +128,7 @@ export function ActivityItem({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={cn(
-            typography.body.size,
-            typography.body.weight,
-            "truncate text-fg"
-          )}>
+          <span className={cn(typography.body.size, typography.body.weight, "truncate text-fg")}>
             {request.characterName || "Unknown"}
           </span>
           <span
@@ -158,27 +141,17 @@ export function ActivityItem({
             {getOperationLabel(request.operationType)}
           </span>
         </div>
-        <div className={cn(
-          typography.caption.size,
-          "mt-0.5 flex items-center gap-2 text-fg/40"
-        )}>
+        <div className={cn(typography.caption.size, "mt-0.5 flex items-center gap-2 text-fg/40")}>
           <span>{formatCompactNumber(request.totalTokens || 0)} tokens</span>
           <span className="opacity-30">·</span>
           <span>{getRelativeTime(request.timestamp)}</span>
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className={cn(
-          typography.body.size,
-          typography.body.weight,
-          "text-accent"
-        )}>
+        <p className={cn(typography.body.size, typography.body.weight, "text-accent")}>
           {formatCurrency(request.cost?.totalCost || 0)}
         </p>
-        <p className={cn(
-          typography.overline.size,
-          "mt-0.5 truncate text-fg/30"
-        )}>
+        <p className={cn(typography.overline.size, "mt-0.5 truncate text-fg/30")}>
           {request.modelName}
         </p>
       </div>
@@ -200,10 +173,7 @@ export function UsageRequestDetailSheet({
     request?.metadata,
     "openrouter_cached_prompt_tokens",
   );
-  const cacheWriteTokens = parseMetadataNumber(
-    request?.metadata,
-    "openrouter_cache_write_tokens",
-  );
+  const cacheWriteTokens = parseMetadataNumber(request?.metadata, "openrouter_cache_write_tokens");
   const webSearchRequests = parseMetadataNumber(
     request?.metadata,
     "openrouter_web_search_requests",
@@ -218,19 +188,13 @@ export function UsageRequestDetailSheet({
     >
       {request && (
         <div className="space-y-6 pb-8">
-          <div className={cn(
-            "p-5",
-            components.card.base,
-            "bg-fg/5 border-fg/10"
-          )}>
+          <div className={cn("p-5", components.card.base, "bg-fg/5 border-fg/10")}>
             <div className={cn(typography.h2.size, typography.h2.weight, "text-fg")}>
               {request.characterName}
             </div>
-            <div className={cn(typography.body.size, "mt-1 text-fg/50")}>
-              {request.modelName}
-            </div>
+            <div className={cn(typography.body.size, "mt-1 text-fg/50")}>{request.modelName}</div>
             <div className="mt-4 flex flex-wrap gap-3">
-               <div className="px-2 py-1 rounded-md bg-fg/5 text-[10px] font-medium text-fg/40 uppercase tracking-wider border border-fg/5">
+              <div className="px-2 py-1 rounded-md bg-fg/5 text-[10px] font-medium text-fg/40 uppercase tracking-wider border border-fg/5">
                 {new Date(request.timestamp).toLocaleTimeString()}
               </div>
               <div className="px-2 py-1 rounded-md bg-fg/5 text-[10px] font-medium text-fg/40 uppercase tracking-wider border border-fg/5">
@@ -243,12 +207,14 @@ export function UsageRequestDetailSheet({
           </div>
 
           <div className="space-y-3">
-            <div className={cn(
-              typography.overline.size,
-              typography.overline.weight,
-              typography.overline.tracking,
-              "text-fg/40 ml-1"
-            )}>
+            <div
+              className={cn(
+                typography.overline.size,
+                typography.overline.weight,
+                typography.overline.tracking,
+                "text-fg/40 ml-1",
+              )}
+            >
               Token Usage
             </div>
             <div className="grid grid-cols-2 gap-2.5">
@@ -277,12 +243,14 @@ export function UsageRequestDetailSheet({
           </div>
 
           <div className="space-y-3">
-            <div className={cn(
-              typography.overline.size,
-              typography.overline.weight,
-              typography.overline.tracking,
-              "text-fg/40 ml-1"
-            )}>
+            <div
+              className={cn(
+                typography.overline.size,
+                typography.overline.weight,
+                typography.overline.tracking,
+                "text-fg/40 ml-1",
+              )}
+            >
               Estimated Cost
             </div>
             <div className="grid grid-cols-3 gap-2.5">

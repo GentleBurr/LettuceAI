@@ -14,6 +14,7 @@ import {
   Brain,
   MessageSquare,
   Users,
+  Image,
   Plus,
   X,
 } from "lucide-react";
@@ -36,6 +37,8 @@ import {
   APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
+  APP_AVATAR_GENERATION_TEMPLATE_ID,
+  APP_AVATAR_EDIT_TEMPLATE_ID,
   isProtectedPromptTemplate,
   isSystemPromptTemplate,
   getPromptTypeLabel,
@@ -273,6 +276,9 @@ function getTemplateIcon(templateId: string) {
     case APP_GROUP_CHAT_TEMPLATE_ID:
     case APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID:
       return Users;
+    case APP_AVATAR_GENERATION_TEMPLATE_ID:
+    case APP_AVATAR_EDIT_TEMPLATE_ID:
+      return Image;
     default:
       return FileText;
   }

@@ -211,6 +211,14 @@ pub fn run() {
                 );
             }
 
+            if let Err(e) = chat_manager::prompts::ensure_avatar_image_templates(app.handle()) {
+                utils::log_error(
+                    app.handle(),
+                    "bootstrap",
+                    format!("Failed to ensure avatar image templates: {}", e),
+                );
+            }
+
             // Initialize Sync Manager
             app.manage(sync::manager::SyncManagerState::new());
 
@@ -373,6 +381,8 @@ pub fn run() {
             chat_manager::reset_dynamic_memory_template,
             chat_manager::reset_help_me_reply_template,
             chat_manager::reset_help_me_reply_conversational_template,
+            chat_manager::reset_avatar_generation_template,
+            chat_manager::reset_avatar_edit_template,
             chat_manager::get_required_template_variables,
             chat_manager::validate_template_variables,
             chat_manager::render_prompt_preview,

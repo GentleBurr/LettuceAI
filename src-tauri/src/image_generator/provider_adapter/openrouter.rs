@@ -10,7 +10,7 @@ pub struct OpenRouterAdapter;
 #[derive(Serialize)]
 struct OpenRouterMessage<'a> {
     role: &'a str,
-    content: &'a str,
+    content: Value,
 }
 
 #[derive(Serialize)]
@@ -80,9 +80,29 @@ impl ImageProviderAdapter for OpenRouterAdapter {
     }
 
     fn body(&self, request: &ImageGenerationRequest) -> Value {
+        let content = if let Some(input_images) = &request.input_images {
+            let mut parts = vec![json!({
+                "type": "text",
+                "text": request.prompt,
+            })];
+
+            for image in input_images {
+                parts.push(json!({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image,
+                    }
+                }));
+            }
+
+            Value::Array(parts)
+        } else {
+            Value::String(request.prompt.clone())
+        };
+
         let message = OpenRouterMessage {
             role: "user",
-            content: &request.prompt,
+            content,
         };
 
         let req = OpenRouterRequest {

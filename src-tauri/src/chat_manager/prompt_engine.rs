@@ -39,6 +39,14 @@ pub fn default_group_chat_roleplay_prompt_template() -> String {
     join_entries(&default_group_chat_roleplay_entries())
 }
 
+pub fn default_avatar_generation_prompt() -> String {
+    join_entries(&default_avatar_generation_entries())
+}
+
+pub fn default_avatar_edit_prompt() -> String {
+    join_entries(&default_avatar_edit_entries())
+}
+
 fn join_entries(entries: &[SystemPromptEntry]) -> String {
     entries
         .iter()
@@ -599,6 +607,152 @@ pub fn default_group_chat_roleplay_entries() -> Vec<SystemPromptEntry> {
             conditional_min_messages: None,
             interval_turns: None,
             system_prompt: true,
+        },
+    ]
+}
+
+pub fn default_avatar_generation_entries() -> Vec<SystemPromptEntry> {
+    vec![
+        SystemPromptEntry {
+            id: "avatar_gen_task".to_string(),
+            name: "Task".to_string(),
+            role: PromptEntryRole::System,
+            content: "You write a single high-quality image generation prompt for a character avatar. Your job is to turn the request into a clear visual prompt that preserves identity and produces a strong profile image.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+        },
+        SystemPromptEntry {
+            id: "avatar_gen_context".to_string(),
+            name: "Character Context".to_string(),
+            role: PromptEntryRole::System,
+            content:
+                "# Avatar Subject\nName: {{avatar_subject_name}}\n{{avatar_subject_description}}"
+                    .to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_gen_request".to_string(),
+            name: "Avatar Request".to_string(),
+            role: PromptEntryRole::System,
+            content: "# Avatar Request\n{{avatar_request}}".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_gen_rules".to_string(),
+            name: "Prompt Rules".to_string(),
+            role: PromptEntryRole::System,
+            content: "Write one polished prompt for an image model.\n- Prioritize face, hair, clothing, expression, pose, and overall vibe.\n- Keep the subject centered and suitable for an avatar or profile image.\n- Preserve identity-defining traits from the context.\n- Do not add text, logos, watermarks, frames, UI, or split panels unless explicitly requested.\n- Do not explain your reasoning.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_gen_output".to_string(),
+            name: "Output".to_string(),
+            role: PromptEntryRole::System,
+            content: "Output only the final image prompt text.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+    ]
+}
+
+pub fn default_avatar_edit_entries() -> Vec<SystemPromptEntry> {
+    vec![
+        SystemPromptEntry {
+            id: "avatar_edit_task".to_string(),
+            name: "Task".to_string(),
+            role: PromptEntryRole::System,
+            content: "You revise an existing avatar image prompt. The source image will be provided to you separately. Use that image and the edit request to produce one updated prompt for the next generation.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+        },
+        SystemPromptEntry {
+            id: "avatar_edit_context".to_string(),
+            name: "Character Context".to_string(),
+            role: PromptEntryRole::System,
+            content:
+                "# Avatar Subject\nName: {{avatar_subject_name}}\n{{avatar_subject_description}}"
+                    .to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_edit_source".to_string(),
+            name: "Current Prompt".to_string(),
+            role: PromptEntryRole::System,
+            content: "# Current Avatar Prompt\n{{current_avatar_prompt}}".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_edit_request".to_string(),
+            name: "Edit Request".to_string(),
+            role: PromptEntryRole::System,
+            content: "# Edit Request\n{{edit_request}}".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_edit_rules".to_string(),
+            name: "Revision Rules".to_string(),
+            role: PromptEntryRole::System,
+            content: "Use the actual source image as the truth for current appearance. Preserve everything that should stay the same and change only what the edit request asks for.\n- Keep the character recognizable.\n- If the old prompt conflicts with the source image, trust the source image.\n- Do not restate unchanged details more than needed.\n- Do not explain what you changed.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+        },
+        SystemPromptEntry {
+            id: "avatar_edit_output".to_string(),
+            name: "Output".to_string(),
+            role: PromptEntryRole::System,
+            content: "Output only the revised image prompt text.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
         },
     ]
 }

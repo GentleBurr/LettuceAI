@@ -2,6 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Model, ProviderCredential, Settings } from "../storage/schemas";
 import { convertToImageUrl } from "../storage/images";
+import { getPromptTemplate } from "../prompts/service";
+import {
+  APP_AVATAR_EDIT_TEMPLATE_ID,
+  APP_AVATAR_GENERATION_TEMPLATE_ID,
+} from "../prompts/constants";
 
 /**
  * Image generation request parameters
@@ -11,6 +16,7 @@ export interface ImageGenerationRequest {
   model: string;
   providerId: string;
   credentialId: string;
+  inputImages?: string[];
   size?: string;
   quality?: string;
   style?: string;
@@ -55,12 +61,112 @@ export async function generateImage(
       model: request.model,
       providerId: request.providerId,
       credentialId: request.credentialId,
+      inputImages: request.inputImages ?? null,
       size: request.size ?? null,
       quality: request.quality ?? null,
       style: request.style ?? null,
       n: request.n ?? 1,
     },
   });
+}
+
+type PromptTemplateLike = {
+  content: string;
+  entries?: Array<{ content: string; enabled?: boolean }>;
+};
+
+type AvatarPromptContext = {
+  subjectName?: string | null;
+  subjectDescription?: string | null;
+  avatarRequest?: string | null;
+  currentAvatarPrompt?: string | null;
+  editRequest?: string | null;
+};
+
+const FALLBACK_AVATAR_GENERATION_TEMPLATE = [
+  "Write one polished image prompt for a character avatar.",
+  "Subject: {{avatar_subject_name}}",
+  "{{avatar_subject_description}}",
+  "Request: {{avatar_request}}",
+  "Keep the subject centered and suitable for a profile image.",
+  "Output only the final image prompt text.",
+].join("\n\n");
+
+const FALLBACK_AVATAR_EDIT_TEMPLATE = [
+  "Revise the existing avatar image prompt using the source image and the edit request.",
+  "Subject: {{avatar_subject_name}}",
+  "{{avatar_subject_description}}",
+  "Current prompt: {{current_avatar_prompt}}",
+  "Edit request: {{edit_request}}",
+  "Preserve identity and change only what the edit request asks for.",
+  "Output only the revised image prompt text.",
+].join("\n\n");
+
+function resolveTemplateContent(template: PromptTemplateLike | null, fallback: string): string {
+  if (!template) return fallback;
+
+  const mergedEntries =
+    template.entries
+      ?.filter((entry) => entry.enabled !== false && entry.content.trim().length > 0)
+      .map((entry) => entry.content)
+      .join("\n\n") ?? "";
+
+  return mergedEntries.trim() || template.content.trim() || fallback;
+}
+
+function applyTemplateVariables(template: string, context: AvatarPromptContext): string {
+  const subjectName = context.subjectName?.trim() ?? "";
+  const subjectDescription = context.subjectDescription?.trim() ?? "";
+  const replacements: Record<string, string> = {
+    "{{avatar_subject_name}}": subjectName,
+    "{{avatar_subject_description}}": subjectDescription,
+    "{{avatar_request}}": context.avatarRequest?.trim() ?? "",
+    "{{current_avatar_prompt}}": context.currentAvatarPrompt?.trim() ?? "",
+    "{{edit_request}}": context.editRequest?.trim() ?? "",
+    // Backward-compatible aliases in case a user customized these templates already.
+    "{{char.name}}": subjectName,
+    "{{char.desc}}": subjectDescription,
+    "{{persona.name}}": subjectName,
+    "{{persona.desc}}": subjectDescription,
+  };
+
+  let result = template;
+  for (const [placeholder, value] of Object.entries(replacements)) {
+    result = result.split(placeholder).join(value);
+  }
+
+  return result.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function buildAvatarTemplatePrompt(
+  templateId: string,
+  context: AvatarPromptContext,
+  fallback: string,
+): Promise<string> {
+  try {
+    const template = await getPromptTemplate(templateId);
+    const content = resolveTemplateContent(template, fallback);
+    return applyTemplateVariables(content, context);
+  } catch (error) {
+    console.warn("Failed to load avatar prompt template, using fallback:", error);
+    return applyTemplateVariables(fallback, context);
+  }
+}
+
+export async function buildAvatarGenerationPrompt(context: AvatarPromptContext): Promise<string> {
+  return buildAvatarTemplatePrompt(
+    APP_AVATAR_GENERATION_TEMPLATE_ID,
+    context,
+    FALLBACK_AVATAR_GENERATION_TEMPLATE,
+  );
+}
+
+export async function buildAvatarEditPrompt(context: AvatarPromptContext): Promise<string> {
+  return buildAvatarTemplatePrompt(
+    APP_AVATAR_EDIT_TEMPLATE_ID,
+    context,
+    FALLBACK_AVATAR_EDIT_TEMPLATE,
+  );
 }
 
 export interface ImageGenerationOptions {

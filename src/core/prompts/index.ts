@@ -85,6 +85,14 @@ export async function resetHelpMeReplyConversationalTemplate(): Promise<SystemPr
   return await invoke<SystemPromptTemplate>("reset_help_me_reply_conversational_template");
 }
 
+export async function resetAvatarGenerationTemplate(): Promise<SystemPromptTemplate> {
+  return await invoke<SystemPromptTemplate>("reset_avatar_generation_template");
+}
+
+export async function resetAvatarEditTemplate(): Promise<SystemPromptTemplate> {
+  return await invoke<SystemPromptTemplate>("reset_avatar_edit_template");
+}
+
 export async function getRequiredTemplateVariables(templateId: string): Promise<string[]> {
   return await invoke<string[]>("get_required_template_variables", { templateId });
 }

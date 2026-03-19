@@ -17,11 +17,15 @@ pub const APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID: &str =
     "prompt_app_help_me_reply_conversational";
 pub const APP_GROUP_CHAT_TEMPLATE_ID: &str = "prompt_app_group_chat";
 pub const APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID: &str = "prompt_app_group_chat_roleplay";
+pub const APP_AVATAR_GENERATION_TEMPLATE_ID: &str = "prompt_app_avatar_generation";
+pub const APP_AVATAR_EDIT_TEMPLATE_ID: &str = "prompt_app_avatar_edit";
 const APP_DEFAULT_TEMPLATE_NAME: &str = "App Default";
 const APP_DYNAMIC_SUMMARY_TEMPLATE_NAME: &str = "Dynamic Memory: Summarizer";
 const APP_DYNAMIC_MEMORY_TEMPLATE_NAME: &str = "Dynamic Memory: Memory Manager";
 const APP_HELP_ME_REPLY_TEMPLATE_NAME: &str = "Reply Helper";
 const APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_NAME: &str = "Reply Helper (Conversational)";
+const APP_AVATAR_GENERATION_TEMPLATE_NAME: &str = "Avatar Generation";
+const APP_AVATAR_EDIT_TEMPLATE_NAME: &str = "Avatar Image Edit";
 
 fn supports_entry_prompts(_id: &str) -> bool {
     true
@@ -236,6 +240,11 @@ pub fn get_required_variables(template_id: &str) -> Vec<String> {
             "{{group_characters}}".to_string(),
             "{{context_summary}}".to_string(),
             "{{key_memories}}".to_string(),
+        ],
+        APP_AVATAR_GENERATION_TEMPLATE_ID => vec!["{{avatar_request}}".to_string()],
+        APP_AVATAR_EDIT_TEMPLATE_ID => vec![
+            "{{current_avatar_prompt}}".to_string(),
+            "{{edit_request}}".to_string(),
         ],
         _ => vec![],
     }
@@ -605,6 +614,8 @@ pub fn is_app_default_template(id: &str) -> bool {
         || id == APP_DYNAMIC_MEMORY_TEMPLATE_ID
         || id == APP_HELP_ME_REPLY_TEMPLATE_ID
         || id == APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID
+        || id == APP_AVATAR_GENERATION_TEMPLATE_ID
+        || id == APP_AVATAR_EDIT_TEMPLATE_ID
 }
 
 pub fn reset_app_default_template(app: &AppHandle) -> Result<SystemPromptTemplate, String> {
@@ -711,6 +722,65 @@ pub fn ensure_help_me_reply_template(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+pub fn ensure_avatar_image_templates(app: &AppHandle) -> Result<(), String> {
+    let conn = open_db(app)?;
+    let now = now();
+
+    if get_template(app, APP_AVATAR_GENERATION_TEMPLATE_ID)?.is_none() {
+        let content = get_base_prompt(PromptType::AvatarGenerationPrompt);
+        let entries = get_base_prompt_entries(PromptType::AvatarGenerationPrompt);
+        let entries_json = serde_json::to_string(&entries)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO prompt_templates (id, name, scope, target_ids, content, entries, created_at, updated_at) VALUES (?1, ?2, ?3, '[]', ?4, ?5, ?6, ?6)",
+            params![
+                APP_AVATAR_GENERATION_TEMPLATE_ID,
+                APP_AVATAR_GENERATION_TEMPLATE_NAME,
+                scope_to_str(&PromptScope::AppWide),
+                content,
+                entries_json,
+                now
+            ],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    } else {
+        let _ = maybe_backfill_entries(
+            app,
+            APP_AVATAR_GENERATION_TEMPLATE_ID,
+            PromptType::AvatarGenerationPrompt,
+            get_base_prompt_entries(PromptType::AvatarGenerationPrompt),
+        );
+    }
+
+    if get_template(app, APP_AVATAR_EDIT_TEMPLATE_ID)?.is_none() {
+        let content = get_base_prompt(PromptType::AvatarEditPrompt);
+        let entries = get_base_prompt_entries(PromptType::AvatarEditPrompt);
+        let entries_json = serde_json::to_string(&entries)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO prompt_templates (id, name, scope, target_ids, content, entries, created_at, updated_at) VALUES (?1, ?2, ?3, '[]', ?4, ?5, ?6, ?6)",
+            params![
+                APP_AVATAR_EDIT_TEMPLATE_ID,
+                APP_AVATAR_EDIT_TEMPLATE_NAME,
+                scope_to_str(&PromptScope::AppWide),
+                content,
+                entries_json,
+                now
+            ],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    } else {
+        let _ = maybe_backfill_entries(
+            app,
+            APP_AVATAR_EDIT_TEMPLATE_ID,
+            PromptType::AvatarEditPrompt,
+            get_base_prompt_entries(PromptType::AvatarEditPrompt),
+        );
+    }
+
+    Ok(())
+}
+
 pub fn reset_help_me_reply_template(app: &AppHandle) -> Result<SystemPromptTemplate, String> {
     let content = get_base_prompt(PromptType::HelpMeReplyPrompt);
     let entries = get_base_prompt_entries(PromptType::HelpMeReplyPrompt);
@@ -734,6 +804,36 @@ pub fn reset_help_me_reply_conversational_template(
     update_template(
         app,
         APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID.to_string(),
+        None,
+        None,
+        None,
+        Some(content.clone()),
+        Some(entries),
+        None,
+    )
+}
+
+pub fn reset_avatar_generation_template(app: &AppHandle) -> Result<SystemPromptTemplate, String> {
+    let content = get_base_prompt(PromptType::AvatarGenerationPrompt);
+    let entries = get_base_prompt_entries(PromptType::AvatarGenerationPrompt);
+    update_template(
+        app,
+        APP_AVATAR_GENERATION_TEMPLATE_ID.to_string(),
+        None,
+        None,
+        None,
+        Some(content.clone()),
+        Some(entries),
+        None,
+    )
+}
+
+pub fn reset_avatar_edit_template(app: &AppHandle) -> Result<SystemPromptTemplate, String> {
+    let content = get_base_prompt(PromptType::AvatarEditPrompt);
+    let entries = get_base_prompt_entries(PromptType::AvatarEditPrompt);
+    update_template(
+        app,
+        APP_AVATAR_EDIT_TEMPLATE_ID.to_string(),
         None,
         None,
         None,

@@ -74,6 +74,7 @@ export function IdentityStep({
             <AvatarPicker
               currentAvatarPath={avatarPath}
               onAvatarChange={onAvatarChange}
+              promptSubjectName={name}
               avatarCrop={avatarCrop}
               onAvatarCropChange={onAvatarCropChange}
               avatarRoundPath={avatarRoundPath}
@@ -106,7 +107,11 @@ export function IdentityStep({
             )}
           </div>
           <p className="mt-3 text-xs text-fg/40">{t("characters.identity.tapCameraToAdd")}</p>
-          {importingAvatar && <p className="mt-1 text-xs text-accent/80">{t("characters.identity.importingAvatar")}</p>}
+          {importingAvatar && (
+            <p className="mt-1 text-xs text-accent/80">
+              {t("characters.identity.importingAvatar")}
+            </p>
+          )}
           {avatarImportError && (
             <div className="mt-2 flex items-start gap-1.5 text-xs text-danger">
               <AlertCircle size={12} className="mt-0.5 shrink-0" />
@@ -281,9 +286,7 @@ export function IdentityStep({
                   </div>
                   <div className="text-center">
                     <p className={cn(typography.bodySmall.size, "text-fg/70")}>Add Background</p>
-                    <p className={cn(typography.caption.size, "text-fg/40")}>
-                      Tap to select image
-                    </p>
+                    <p className={cn(typography.caption.size, "text-fg/40")}>Tap to select image</p>
                   </div>
                   <input
                     type="file"

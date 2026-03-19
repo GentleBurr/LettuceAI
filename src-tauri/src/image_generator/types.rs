@@ -8,6 +8,8 @@ pub struct ImageGenerationRequest {
     pub provider_id: String,
     pub credential_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_images: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality: Option<String>,

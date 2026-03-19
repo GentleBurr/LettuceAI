@@ -38,6 +38,9 @@ import {
   resetAppDefaultTemplate,
   resetDynamicSummaryTemplate,
   resetDynamicMemoryTemplate,
+  resetHelpMeReplyTemplate,
+  resetAvatarGenerationTemplate,
+  resetAvatarEditTemplate,
   renderPromptPreview,
   getRequiredTemplateVariables,
 } from "../../../core/prompts/service";
@@ -50,6 +53,8 @@ import {
   APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
+  APP_AVATAR_GENERATION_TEMPLATE_ID,
+  APP_AVATAR_EDIT_TEMPLATE_ID,
   isProtectedPromptTemplate,
 } from "../../../core/prompts/constants";
 
@@ -58,6 +63,8 @@ type PromptType =
   | "summary"
   | "memory"
   | "reply"
+  | "avatar_generation"
+  | "avatar_edit"
   | "group_chat"
   | "group_chat_roleplay"
   | null;
@@ -93,6 +100,37 @@ const VARIABLES_BY_TYPE: Record<string, Variable[]> = {
     { var: "{{persona.name}}", label: "User Name", desc: "The user's persona name" },
     { var: "{{persona.desc}}", label: "User Description", desc: "User persona description" },
     { var: "{{current_draft}}", label: "Current Draft", desc: "Content user started writing" },
+  ],
+  avatar_generation: [
+    {
+      var: "{{avatar_subject_name}}",
+      label: "Avatar Subject Name",
+      desc: "Name of the character or persona the avatar is for",
+    },
+    {
+      var: "{{avatar_subject_description}}",
+      label: "Avatar Subject Description",
+      desc: "Description of the character or persona the avatar is for",
+    },
+    { var: "{{avatar_request}}", label: "Avatar Request", desc: "User request for the avatar" },
+  ],
+  avatar_edit: [
+    {
+      var: "{{avatar_subject_name}}",
+      label: "Avatar Subject Name",
+      desc: "Name of the character or persona the avatar is for",
+    },
+    {
+      var: "{{avatar_subject_description}}",
+      label: "Avatar Subject Description",
+      desc: "Description of the character or persona the avatar is for",
+    },
+    {
+      var: "{{current_avatar_prompt}}",
+      label: "Current Avatar Prompt",
+      desc: "The prompt used for the current avatar image",
+    },
+    { var: "{{edit_request}}", label: "Edit Request", desc: "Requested avatar changes" },
   ],
   group_chat: [
     { var: "{{char.name}}", label: "Character Name", desc: "The character's display name" },
@@ -779,6 +817,10 @@ function getPromptTypeName(type: PromptType): string {
       return "Dynamic Memory";
     case "reply":
       return "Reply Helper";
+    case "avatar_generation":
+      return "Avatar Generation";
+    case "avatar_edit":
+      return "Avatar Image Edit";
     case "group_chat":
       return "Group Chat";
     case "group_chat_roleplay":
@@ -861,7 +903,9 @@ export function EditPromptTemplate() {
     (promptType === "system" ||
       promptType === "summary" ||
       promptType === "memory" ||
-      promptType === "reply");
+      promptType === "reply" ||
+      promptType === "avatar_generation" ||
+      promptType === "avatar_edit");
 
   const usesEntryEditor = true;
   const quickInsertY = useMotionValue(0);
@@ -1041,6 +1085,10 @@ export function EditPromptTemplate() {
             detectedType = "reply";
           } else if (template.id === APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID) {
             detectedType = "reply";
+          } else if (template.id === APP_AVATAR_GENERATION_TEMPLATE_ID) {
+            detectedType = "avatar_generation";
+          } else if (template.id === APP_AVATAR_EDIT_TEMPLATE_ID) {
+            detectedType = "avatar_edit";
           } else if (template.id === APP_GROUP_CHAT_TEMPLATE_ID) {
             detectedType = "group_chat";
           } else if (template.id === APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID) {
@@ -1209,7 +1257,13 @@ export function EditPromptTemplate() {
 
   async function handleReset() {
     if (!isAppDefault || !promptType) return;
-    if (!["system", "summary", "memory", "reply"].includes(promptType)) return;
+    if (
+      !["system", "summary", "memory", "reply", "avatar_generation", "avatar_edit"].includes(
+        promptType,
+      )
+    ) {
+      return;
+    }
 
     const promptTypeName = getPromptTypeName(promptType);
     const confirmed = await confirmBottomMenu({
@@ -1229,9 +1283,12 @@ export function EditPromptTemplate() {
         updated = await resetDynamicSummaryTemplate();
       } else if (promptType === "memory") {
         updated = await resetDynamicMemoryTemplate();
-      } else {
-        const { resetHelpMeReplyTemplate } = await import("../../../core/prompts/service");
+      } else if (promptType === "reply") {
         updated = await resetHelpMeReplyTemplate();
+      } else if (promptType === "avatar_generation") {
+        updated = await resetAvatarGenerationTemplate();
+      } else {
+        updated = await resetAvatarEditTemplate();
       }
       setContent(updated.content);
       setCondensePromptEntries(Boolean(updated.condensePromptEntries));

@@ -26,6 +26,8 @@ pub enum PromptType {
     HelpMeReplyConversationalPrompt,
     GroupChatPrompt,
     GroupChatRoleplayPrompt,
+    AvatarGenerationPrompt,
+    AvatarEditPrompt,
 }
 
 pub fn get_base_prompt(prompt_type: PromptType) -> String {
@@ -41,6 +43,8 @@ pub fn get_base_prompt(prompt_type: PromptType) -> String {
         PromptType::GroupChatRoleplayPrompt => {
             prompt_engine::default_group_chat_roleplay_prompt_template()
         }
+        PromptType::AvatarGenerationPrompt => prompt_engine::default_avatar_generation_prompt(),
+        PromptType::AvatarEditPrompt => prompt_engine::default_avatar_edit_prompt(),
     }
 }
 
@@ -55,6 +59,8 @@ pub fn get_base_prompt_entries(prompt_type: PromptType) -> Vec<SystemPromptEntry
         }
         PromptType::GroupChatPrompt => prompt_engine::default_group_chat_entries(),
         PromptType::GroupChatRoleplayPrompt => prompt_engine::default_group_chat_roleplay_entries(),
+        PromptType::AvatarGenerationPrompt => prompt_engine::default_avatar_generation_entries(),
+        PromptType::AvatarEditPrompt => prompt_engine::default_avatar_edit_entries(),
     }
 }
 

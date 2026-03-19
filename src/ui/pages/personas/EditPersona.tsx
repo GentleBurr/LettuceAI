@@ -117,6 +117,8 @@ export function EditPersonaPage() {
                   <AvatarPicker
                     currentAvatarPath={avatarPath ?? ""}
                     onAvatarChange={handleAvatarChange}
+                    promptSubjectName={title}
+                    promptSubjectDescription={description}
                     avatarCrop={avatarCrop}
                     onAvatarCropChange={setAvatarCrop}
                     avatarRoundPath={avatarRoundPath}

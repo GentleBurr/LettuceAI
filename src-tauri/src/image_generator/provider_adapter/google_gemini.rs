@@ -15,7 +15,17 @@ struct GeminiContent<'a> {
 
 #[derive(Serialize)]
 struct GeminiPart<'a> {
-    text: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inline_data: Option<GeminiInlineDataRequest<'a>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GeminiInlineDataRequest<'a> {
+    mime_type: &'a str,
+    data: &'a str,
 }
 
 #[derive(Serialize)]
@@ -89,11 +99,29 @@ impl ImageProviderAdapter for GoogleGeminiAdapter {
     }
 
     fn body(&self, request: &ImageGenerationRequest) -> Value {
+        let mut parts = Vec::new();
+        parts.push(GeminiPart {
+            text: Some(&request.prompt),
+            inline_data: None,
+        });
+
+        if let Some(input_images) = &request.input_images {
+            for image in input_images {
+                if let Some((mime_type, data)) = image
+                    .strip_prefix("data:")
+                    .and_then(|rest| rest.split_once(";base64,"))
+                {
+                    parts.push(GeminiPart {
+                        text: None,
+                        inline_data: Some(GeminiInlineDataRequest { mime_type, data }),
+                    });
+                }
+            }
+        }
+
         let content = GeminiContent {
             role: "user",
-            parts: vec![GeminiPart {
-                text: &request.prompt,
-            }],
+            parts,
         };
 
         let req = GeminiRequest {
