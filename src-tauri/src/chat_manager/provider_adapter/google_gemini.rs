@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 
-use super::ProviderAdapter;
+use super::{extract_image_data_urls, extract_text_content, parse_data_url, ProviderAdapter};
 use crate::chat_manager::tooling::{gemini_tool_config, gemini_tools, ToolConfig};
 
 pub struct GoogleGeminiAdapter;
@@ -216,7 +216,8 @@ impl ProviderAdapter for GoogleGeminiAdapter {
             }
 
             let text = extract_text_content(msg.get("content")).unwrap_or_default();
-            if text.trim().is_empty() {
+            let image_urls = extract_image_data_urls(msg.get("content"));
+            if text.trim().is_empty() && image_urls.is_empty() {
                 continue;
             }
 
@@ -225,9 +226,29 @@ impl ProviderAdapter for GoogleGeminiAdapter {
                 _ => "user",
             };
 
+            let mut parts: Vec<Value> = Vec::new();
+            if !text.trim().is_empty() {
+                parts.push(json!({ "text": text }));
+            }
+
+            for image_url in image_urls {
+                if let Some((mime_type, data)) = parse_data_url(&image_url) {
+                    parts.push(json!({
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": data,
+                        }
+                    }));
+                }
+            }
+
+            if parts.is_empty() {
+                continue;
+            }
+
             contents.push(json!({
                 "role": gem_role,
-                "parts": [{ "text": text }]
+                "parts": parts
             }));
         }
 
@@ -331,13 +352,5 @@ fn parse_jsonish_value(value: &Value) -> Value {
             serde_json::from_str::<Value>(raw).unwrap_or_else(|_| Value::String(raw.clone()))
         }
         other => other.clone(),
-    }
-}
-
-fn extract_text_content(value: Option<&Value>) -> Option<String> {
-    match value {
-        None | Some(Value::Null) => None,
-        Some(Value::String(s)) => Some(s.to_string()),
-        Some(other) => Some(other.to_string()),
     }
 }

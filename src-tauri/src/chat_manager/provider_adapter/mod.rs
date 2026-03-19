@@ -147,6 +147,62 @@ pub(crate) struct ReasoningConfig {
     pub max_tokens: Option<u32>,
 }
 
+pub(crate) fn extract_text_content(value: Option<&Value>) -> Option<String> {
+    match value {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(s.to_string()),
+        Some(Value::Array(parts)) => {
+            let text = parts
+                .iter()
+                .filter_map(|part| {
+                    let obj = part.as_object()?;
+                    if obj.get("type").and_then(|v| v.as_str()) != Some("text") {
+                        return None;
+                    }
+                    obj.get("text")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            if text.trim().is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        }
+        Some(other) => Some(other.to_string()),
+    }
+}
+
+pub(crate) fn extract_image_data_urls(value: Option<&Value>) -> Vec<String> {
+    let Some(Value::Array(parts)) = value else {
+        return Vec::new();
+    };
+
+    parts
+        .iter()
+        .filter_map(|part| {
+            let obj = part.as_object()?;
+            if obj.get("type").and_then(|v| v.as_str()) != Some("image_url") {
+                return None;
+            }
+
+            obj.get("image_url")
+                .and_then(|v| v.as_object())
+                .and_then(|image_url| image_url.get("url"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
+        .collect()
+}
+
+pub(crate) fn parse_data_url(data_url: &str) -> Option<(String, String)> {
+    let (prefix, data) = data_url.split_once(";base64,")?;
+    let mime_type = prefix.strip_prefix("data:")?;
+    Some((mime_type.to_string(), data.to_string()))
+}
+
 mod anannas;
 mod anthropic;
 mod chutes;

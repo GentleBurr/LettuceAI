@@ -1,6 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { convertFileSrc } from "@tauri-apps/api/core";
 
 /**
  * Hook to load attachment data from storage when only storagePath is available.
@@ -44,12 +43,12 @@ export function useSessionAttachment(
     loadingRef.current = true;
     lastPathRef.current = storagePath;
 
-    invoke<string>("storage_get_session_attachment_path", { storagePath })
-      .then((fullPath) => {
+    invoke<string>("storage_load_session_attachment", { storagePath })
+      .then((dataUrl) => {
         if (requestVersionRef.current !== requestVersion) {
           return;
         }
-        setLoadedData(convertFileSrc(fullPath));
+        setLoadedData(dataUrl);
         loadingRef.current = false;
       })
       .catch((err) => {
@@ -107,9 +106,18 @@ export function useSessionAttachments(
   attachments: LazyAttachment[] | undefined | null,
 ): LazyAttachment[] {
   const [loadedAttachments, setLoadedAttachments] = useState<LazyAttachment[]>([]);
-  const loadingMapRef = useRef<Map<string, boolean>>(new Map());
   const dataMapRef = useRef<Map<string, string>>(new Map());
   const requestVersionRef = useRef<number>(0);
+  const attachmentsKey = useMemo(
+    () =>
+      (attachments ?? [])
+        .map(
+          (att) =>
+            `${att.id}:${att.storagePath ?? ""}:${att.data ? att.data.length : 0}:${att.width ?? ""}:${att.height ?? ""}`,
+        )
+        .join("|"),
+    [attachments],
+  );
 
   useEffect(() => {
     const requestVersion = ++requestVersionRef.current;
@@ -117,13 +125,11 @@ export function useSessionAttachments(
 
     if (!attachments || attachments.length === 0) {
       setLoadedAttachments([]);
-      loadingMapRef.current.clear();
       dataMapRef.current.clear();
       return;
     }
 
     const validIds = new Set(attachments.map((att) => att.id));
-    pruneCacheMap(loadingMapRef.current, validIds);
     pruneCacheMap(dataMapRef.current, validIds);
 
     // Check which attachments need loading
@@ -143,7 +149,7 @@ export function useSessionAttachments(
         continue;
       }
 
-      if (att.storagePath && !loadingMapRef.current.get(att.id)) {
+      if (att.storagePath) {
         toLoad.push(att);
         result.push(att);
       } else {
@@ -157,30 +163,21 @@ export function useSessionAttachments(
       for (const att of toLoad) {
         if (!att.storagePath) continue;
 
-        loadingMapRef.current.set(att.id, true);
-
-        invoke<string>("storage_get_session_attachment_path", { storagePath: att.storagePath })
-          .then((fullPath) => {
+        invoke<string>("storage_load_session_attachment", { storagePath: att.storagePath })
+          .then((dataUrl) => {
             if (cancelled || requestVersionRef.current !== requestVersion) {
-              loadingMapRef.current.delete(att.id);
               return;
             }
-            const url = convertFileSrc(fullPath);
-            dataMapRef.current.set(att.id, url);
-            loadingMapRef.current.set(att.id, false);
+            dataMapRef.current.set(att.id, dataUrl);
 
             setLoadedAttachments((prev) =>
-              prev.map((a) => (a.id === att.id ? { ...a, data: url } : a)),
+              prev.map((a) => (a.id === att.id ? { ...a, data: dataUrl } : a)),
             );
             trimCacheToLimit(dataMapRef.current, MAX_ATTACHMENT_CACHE_ENTRIES);
           })
           .catch((err) => {
-            if (cancelled || requestVersionRef.current !== requestVersion) {
-              loadingMapRef.current.delete(att.id);
-              return;
-            }
+            if (cancelled || requestVersionRef.current !== requestVersion) return;
             console.error("[useSessionAttachments] Failed to load:", att.storagePath, err);
-            loadingMapRef.current.set(att.id, false);
           });
       }
     }
@@ -188,7 +185,7 @@ export function useSessionAttachments(
     return () => {
       cancelled = true;
     };
-  }, [attachments]);
+  }, [attachmentsKey]);
 
   return loadedAttachments;
 }

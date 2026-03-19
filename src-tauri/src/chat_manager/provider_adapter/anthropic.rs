@@ -3,28 +3,15 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use super::ProviderAdapter;
+use super::{extract_image_data_urls, extract_text_content, parse_data_url, ProviderAdapter};
 use crate::chat_manager::tooling::{anthropic_tool_choice, anthropic_tools, ToolConfig};
 
 pub struct AnthropicAdapter;
 
 #[derive(Serialize)]
-struct AnthropicContent {
-    #[serde(rename = "type")]
-    kind: &'static str,
-    text: String,
-}
-
-#[derive(Serialize)]
-struct AnthropicMessage {
-    role: String,
-    content: Vec<AnthropicContent>,
-}
-
-#[derive(Serialize)]
 struct AnthropicMessagesRequest {
     model: String,
-    messages: Vec<AnthropicMessage>,
+    messages: Vec<Value>,
     temperature: f64,
     #[serde(rename = "top_p")]
     top_p: f64,
@@ -118,7 +105,7 @@ impl ProviderAdapter for AnthropicAdapter {
         _reasoning_effort: Option<String>,
         reasoning_budget: Option<u32>,
     ) -> Value {
-        let mut msgs: Vec<AnthropicMessage> = Vec::new();
+        let mut msgs: Vec<Value> = Vec::new();
         let mut system_parts: Vec<String> = Vec::new();
 
         if let Some(s) = system_prompt {
@@ -129,20 +116,17 @@ impl ProviderAdapter for AnthropicAdapter {
 
         for msg in messages_for_api {
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
-            let content_text = msg
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+            let content_text = extract_text_content(msg.get("content"));
+            let image_urls = extract_image_data_urls(msg.get("content"));
 
             if role == "system" || role == "developer" {
-                if !content_text.is_empty() {
+                if let Some(content_text) = content_text.filter(|text| !text.is_empty()) {
                     system_parts.push(content_text);
                 }
                 continue;
             }
 
-            if content_text.is_empty() {
+            if content_text.as_deref().unwrap_or("").trim().is_empty() && image_urls.is_empty() {
                 continue;
             }
             let mapped_role = match role {
@@ -150,13 +134,42 @@ impl ProviderAdapter for AnthropicAdapter {
                 _ => "user",
             }
             .to_string();
-            msgs.push(AnthropicMessage {
-                role: mapped_role,
-                content: vec![AnthropicContent {
-                    kind: "text",
-                    text: content_text,
-                }],
-            });
+
+            let mut content_parts: Vec<Value> = Vec::new();
+            if let Some(content_text) = content_text.filter(|text| !text.trim().is_empty()) {
+                content_parts.push(json!({
+                    "type": "text",
+                    "text": content_text,
+                }));
+            }
+
+            for image_url in image_urls {
+                if let Some((mime_type, data)) = parse_data_url(&image_url) {
+                    content_parts.push(json!({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": data,
+                        }
+                    }));
+                } else if image_url.starts_with("http://") || image_url.starts_with("https://") {
+                    content_parts.push(json!({
+                        "type": "image",
+                        "source": {
+                            "type": "url",
+                            "url": image_url,
+                        }
+                    }));
+                }
+            }
+
+            if !content_parts.is_empty() {
+                msgs.push(json!({
+                    "role": mapped_role,
+                    "content": content_parts,
+                }));
+            }
         }
 
         let combined_system = if system_parts.is_empty() {
