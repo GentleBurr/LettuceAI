@@ -297,7 +297,11 @@ function AppContent() {
   const shouldAnimatePage = !location.pathname.startsWith("/settings/providers");
 
   const isLorebookEditorRoute = useMemo(
-    () => location.pathname.startsWith("/library/lorebooks/"),
+    () =>
+      location.pathname.startsWith("/library/lorebooks/") ||
+      /^\/settings\/characters\/[^/]+\/lorebook$/.test(location.pathname) ||
+      /^\/group-chats\/groups\/[^/]+\/lorebook$/.test(location.pathname) ||
+      /^\/group-chats\/[^/]+\/lorebook$/.test(location.pathname),
     [location.pathname],
   );
   const isTemplateEditorRoute = useMemo(
