@@ -11,6 +11,7 @@ pub mod provider_adapter;
 pub mod repository;
 pub mod request;
 pub mod request_builder;
+pub mod scene;
 pub mod service;
 pub mod sse;
 pub mod storage;
