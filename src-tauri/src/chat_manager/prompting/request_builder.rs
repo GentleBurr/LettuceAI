@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use super::provider_adapter::adapter_for;
 use super::request::provider_base_url;
-use super::tooling::ToolConfig;
-use super::types::ProviderCredential;
+use crate::chat_manager::provider_adapter::adapter_for;
+use crate::chat_manager::tooling::ToolConfig;
+use crate::chat_manager::types::ProviderCredential;
 
 pub struct BuiltRequest {
     pub url: String,

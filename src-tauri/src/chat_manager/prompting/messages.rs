@@ -1,6 +1,8 @@
 use serde_json::{json, Value};
 
-use super::types::{ImageAttachment, PromptEntryRole, SystemPromptEntry};
+use crate::chat_manager::types::{
+    ImageAttachment, PromptEntryRole, StoredMessage, SystemPromptEntry,
+};
 
 /// Pushes a system message to the API message list if present.
 /// Uses the provider-specific system role.
@@ -77,7 +79,7 @@ pub fn build_multimodal_content(text: &str, attachments: &[ImageAttachment]) -> 
 /// minimal placeholder replacements ({{char}}, {{persona}}, {{user}}) based on provided names.
 pub fn push_user_or_assistant_message_with_context(
     target: &mut Vec<Value>,
-    message: &super::types::StoredMessage,
+    message: &StoredMessage,
     char_name: &str,
     persona_name: &str,
     allow_image_input: bool,

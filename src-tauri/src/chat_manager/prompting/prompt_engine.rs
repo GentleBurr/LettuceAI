@@ -3,14 +3,15 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use super::lorebook_matcher::{format_lorebook_for_prompt, get_active_lorebook_entries};
-use super::memory::manual::{has_manual_memories, render_manual_memory_lines};
 use super::prompts;
-use super::types::{
+use crate::chat_manager::memory::manual::{has_manual_memories, render_manual_memory_lines};
+use crate::chat_manager::types::{
     Character, Model, Persona, PromptEntryPosition, PromptEntryRole, Session, Settings,
     SystemPromptEntry,
 };
 use crate::storage_manager::db::open_db;
 use crate::storage_manager::lorebook::get_lorebook;
+use crate::utils;
 
 pub fn default_system_prompt_template() -> String {
     join_entries(&default_modular_prompt_entries())
@@ -894,7 +895,7 @@ fn get_lorebook_content(
         .map(|msg| msg.content.clone())
         .collect();
 
-    super::super::utils::log_info(
+    utils::log_info(
         app,
         "lorebook",
         format!(
@@ -907,7 +908,7 @@ fn get_lorebook_content(
     let active_entries = get_active_lorebook_entries(&conn, character_id, &recent_messages)?;
 
     if active_entries.is_empty() {
-        super::super::utils::log_info(
+        utils::log_info(
             app,
             "lorebook",
             "No active lorebook entries (no keywords matched or none always-active)".to_string(),
@@ -926,7 +927,7 @@ fn get_lorebook_content(
         })
         .collect();
 
-    super::super::utils::log_info(
+    utils::log_info(
         app,
         "lorebook",
         format!(
@@ -1405,7 +1406,7 @@ pub fn build_system_prompt_entries(
 
     let combined_hash = hasher.finalize().to_hex().to_string();
 
-    super::super::utils::emit_debug(
+    utils::emit_debug(
         app,
         "system_prompt_built",
         json!({
@@ -1433,7 +1434,7 @@ pub fn build_system_prompt_entries(
         }),
     );
 
-    super::super::utils::log_info(
+    utils::log_info(
         app,
         "prompt_engine",
         format!(
@@ -1639,7 +1640,7 @@ fn render_with_context_internal(
                 content_processed = content_processed.replace("{{user}}", persona_name);
 
                 if let Some(app) = app {
-                    super::super::utils::log_info(
+                    utils::log_info(
                         app,
                         "prompt_engine",
                         format!(
@@ -1653,7 +1654,7 @@ fn render_with_context_internal(
                 (content_processed, direction_processed)
             } else {
                 if let Some(app) = app {
-                    super::super::utils::log_warn(
+                    utils::log_warn(
                         app,
                         "prompt_engine",
                         format!(
@@ -1666,14 +1667,14 @@ fn render_with_context_internal(
             }
         } else {
             if let Some(app) = app {
-                super::super::utils::log_warn(app, "prompt_engine",
+                utils::log_warn(app, "prompt_engine",
                     format!("Scene ID selected but not found in character. ID: {}, available scenes: {}", selected_scene_id, character.scenes.len()));
             }
             (String::new(), String::new())
         }
     } else {
         if let Some(app) = app {
-            super::super::utils::log_info(app, "prompt_engine", "No scene selected in session");
+            utils::log_info(app, "prompt_engine", "No scene selected in session");
         }
         (String::new(), String::new())
     };
@@ -1722,7 +1723,7 @@ fn render_with_context_internal(
     let mut result = base_template.to_string();
 
     if let Some(app) = app {
-        super::super::utils::log_info(
+        utils::log_info(
             app,
             "prompt_engine",
             format!(
@@ -1730,7 +1731,7 @@ fn render_with_context_internal(
                 scene_content.len()
             ),
         );
-        super::super::utils::log_info(
+        utils::log_info(
             app,
             "prompt_engine",
             format!(
@@ -1787,7 +1788,7 @@ fn render_with_context_internal(
         match get_lorebook_content(app, &character.id, session) {
             Ok(content) => content,
             Err(e) => {
-                super::super::utils::log_warn(
+                utils::log_warn(
                     app,
                     "prompt_engine",
                     format!("Failed to get lorebook content: {}", e),
@@ -1893,7 +1894,7 @@ mod tests {
             provider_credentials: vec![],
             models: vec![],
             app_state: serde_json::json!({}),
-            advanced_model_settings: super::super::types::AdvancedModelSettings::default(),
+            advanced_model_settings: crate::chat_manager::types::AdvancedModelSettings::default(),
             prompt_template_id: None,
             system_prompt: None,
             migration_version: 0,

@@ -1,7 +1,7 @@
-use super::types::{
+use crate::chat_manager::prompt_engine;
+use crate::chat_manager::types::{
     PromptEntryPosition, PromptEntryRole, PromptScope, SystemPromptEntry, SystemPromptTemplate,
 };
-use crate::chat_manager::prompt_engine;
 use crate::{
     chat_manager::storage::{get_base_prompt, get_base_prompt_entries, PromptType},
     storage_manager::db::open_db,

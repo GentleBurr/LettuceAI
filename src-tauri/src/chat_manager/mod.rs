@@ -2,23 +2,21 @@ pub mod attachments;
 mod commands;
 pub mod execution;
 pub mod flows;
-pub mod lorebook_matcher;
 pub mod memory;
-pub mod messages;
-pub mod prompt_engine;
-pub mod prompts;
+pub mod prompting;
 pub mod provider_adapter;
 pub mod reply_helper;
 pub mod repository;
-pub mod request;
-pub mod request_builder;
 pub mod scene;
 pub mod service;
 pub mod sse;
 pub mod storage;
 pub mod tooling;
-pub mod turn_builder;
 pub mod types;
+
+pub use prompting::{
+    lorebook_matcher, messages, prompt_engine, prompts, request, request_builder, turn_builder,
+};
 
 pub use commands::{
     __cmd__abort_dynamic_memory, __cmd__chat_add_message_attachment, __cmd__chat_completion,

@@ -1,8 +1,9 @@
 use serde_json::{Map, Value};
 use uuid::Uuid;
 
-use super::types::{MessageVariant, ProviderCredential, StoredMessage, UsageSummary};
+use crate::chat_manager::sse;
 use crate::chat_manager::types::ProviderId;
+use crate::chat_manager::types::{MessageVariant, ProviderCredential, StoredMessage, UsageSummary};
 use crate::providers;
 
 pub fn provider_base_url(cred: &ProviderCredential) -> String {
@@ -35,7 +36,7 @@ pub fn extract_reasoning(data: &Value, provider_id: Option<&str>) -> Option<Stri
     match data {
         Value::String(s) => {
             if s.contains("data:") {
-                return super::sse::accumulate_reasoning_from_sse(s, provider_id);
+                return sse::accumulate_reasoning_from_sse(s, provider_id);
             }
             None
         }
@@ -75,9 +76,7 @@ pub fn extract_text(data: &Value, provider_id: Option<&str>) -> Option<String> {
     match data {
         Value::String(s) => {
             if s.contains("data:") {
-                return Some(
-                    super::sse::accumulate_text_from_sse(s, provider_id).unwrap_or_default(),
-                );
+                return Some(sse::accumulate_text_from_sse(s, provider_id).unwrap_or_default());
             }
             if provider_id == Some("ollama") {
                 let mut combined = String::new();
@@ -259,7 +258,7 @@ pub fn extract_usage(data: &Value) -> Option<UsageSummary> {
                     return Some(summary);
                 }
             }
-            if let Some(summary) = super::sse::usage_from_sse(raw) {
+            if let Some(summary) = sse::usage_from_sse(raw) {
                 return Some(summary);
             }
             let mut found: Option<UsageSummary> = None;

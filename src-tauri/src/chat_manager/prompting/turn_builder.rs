@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use super::types::{
+use crate::chat_manager::types::{
     Character, Persona, PromptEntryPosition, Settings, StoredMessage, SystemPromptEntry,
 };
 
@@ -25,9 +25,9 @@ pub fn append_image_directive_instructions(
 
 fn prompt_entry_to_message(system_role: &str, entry: &SystemPromptEntry) -> Value {
     let role = match entry.role {
-        super::types::PromptEntryRole::System => system_role,
-        super::types::PromptEntryRole::User => "user",
-        super::types::PromptEntryRole::Assistant => "assistant",
+        crate::chat_manager::types::PromptEntryRole::System => system_role,
+        crate::chat_manager::types::PromptEntryRole::User => "user",
+        crate::chat_manager::types::PromptEntryRole::Assistant => "assistant",
     };
     json!({ "role": role, "content": entry.content })
 }
