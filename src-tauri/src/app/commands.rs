@@ -54,6 +54,7 @@ macro_rules! invoke_handler {
             crate::storage_manager::entity_transfer::character_export_with_format,
             crate::storage_manager::entity_transfer::character_import,
             crate::storage_manager::entity_transfer::character_import_preview,
+            crate::storage_manager::entity_transfer::character_import_preview_from_bytes,
             crate::storage_manager::entity_transfer::character_list_formats,
             crate::storage_manager::entity_transfer::character_detect_format,
             crate::storage_manager::entity_transfer::convert_export_to_uec,
