@@ -366,7 +366,7 @@ export function IdentityStep({
           >
             <Upload className="h-4 w-4" />
             Import Character from File
-            <input type="file" accept=".png,.json,.uec" onChange={onImport} className="hidden" />
+            <input type="file" onChange={onImport} className="hidden" />
           </label>
           <p className={cn(typography.bodySmall.size, "mt-2 text-center text-fg/40")}>
             Load a character from a PNG card, .uec, or .json export file
