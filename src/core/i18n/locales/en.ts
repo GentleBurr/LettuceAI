@@ -215,6 +215,16 @@ export const enMessages = {
     save: "Save",
   },
 
+  updates: {
+    available: {
+      title: "New version available",
+      description: "v{{latestVersion}} is available. You are on v{{currentVersion}}.",
+      actions: {
+        view: "View release",
+      },
+    },
+  },
+
   components: {
     tooltip: {
       dismissHint: "Tap anywhere to dismiss",
@@ -1842,8 +1852,7 @@ export const enMessages = {
       title: "Mode",
       description: "Choose how scene prompts detected in model output should be handled.",
       auto: "Automatic",
-      autoDescription:
-        "Generate the scene image as soon as the model provides a scene prompt.",
+      autoDescription: "Generate the scene image as soon as the model provides a scene prompt.",
       askFirst: "Ask first",
       askFirstDescription:
         "Show the detected scene prompt and wait for your approval before generating an image.",
@@ -2420,7 +2429,8 @@ export const enMessages = {
       searchPlaceholder: "Search by filename, path, session id, or entity id",
       empty: {
         title: "No images match this view",
-        description: "Try a different filter or search term. The library only lists images already stored in the app's local storage.",
+        description:
+          "Try a different filter or search term. The library only lists images already stored in the app's local storage.",
       },
       actions: {
         sort: "Sort",
@@ -2443,7 +2453,8 @@ export const enMessages = {
       },
       deleteConfirm: {
         title: "Delete image?",
-        message: "Are you sure you want to delete \"{{filename}}\"? This may break avatars, chat backgrounds, or message attachments that still use it.",
+        message:
+          'Are you sure you want to delete "{{filename}}"? This may break avatars, chat backgrounds, or message attachments that still use it.',
       },
     },
     deleteConfirm: {

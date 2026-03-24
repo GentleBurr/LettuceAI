@@ -31,8 +31,10 @@ const variantIcons: Record<ToastVariant, ReactNode> = {
 type ToastActionOptions = {
   actionLabel?: string;
   onAction?: () => void;
+  actionTone?: "neutral" | "accent";
   secondaryLabel?: string;
   onSecondary?: () => void;
+  secondaryTone?: "neutral" | "danger";
   id?: string | number;
   duration?: number | typeof Infinity;
 };
@@ -65,9 +67,10 @@ function showToast(
               onPointerDown={(event) => event.stopPropagation()}
               onClick={handleAction(options.onAction)}
               className={cn(
-                "shrink-0 touch-manipulation rounded-lg border border-fg/30 bg-fg/5 px-3 py-1.5",
-                "text-xs font-medium text-fg/70",
-                "hover:bg-fg/10 hover:text-fg transition-colors",
+                "shrink-0 touch-manipulation rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                options?.actionTone === "accent"
+                  ? "border border-accent/35 bg-accent/18 text-accent hover:bg-accent/24"
+                  : "border border-fg/30 bg-fg/5 text-fg/70 hover:bg-fg/10 hover:text-fg",
               )}
             >
               {options.actionLabel}
@@ -79,9 +82,10 @@ function showToast(
               onPointerDown={(event) => event.stopPropagation()}
               onClick={handleAction(options.onSecondary)}
               className={cn(
-                "shrink-0 touch-manipulation rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5",
-                "text-xs font-medium text-danger",
-                "hover:bg-danger/20 transition-colors",
+                "shrink-0 touch-manipulation rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                options?.secondaryTone === "neutral"
+                  ? "border border-fg/30 bg-fg/5 text-fg/70 hover:bg-fg/10 hover:text-fg"
+                  : "border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20",
               )}
             >
               {options.secondaryLabel}

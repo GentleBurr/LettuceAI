@@ -96,7 +96,9 @@ import { emit, listen, UnlistenFn } from "@tauri-apps/api/event";
 import { useAndroidBackHandler } from "./ui/hooks/useAndroidBackHandler";
 import { logManager, isLoggingEnabled } from "./core/utils/logger";
 import { getPlatform } from "./core/utils/platform";
-import { I18nProvider } from "./core/i18n/context";
+import { I18nProvider, useI18n } from "./core/i18n/context";
+import { hasSeenTooltip, setTooltipSeen } from "./core/storage/appState";
+import { checkForAppUpdate } from "./core/app-updates/checkForAppUpdate";
 
 const chatLog = logManager({ component: "Chat" });
 
@@ -253,6 +255,7 @@ function App() {
             />
             <ConfirmBottomMenuHost />
             <DownloadQueueProvider>
+              <AppUpdateNotifier />
               <AppContent />
             </DownloadQueueProvider>
           </div>
@@ -260,6 +263,126 @@ function App() {
       </ThemeProvider>
     </I18nProvider>
   );
+}
+
+function AppUpdateNotifier() {
+  const { t } = useI18n();
+  const platform = useMemo(() => getPlatform(), []);
+
+  const showUpdateToast = useCallback(
+    (update: {
+      currentVersion: string;
+      latestVersion: string;
+      releaseUrl: string;
+      downloadUrl: string;
+      releaseTag: string;
+      channel: "dev" | "release";
+    }) => {
+      const dismissKey = `app-update-dismissed:${platform.os}:${update.releaseTag}`;
+      const targetUrl = update.channel === "dev" ? update.releaseUrl : update.downloadUrl;
+
+      toast.success(
+        t("updates.available.title"),
+        t("updates.available.description", {
+          currentVersion: update.currentVersion,
+          latestVersion: update.latestVersion,
+        }),
+        {
+          id: "app-update-available",
+          duration: 12000,
+          actionLabel: t("updates.available.actions.view"),
+          actionTone: "accent",
+          onAction: async () => {
+            await setTooltipSeen(dismissKey, true);
+            try {
+              const { openUrl } = await import("@tauri-apps/plugin-opener");
+              await openUrl(targetUrl);
+            } catch {
+              window.open(targetUrl, "_blank");
+            }
+          },
+          secondaryLabel: t("common.buttons.later"),
+          secondaryTone: "neutral",
+          onSecondary: () => {
+            void setTooltipSeen(dismissKey, true);
+          },
+        },
+      );
+    },
+    [platform.os, t],
+  );
+
+  useEffect(() => {
+    const handleForceUpdateNotification = async (event: Event) => {
+      const detail = (
+        event as CustomEvent<
+          | {
+              currentVersion?: string;
+              latestVersion?: string;
+              releaseUrl?: string;
+              downloadUrl?: string;
+              releaseTag?: string;
+              channel?: "dev" | "release";
+            }
+          | undefined
+        >
+      ).detail;
+
+      const currentVersion =
+        detail?.currentVersion ?? (await invoke<string>("get_app_version").catch(() => "1.0.0"));
+      const channel = detail?.channel ?? (currentVersion.includes("-dev.") ? "dev" : "release");
+      const latestVersion = detail?.latestVersion ?? "999.0.0";
+      const releaseUrl = detail?.releaseUrl ?? "https://github.com/LettuceAI/app/releases";
+      const downloadUrl =
+        detail?.downloadUrl ??
+        `https://www.lettuceai.app/download?platform=${encodeURIComponent(platform.os)}&source=in-app-update-test`;
+      const releaseTag =
+        detail?.releaseTag ??
+        `forced-update-${platform.os}-${latestVersion.replace(/[^\w.-]+/g, "-")}`;
+
+      await setTooltipSeen(`app-update-dismissed:${platform.os}:${releaseTag}`, false);
+      showUpdateToast({
+        currentVersion,
+        latestVersion,
+        releaseUrl,
+        downloadUrl,
+        releaseTag,
+        channel,
+      });
+    };
+
+    window.addEventListener("lettuce:update-check:force", handleForceUpdateNotification);
+    return () => {
+      window.removeEventListener("lettuce:update-check:force", handleForceUpdateNotification);
+    };
+  }, [platform.os, showUpdateToast]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const update = await checkForAppUpdate(platform);
+        if (!update || cancelled) return;
+
+        const dismissKey = `app-update-dismissed:${platform.os}:${update.releaseTag}`;
+        if (await hasSeenTooltip(dismissKey)) return;
+        if (cancelled) return;
+
+        showUpdateToast(update);
+      } catch {}
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [platform, showUpdateToast]);
+
+  return null;
 }
 
 function AppContent() {
