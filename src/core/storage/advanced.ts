@@ -9,6 +9,7 @@ export interface AdvancedSettings {
   sceneGenerationMode?: "auto" | "askFirst" | "manual";
   sceneGenerationModelId?: string;
   sceneWriterModelId?: string;
+  appUpdateChecksEnabled?: boolean;
   helpMeReplyEnabled?: boolean;
   manualModeContextWindow?: number;
   embeddingMaxTokens?: number; // 1024, 2048, or 4096

@@ -24,6 +24,7 @@ import { AccessibilityPage } from "./ui/pages/settings/AccessibilityPage";
 import { ColorCustomizationPage } from "./ui/pages/settings/ColorCustomizationPage";
 import { ChatAppearancePage } from "./ui/pages/settings/ChatAppearancePage";
 import { LogsPage } from "./ui/pages/settings/LogsPage";
+import { AboutPage } from "./ui/pages/settings/AboutPage";
 import { CharactersPage } from "./ui/pages/settings/CharactersPage";
 import { DeveloperPage } from "./ui/pages/settings/DeveloperPage";
 import { ChangelogPage } from "./ui/pages/settings/ChangelogPage";
@@ -99,6 +100,8 @@ import { getPlatform } from "./core/utils/platform";
 import { I18nProvider, useI18n } from "./core/i18n/context";
 import { hasSeenTooltip, setTooltipSeen } from "./core/storage/appState";
 import { checkForAppUpdate } from "./core/app-updates/checkForAppUpdate";
+import { presentAppUpdateToast } from "./core/app-updates/presentAppUpdateToast";
+import { readSettings, SETTINGS_UPDATED_EVENT } from "./core/storage/repo";
 
 const chatLog = logManager({ component: "Chat" });
 
@@ -268,7 +271,8 @@ function App() {
 function AppUpdateNotifier() {
   const { t } = useI18n();
   const platform = useMemo(() => getPlatform(), []);
-
+  const [autoChecksEnabled, setAutoChecksEnabled] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
   const showUpdateToast = useCallback(
     (update: {
       currentVersion: string;
@@ -278,39 +282,50 @@ function AppUpdateNotifier() {
       releaseTag: string;
       channel: "dev" | "release";
     }) => {
-      const dismissKey = `app-update-dismissed:${platform.os}:${update.releaseTag}`;
-      const targetUrl = update.channel === "dev" ? update.releaseUrl : update.downloadUrl;
-
-      toast.success(
-        t("updates.available.title"),
-        t("updates.available.description", {
+      presentAppUpdateToast(update, platform.os, {
+        title: t("updates.available.title"),
+        description: t("updates.available.description", {
           currentVersion: update.currentVersion,
           latestVersion: update.latestVersion,
         }),
-        {
-          id: "app-update-available",
-          duration: 12000,
-          actionLabel: t("updates.available.actions.view"),
-          actionTone: "accent",
-          onAction: async () => {
-            await setTooltipSeen(dismissKey, true);
-            try {
-              const { openUrl } = await import("@tauri-apps/plugin-opener");
-              await openUrl(targetUrl);
-            } catch {
-              window.open(targetUrl, "_blank");
-            }
-          },
-          secondaryLabel: t("common.buttons.later"),
-          secondaryTone: "neutral",
-          onSecondary: () => {
-            void setTooltipSeen(dismissKey, true);
-          },
-        },
-      );
+        viewLabel: t("updates.available.actions.view"),
+        laterLabel: t("common.buttons.later"),
+      });
     },
     [platform.os, t],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncSettings = async () => {
+      try {
+        const settings = await readSettings();
+        if (cancelled) return;
+        setAutoChecksEnabled(settings.advancedSettings?.appUpdateChecksEnabled ?? true);
+      } catch {
+        if (!cancelled) {
+          setAutoChecksEnabled(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setSettingsReady(true);
+        }
+      }
+    };
+
+    const handleSettingsUpdated = () => {
+      void syncSettings();
+    };
+
+    void syncSettings();
+    window.addEventListener(SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     const handleForceUpdateNotification = async (event: Event) => {
@@ -358,7 +373,7 @@ function AppUpdateNotifier() {
   }, [platform.os, showUpdateToast]);
 
   useEffect(() => {
-    if (import.meta.env.DEV) return;
+    if (import.meta.env.DEV || !settingsReady || !autoChecksEnabled) return;
 
     let cancelled = false;
 
@@ -380,7 +395,7 @@ function AppUpdateNotifier() {
     return () => {
       cancelled = true;
     };
-  }, [platform, showUpdateToast]);
+  }, [autoChecksEnabled, platform, settingsReady, showUpdateToast]);
 
   return null;
 }
@@ -823,6 +838,7 @@ function AppContent() {
               <Route path="/settings/accessibility/colors" element={<ColorCustomizationPage />} />
               <Route path="/settings/accessibility/chat" element={<ChatAppearancePage />} />
               <Route path="/settings/logs" element={<LogsPage />} />
+              <Route path="/settings/about" element={<AboutPage />} />
               <Route path="/settings/advanced" element={<AdvancedPage />} />
               <Route path="/settings/advanced/memory" element={<DynamicMemoryPage />} />
               <Route path="/settings/advanced/creation-helper" element={<AICreationHelperPage />} />

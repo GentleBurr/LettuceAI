@@ -18,6 +18,7 @@ export const enMessages = {
       convertFiles: "Convert Files",
       usageAnalytics: "Usage Analytics",
       changelog: "Changelog",
+      about: "About",
       createSystemPrompt: "Create System Prompt",
       editSystemPrompt: "Edit System Prompt",
       systemPrompts: "System Prompts",
@@ -156,6 +157,7 @@ export const enMessages = {
       docs: { title: "Documentation", subtitle: "Guides & reference" },
       github: { title: "Report Issues", subtitle: "Bugs & feedback • v{{version}}" },
       discord: { title: "Join Discord", subtitle: "Community & help" },
+      about: { title: "About", subtitle: "Version, updates & links" },
       changelog: { title: "Changelog", subtitle: "What's new" },
       reset: { title: "Reset", subtitle: "Erase everything" },
       developer: { title: "Developer Tools", subtitle: "Debug & testing" },
@@ -222,6 +224,47 @@ export const enMessages = {
       actions: {
         view: "View release",
       },
+    },
+  },
+
+  about: {
+    kicker: "App Info",
+    appName: "LettuceAI",
+    description: "Version details, update checks, and useful links.",
+    info: {
+      version: "Version",
+      channel: "Channel",
+      platform: "Platform",
+    },
+    buildChannel: {
+      dev: "Development build",
+      release: "Stable release",
+    },
+    update: {
+      sectionTitle: "Updates",
+      title: "App updates",
+      description: "Check for new releases manually or disable automatic startup checks.",
+      autoChecks: "Automatic update checks",
+      autoChecksDescription: "When enabled, LettuceAI checks for new versions when the app opens.",
+      checkNow: "Check for updates",
+      checking: "Checking for updates...",
+      upToDateTitle: "You're up to date",
+      upToDateDescription: "No newer release is available for this device right now.",
+      failedTitle: "Update check failed",
+      failedDescription: "Couldn't check for updates right now. Try again in a moment.",
+    },
+    links: {
+      sectionTitle: "Links",
+      website: "Website",
+      websiteDescription: "Download page and release information",
+      github: "GitHub",
+      githubDescription: "Source code, issues, and development",
+      discord: "Discord",
+      discordDescription: "Community server and support",
+    },
+    errors: {
+      saveTitle: "Couldn't save preference",
+      saveDescription: "Your update-check preference was not changed.",
     },
   },
 

@@ -62,6 +62,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
       },
       { match: (p) => p === "/settings/usage", titleKey: "common.nav.usageAnalytics" },
       { match: (p) => p === "/settings/changelog", titleKey: "common.nav.changelog" },
+      { match: (p) => p === "/settings/about", titleKey: "common.nav.about" },
       { match: (p) => p === "/settings/prompts/new", titleKey: "common.nav.createSystemPrompt" },
       { match: (p) => p.startsWith("/settings/prompts/"), titleKey: "common.nav.editSystemPrompt" },
       { match: (p) => p === "/settings/prompts", titleKey: "common.nav.systemPrompts" },
