@@ -9,6 +9,7 @@ pub mod google_gemini;
 pub mod nanogpt;
 pub mod openai;
 pub mod openrouter;
+pub mod stability;
 pub mod xai;
 
 pub enum ImageRequestPayload {
@@ -70,6 +71,7 @@ pub fn get_adapter(provider_id: &str) -> Result<Box<dyn ImageProviderAdapter>, S
         "openai" => Ok(Box::new(openai::OpenAIAdapter)),
         "openrouter" => Ok(Box::new(openrouter::OpenRouterAdapter)),
         "gemini" => Ok(Box::new(google_gemini::GoogleGeminiAdapter)),
+        "stability" => Ok(Box::new(stability::StabilityAdapter)),
         "xai" => Ok(Box::new(xai::XAIAdapter)),
         "nanogpt" => Ok(Box::new(nanogpt::NanoGPTAdapter)),
         _ => Err(format!(

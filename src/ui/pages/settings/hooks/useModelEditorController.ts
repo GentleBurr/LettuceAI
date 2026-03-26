@@ -107,7 +107,7 @@ function getHardCappedScopes(
 }
 
 function isImageOnlyProvider(providerId?: string | null): boolean {
-  return providerId === "automatic1111";
+  return providerId === "automatic1111" || providerId === "stability";
 }
 
 export function useModelEditorController(): ControllerReturn {
@@ -1113,7 +1113,11 @@ export function useModelEditorController(): ControllerReturn {
   const fetchModels = useCallback(async () => {
     const { editorModel, providers } = state;
     if (!editorModel) return;
-    if (editorModel.providerId === "llamacpp" || editorModel.providerId === "intenserp") {
+    if (
+      editorModel.providerId === "llamacpp" ||
+      editorModel.providerId === "intenserp" ||
+      editorModel.providerId === "stability"
+    ) {
       dispatch({ type: "set_fetched_models", payload: [] });
       return;
     }

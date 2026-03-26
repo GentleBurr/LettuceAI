@@ -72,6 +72,7 @@ fn get_all_provider_configs_internal() -> Vec<ProviderConfig> {
         ),
         ("anannas", "Anannas AI", "https://api.anannas.ai/v1"),
         ("groq", "Groq", "https://api.groq.com"),
+        ("stability", "Stability AI", "https://api.stability.ai"),
         (
             "automatic1111",
             "AUTOMATIC1111 (Local)",

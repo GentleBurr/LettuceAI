@@ -573,7 +573,8 @@ export function EditModelPage() {
     if (!selectedProviderCredential) return false;
     if (
       selectedProviderCredential.providerId === "llamacpp" ||
-      selectedProviderCredential.providerId === "intenserp"
+      selectedProviderCredential.providerId === "intenserp" ||
+      selectedProviderCredential.providerId === "stability"
     ) {
       return false;
     }

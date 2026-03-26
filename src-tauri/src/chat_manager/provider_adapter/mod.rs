@@ -222,6 +222,7 @@ mod nvidia;
 mod ollama;
 mod openai;
 mod qwen;
+mod stability;
 mod xai;
 mod zai;
 
@@ -252,6 +253,7 @@ pub fn adapter_for(credential: &ProviderCredential) -> Box<dyn ProviderAdapter +
         "featherless" => Box::new(featherless::FeatherlessAdapter),
         "nvidia" | "nvidia-nim" => Box::new(nvidia::NvidiaAdapter),
         "qwen" => Box::new(qwen::QwenAdapter),
+        "stability" => Box::new(stability::StabilityAdapter),
         "openrouter" => Box::new(openai::OpenRouterAdapter),
         "lettuce-engine" => Box::new(lettuce_engine::LettuceEngineAdapter),
         _ => Box::new(openai::OpenAIAdapter),

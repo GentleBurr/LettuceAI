@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Cpu, Leaf, Settings, Wrench } from "lucide-react";
+import { Cpu, Leaf, Settings, Sparkles, Wrench } from "lucide-react";
 
 import OpenAIIcon from "../../assets/openai_light.svg";
 import AnthropicIcon from "../../assets/anthropic_light.svg";
@@ -40,6 +40,7 @@ const ICON_MAP: Record<string, ReactElement> = {
   intenserp: <img src={IntenserpIcon} alt="IntenseRP Next" className="h-6 w-6" />,
   llamacpp: <img src={LlamaCppIcon} alt="llama.cpp" className="h-6 w-6 object-contain" />,
   automatic1111: <Cpu className="h-6 w-6 text-orange-400" />,
+  stability: <Sparkles className="h-6 w-6 text-sky-400" />,
   "lettuce-engine": <Leaf className="h-6 w-6 text-emerald-400" />,
   custom: <Settings className="h-6 w-6 text-gray-400" />,
   "custom-anthropic": <Settings className="h-6 w-6 text-gray-400" />,

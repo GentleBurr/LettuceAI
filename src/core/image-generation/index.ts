@@ -319,5 +319,9 @@ export function getModelSizes(providerId: string, modelId: string): readonly str
     return ["512x512", "768x768", "1024x1024", "1152x896", "896x1152"];
   }
 
+  if (providerId === "stability") {
+    return ["512x512", "768x768", "1024x1024", "1152x896", "896x1152"];
+  }
+
   return ["1024x1024"];
 }

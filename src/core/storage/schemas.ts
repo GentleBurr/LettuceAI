@@ -388,6 +388,20 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       sdSize: true,
     },
   },
+  stability: {
+    providerId: "stability",
+    displayName: "Stability AI",
+    reasoningSupport: "none" as ReasoningSupport,
+    supportedParameters: {
+      sdSteps: false,
+      sdCfgScale: false,
+      sdSampler: false,
+      sdSeed: false,
+      sdNegativePrompt: false,
+      sdDenoisingStrength: false,
+      sdSize: true,
+    },
+  },
   chutes: {
     providerId: "chutes",
     displayName: "Chutes",
