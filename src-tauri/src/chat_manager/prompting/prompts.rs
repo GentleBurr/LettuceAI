@@ -32,6 +32,9 @@ const APP_AVATAR_GENERATION_TEMPLATE_NAME: &str = "Avatar Generation";
 const APP_AVATAR_EDIT_TEMPLATE_NAME: &str = "Avatar Image Edit";
 const APP_SCENE_GENERATION_TEMPLATE_NAME: &str = "Scene Generation";
 const APP_DESIGN_REFERENCE_TEMPLATE_NAME: &str = "Design Reference Writer";
+const LEGACY_AVATAR_GENERATION_PROMPT_V1: &str = "You write a single high-quality image generation prompt for a character avatar. Your job is to turn the request into a clear visual prompt that preserves identity and produces a strong profile image.\n\n# Avatar Subject\nName: {{avatar_subject_name}}\n{{avatar_subject_description}}\n\n# Avatar Request\n{{avatar_request}}\n\nWrite one polished prompt for an image model.\n- Prioritize face, hair, clothing, expression, pose, and overall vibe.\n- Keep the subject centered and suitable for an avatar or profile image.\n- Preserve identity-defining traits from the context.\n- Do not add text, logos, watermarks, frames, UI, or split panels unless explicitly requested.\n- Do not explain your reasoning.\n\nOutput only the final image prompt text.";
+const LEGACY_AVATAR_EDIT_PROMPT_V1: &str = "You revise an existing avatar image prompt. The source image will be provided to you separately. Use that image and the edit request to produce one updated prompt for the next generation.\n\n# Avatar Subject\nName: {{avatar_subject_name}}\n{{avatar_subject_description}}\n\n# Current Avatar Prompt\n{{current_avatar_prompt}}\n\n# Edit Request\n{{edit_request}}\n\nUse the actual source image as the truth for current appearance. Preserve everything that should stay the same and change only what the edit request asks for.\n- Keep the character recognizable.\n- If the old prompt conflicts with the source image, trust the source image.\n- Do not restate unchanged details more than needed.\n- Do not explain what you changed.\n\nOutput only the revised image prompt text.";
+const LEGACY_SCENE_GENERATION_PROMPT_V1: &str = "You write a single high-quality image generation prompt for a roleplay scene. Your job is to convert the current conversation context and scene request into one clear visual prompt for an image model.\n\n# Scene Context\nCharacter: {{char.name}}\n{{char.desc}}\n\nPersona: {{persona.name}}\n{{persona.desc}}\n\nRecent Messages:\n{{recent_messages}}\n\n# Scene Request\n{{scene_request}}\n\nWrite one polished scene prompt for an image model.\n- Focus on who is present, what is happening, where the scene is set, mood, lighting, composition, camera framing, and key visual details.\n- Preserve identity-defining details from the conversation context.\n- Keep character and persona identities separate.\n- Do not swap, merge, or borrow features between them.\n- Prefer concrete visual details over abstract interpretation.\n- Do not add text, logos, watermarks, UI, split panels, or dialogue bubbles unless explicitly requested.\n- Do not explain your reasoning.\n\nOutput only the final image prompt text.";
 
 fn supports_entry_prompts(_id: &str) -> bool {
     true
@@ -101,6 +104,37 @@ fn template_entries_to_validation_content(entries: &[SystemPromptEntry]) -> Stri
         })
         .collect::<Vec<_>>()
         .join("\n\n")
+}
+
+fn maybe_migrate_legacy_template_content(
+    app: &AppHandle,
+    id: &str,
+    legacy_content: &str,
+    prompt_type: PromptType,
+) -> Result<(), String> {
+    let Some(template) = get_template(app, id)? else {
+        return Ok(());
+    };
+
+    if template.content.trim() != legacy_content.trim() {
+        return Ok(());
+    }
+
+    let next_content = get_base_prompt(prompt_type);
+    let next_entries = get_base_prompt_entries(prompt_type);
+
+    let _ = update_template(
+        app,
+        id.to_string(),
+        None,
+        None,
+        None,
+        Some(next_content),
+        Some(next_entries),
+        None,
+    )?;
+
+    Ok(())
 }
 
 fn maybe_backfill_entries(
@@ -941,6 +975,12 @@ pub fn ensure_avatar_image_templates(app: &AppHandle) -> Result<(), String> {
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     } else {
+        let _ = maybe_migrate_legacy_template_content(
+            app,
+            APP_AVATAR_GENERATION_TEMPLATE_ID,
+            LEGACY_AVATAR_GENERATION_PROMPT_V1,
+            PromptType::AvatarGenerationPrompt,
+        );
         let _ = maybe_backfill_entries(
             app,
             APP_AVATAR_GENERATION_TEMPLATE_ID,
@@ -971,6 +1011,12 @@ pub fn ensure_avatar_image_templates(app: &AppHandle) -> Result<(), String> {
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     } else {
+        let _ = maybe_migrate_legacy_template_content(
+            app,
+            APP_AVATAR_EDIT_TEMPLATE_ID,
+            LEGACY_AVATAR_EDIT_PROMPT_V1,
+            PromptType::AvatarEditPrompt,
+        );
         let _ = maybe_backfill_entries(
             app,
             APP_AVATAR_EDIT_TEMPLATE_ID,
@@ -1009,6 +1055,12 @@ pub fn ensure_scene_generation_template(app: &AppHandle) -> Result<(), String> {
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     } else {
+        let _ = maybe_migrate_legacy_template_content(
+            app,
+            APP_SCENE_GENERATION_TEMPLATE_ID,
+            LEGACY_SCENE_GENERATION_PROMPT_V1,
+            PromptType::SceneGenerationPrompt,
+        );
         let _ = maybe_backfill_entries(
             app,
             APP_SCENE_GENERATION_TEMPLATE_ID,

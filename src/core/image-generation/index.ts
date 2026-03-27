@@ -102,22 +102,25 @@ type AvatarPromptConditionContext = {
 };
 
 const FALLBACK_AVATAR_GENERATION_TEMPLATE = [
-  "Write one polished image prompt for a character avatar.",
+  "Generate a character avatar image directly from this request.",
   "Subject: {{avatar_subject_name}}",
   "{{avatar_subject_description}}",
-  "Request: {{avatar_request}}",
-  "Keep the subject centered and suitable for a profile image.",
-  "Output only the final image prompt text.",
+  "Avatar request: {{avatar_request}}",
+  "Create a centered, profile-friendly image that preserves identity-defining traits.",
+  "Prioritize face, hair, clothing, expression, pose, and overall vibe.",
+  "Do not add text, logos, watermarks, frames, UI, or split panels unless explicitly requested.",
+  "Return only the image.",
 ].join("\n\n");
 
 const FALLBACK_AVATAR_EDIT_TEMPLATE = [
-  "Revise the existing avatar image prompt using the source image and the edit request.",
+  "Edit the provided avatar image directly using the source image and the request below.",
   "Subject: {{avatar_subject_name}}",
   "{{avatar_subject_description}}",
-  "Current prompt: {{current_avatar_prompt}}",
+  "Current avatar notes: {{current_avatar_prompt}}",
   "Edit request: {{edit_request}}",
-  "Preserve identity and change only what the edit request asks for.",
-  "Output only the revised image prompt text.",
+  "Preserve identity and keep unchanged traits consistent with the source image.",
+  "Change only what the edit request asks for.",
+  "Return only the edited image.",
 ].join("\n\n");
 
 function matchesAvatarPromptCondition(

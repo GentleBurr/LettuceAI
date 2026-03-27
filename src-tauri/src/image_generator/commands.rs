@@ -177,11 +177,21 @@ pub async fn generate_image(
 
         let mut generated_images = Vec::new();
         for img_data in image_data {
-            let image_source = img_data
-                .url
-                .as_ref()
-                .or(img_data.b64_json.as_ref())
-                .ok_or_else(|| "No image URL or data in response".to_string())?;
+            let image_source = match img_data.url.as_ref().or(img_data.b64_json.as_ref()) {
+                Some(source) => source,
+                None => {
+                    let detail = img_data
+                        .text
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|text| !text.is_empty())
+                        .map(|text| text.chars().take(160).collect::<String>())
+                        .map(|snippet| format!(" Provider returned text instead: {}", snippet))
+                        .unwrap_or_default();
+
+                    return Err(format!("No image URL or data in response.{}", detail));
+                }
+            };
 
             let saved = save_image(&app, image_source).await?;
 
