@@ -170,7 +170,7 @@ pub async fn generate_image(
         log_info(
             &app,
             "image_generator",
-            format!("Received response: {:?}", response_json),
+            format!("Received response: {}", response_json),
         );
 
         let image_data: Vec<ImageResponseData> = adapter.parse_response(response_json)?;
