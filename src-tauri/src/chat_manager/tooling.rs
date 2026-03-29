@@ -322,4 +322,71 @@ fn extract_openai_calls(node: &Value, out: &mut Vec<ToolCall>) {
             }
         }
     }
+
+    if let Some(message) = node.get("message") {
+        extract_openai_calls(message, out);
+    }
+
+    if let Some(delta) = node.get("delta") {
+        extract_openai_calls(delta, out);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_tool_calls;
+    use serde_json::json;
+
+    #[test]
+    fn parses_ollama_non_streaming_tool_calls_from_message() {
+        let payload = json!({
+            "model": "qwen3",
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "function": {
+                        "name": "get_weather",
+                        "arguments": {
+                            "city": "Istanbul"
+                        }
+                    }
+                }]
+            },
+            "done": true
+        });
+
+        let calls = parse_tool_calls("ollama", &payload);
+
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].arguments, json!({ "city": "Istanbul" }));
+    }
+
+    #[test]
+    fn parses_ollama_streaming_tool_calls_from_message() {
+        let payload = json!({
+            "message": {
+                "role": "assistant",
+                "tool_calls": [{
+                    "id": "call_1",
+                    "function": {
+                        "name": "add_two_numbers",
+                        "arguments": {
+                            "a": 3,
+                            "b": 1
+                        }
+                    }
+                }]
+            },
+            "done": false
+        });
+
+        let calls = parse_tool_calls("ollama", &payload);
+
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].name, "add_two_numbers");
+        assert_eq!(calls[0].arguments, json!({ "a": 3, "b": 1 }));
+    }
 }

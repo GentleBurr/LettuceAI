@@ -144,6 +144,68 @@ fn emit_creation_helper_update(
     );
 }
 
+fn is_ollama_provider(provider_id: &str) -> bool {
+    provider_id.eq_ignore_ascii_case("ollama")
+}
+
+fn creation_tool_call_payload(
+    provider_id: &str,
+    id: &str,
+    index: usize,
+    name: &str,
+    arguments: &Value,
+) -> Value {
+    let arguments = if is_ollama_provider(provider_id) {
+        arguments.clone()
+    } else {
+        Value::String(serde_json::to_string(arguments).unwrap_or_default())
+    };
+
+    if is_ollama_provider(provider_id) {
+        json!({
+            "type": "function",
+            "function": {
+                "index": index,
+                "name": name,
+                "arguments": arguments
+            }
+        })
+    } else {
+        json!({
+            "id": id,
+            "type": "function",
+            "function": {
+                "name": name,
+                "arguments": arguments
+            }
+        })
+    }
+}
+
+fn creation_tool_result_message(
+    provider_id: &str,
+    tool_call_id: &str,
+    tool_name: Option<&str>,
+    result: &Value,
+) -> Value {
+    let mut message = json!({
+        "role": "tool",
+        "content": serde_json::to_string(result).unwrap_or_default()
+    });
+
+    if let Some(obj) = message.as_object_mut() {
+        if is_ollama_provider(provider_id) {
+            if let Some(name) = tool_name {
+                obj.insert("tool_name".to_string(), json!(name));
+            }
+        } else {
+            obj.insert("tool_call_id".to_string(), json!(tool_call_id));
+        }
+    }
+
+    message
+}
+
 fn hydrate_session_cache(
     session: &CreationSession,
     images: HashMap<String, UploadedImage>,
@@ -2489,15 +2551,9 @@ async fn process_assistant_turn(
             let tool_calls_json: Vec<Value> = msg
                 .tool_calls
                 .iter()
-                .map(|tc| {
-                    json!({
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.name,
-                            "arguments": serde_json::to_string(&tc.arguments).unwrap_or_default()
-                        }
-                    })
+                .enumerate()
+                .map(|(index, tc)| {
+                    creation_tool_call_payload(provider_id, &tc.id, index, &tc.name, &tc.arguments)
                 })
                 .collect();
 
@@ -2508,11 +2564,17 @@ async fn process_assistant_turn(
             }));
 
             for result in &msg.tool_results {
-                api_messages.push(json!({
-                    "role": "tool",
-                    "tool_call_id": result.tool_call_id,
-                    "content": serde_json::to_string(&result.result).unwrap_or_default()
-                }));
+                let tool_name = msg
+                    .tool_calls
+                    .iter()
+                    .find(|call| call.id == result.tool_call_id)
+                    .map(|call| call.name.as_str());
+                api_messages.push(creation_tool_result_message(
+                    provider_id,
+                    &result.tool_call_id,
+                    tool_name,
+                    &result.result,
+                ));
             }
         } else {
             api_messages.push(json!({
@@ -2721,15 +2783,9 @@ async fn process_assistant_turn(
 
         let tool_calls_json: Vec<Value> = tool_calls
             .iter()
-            .map(|tc| {
-                json!({
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.name,
-                        "arguments": serde_json::to_string(&tc.arguments).unwrap_or_default()
-                    }
-                })
+            .enumerate()
+            .map(|(index, tc)| {
+                creation_tool_call_payload(provider_id, &tc.id, index, &tc.name, &tc.arguments)
             })
             .collect();
 
@@ -2750,11 +2806,16 @@ async fn process_assistant_turn(
         }
 
         for result in &all_tool_results[all_tool_results.len() - tool_calls.len()..] {
-            api_messages.push(json!({
-                "role": "tool",
-                "tool_call_id": result.tool_call_id,
-                "content": serde_json::to_string(&result.result).unwrap_or_default()
-            }));
+            let tool_name = tool_calls
+                .iter()
+                .find(|call| call.id == result.tool_call_id)
+                .map(|call| call.name.as_str());
+            api_messages.push(creation_tool_result_message(
+                provider_id,
+                &result.tool_call_id,
+                tool_name,
+                &result.result,
+            ));
         }
 
         log_info(
