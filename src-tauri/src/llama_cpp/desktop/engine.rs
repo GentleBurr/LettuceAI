@@ -3,19 +3,31 @@ use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::mtmd::{MtmdContext, MtmdContextParams};
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
-pub(super) struct LlamaState {
-    pub(super) backend: Option<LlamaBackend>,
-    pub(super) model_path: Option<String>,
-    pub(super) model_params_key: Option<String>,
-    pub(super) model: Option<LlamaModel>,
+#[derive(Clone)]
+pub(super) struct LoadedEngine {
+    pub(super) backend: Arc<LlamaBackend>,
+    pub(super) model: Arc<LlamaModel>,
     pub(super) backend_path_used: Option<String>,
     pub(super) gpu_load_fallback_activated: bool,
     pub(super) gpu_load_fallback_reason: Option<String>,
     pub(super) compiled_gpu_backends: Vec<String>,
     pub(super) supports_gpu_offload: bool,
-    pub(super) mtmd_ctx: Option<MtmdContext>,
+    pub(super) mtmd_ctx: Option<Arc<MtmdContext>>,
+}
+
+pub(super) struct LlamaState {
+    pub(super) backend: Option<Arc<LlamaBackend>>,
+    pub(super) model_path: Option<String>,
+    pub(super) model_params_key: Option<String>,
+    pub(super) model: Option<Arc<LlamaModel>>,
+    pub(super) backend_path_used: Option<String>,
+    pub(super) gpu_load_fallback_activated: bool,
+    pub(super) gpu_load_fallback_reason: Option<String>,
+    pub(super) compiled_gpu_backends: Vec<String>,
+    pub(super) supports_gpu_offload: bool,
+    pub(super) mtmd_ctx: Option<Arc<MtmdContext>>,
     pub(super) mmproj_path: Option<String>,
 }
 
@@ -47,7 +59,7 @@ pub(super) fn load_engine(
     model_path: &str,
     requested_gpu_layers: Option<u32>,
     mmproj_path: Option<&str>,
-) -> Result<std::sync::MutexGuard<'static, LlamaState>, String> {
+) -> Result<LoadedEngine, String> {
     let engine = ENGINE.get_or_init(|| {
         Mutex::new(LlamaState {
             backend: None,
@@ -69,13 +81,13 @@ pub(super) fn load_engine(
         .map_err(|_| "llama.cpp engine lock poisoned".to_string())?;
 
     if guard.backend.is_none() {
-        guard.backend = Some(LlamaBackend::init().map_err(|e| {
+        guard.backend = Some(Arc::new(LlamaBackend::init().map_err(|e| {
             crate::utils::err_msg(
                 module_path!(),
                 line!(),
                 format!("Failed to initialize llama backend: {e}"),
             )
-        })?);
+        })?));
     }
 
     let supports_gpu = guard
@@ -103,7 +115,7 @@ pub(super) fn load_engine(
     }
     let backend = guard
         .backend
-        .as_ref()
+        .clone()
         .ok_or_else(|| "llama.cpp backend unavailable".to_string())?;
     if let (Some(app), Some(requested)) = (app, requested_gpu_layers) {
         if requested > 0 && !supports_gpu {
@@ -138,7 +150,7 @@ pub(super) fn load_engine(
                 LlamaModelParams::default()
             };
 
-            match LlamaModel::load_from_file(backend, model_path, &gpu_params) {
+            match LlamaModel::load_from_file(backend.as_ref(), model_path, &gpu_params) {
                 Ok(model) => {
                     backend_path_used = "gpu_offload".to_string();
                     if let Some(app) = app {
@@ -151,7 +163,7 @@ pub(super) fn load_engine(
                             format!("Loaded model with GPU mode {}", mode),
                         );
                     }
-                    model
+                    Arc::new(model)
                 }
                 Err(err) => {
                     gpu_load_fallback_activated = true;
@@ -171,23 +183,30 @@ pub(super) fn load_engine(
                             }),
                         );
                     }
-                    LlamaModel::load_from_file(backend, model_path, &cpu_params).map_err(|e| {
+                    Arc::new(
+                        LlamaModel::load_from_file(backend.as_ref(), model_path, &cpu_params)
+                            .map_err(|e| {
+                                crate::utils::err_msg(
+                                    module_path!(),
+                                    line!(),
+                                    format!("Failed to load llama model: {e}"),
+                                )
+                            })?,
+                    )
+                }
+            }
+        } else {
+            Arc::new(
+                LlamaModel::load_from_file(backend.as_ref(), model_path, &cpu_params).map_err(
+                    |e| {
                         crate::utils::err_msg(
                             module_path!(),
                             line!(),
                             format!("Failed to load llama model: {e}"),
                         )
-                    })?
-                }
-            }
-        } else {
-            LlamaModel::load_from_file(backend, model_path, &cpu_params).map_err(|e| {
-                crate::utils::err_msg(
-                    module_path!(),
-                    line!(),
-                    format!("Failed to load llama model: {e}"),
-                )
-            })?
+                    },
+                )?,
+            )
         };
 
         guard.model = Some(model);
@@ -218,18 +237,21 @@ pub(super) fn load_engine(
                 .model
                 .as_ref()
                 .ok_or_else(|| "llama.cpp model unavailable for mtmd init".to_string())?;
-            let mtmd =
-                MtmdContext::init_from_file(mmproj_path, model, &MtmdContextParams::default())
-                    .map_err(|e| {
-                        crate::utils::err_msg(
-                            module_path!(),
-                            line!(),
-                            format!(
-                                "Failed to initialize llama.cpp mtmd context from {}: {}",
-                                mmproj_path, e
-                            ),
-                        )
-                    })?;
+            let mtmd = MtmdContext::init_from_file(
+                mmproj_path,
+                model.as_ref(),
+                &MtmdContextParams::default(),
+            )
+            .map_err(|e| {
+                crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!(
+                        "Failed to initialize llama.cpp mtmd context from {}: {}",
+                        mmproj_path, e
+                    ),
+                )
+            })?;
 
             if let Some(app) = app {
                 log_info(
@@ -244,12 +266,27 @@ pub(super) fn load_engine(
                 );
             }
 
-            guard.mtmd_ctx = Some(mtmd);
+            guard.mtmd_ctx = Some(Arc::new(mtmd));
             guard.mmproj_path = Some(mmproj_path.to_string());
         }
     }
 
-    Ok(guard)
+    Ok(LoadedEngine {
+        backend: guard
+            .backend
+            .clone()
+            .ok_or_else(|| "llama.cpp backend unavailable".to_string())?,
+        model: guard
+            .model
+            .clone()
+            .ok_or_else(|| "llama.cpp model unavailable".to_string())?,
+        backend_path_used: guard.backend_path_used.clone(),
+        gpu_load_fallback_activated: guard.gpu_load_fallback_activated,
+        gpu_load_fallback_reason: guard.gpu_load_fallback_reason.clone(),
+        compiled_gpu_backends: guard.compiled_gpu_backends.clone(),
+        supports_gpu_offload: guard.supports_gpu_offload,
+        mtmd_ctx: guard.mtmd_ctx.clone(),
+    })
 }
 
 pub(crate) fn unload_engine(app: &AppHandle) -> Result<(), String> {

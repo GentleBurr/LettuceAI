@@ -585,14 +585,8 @@ mod desktop {
                 llama_gpu_layers,
                 llama_mmproj_path.as_deref(),
             )?;
-            let model = engine
-                .model
-                .as_ref()
-                .ok_or_else(|| "llama.cpp model unavailable".to_string())?;
-            let backend = engine
-                .backend
-                .as_ref()
-                .ok_or_else(|| "llama.cpp backend unavailable".to_string())?;
+            let model = engine.model.as_ref();
+            let backend = engine.backend.as_ref();
             let mtmd_ctx = engine.mtmd_ctx.as_ref();
             if vision_requested && mtmd_ctx.is_none() {
                 return Err(crate::utils::err_msg(
