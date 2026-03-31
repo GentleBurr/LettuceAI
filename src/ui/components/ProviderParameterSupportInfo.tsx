@@ -61,6 +61,8 @@ const PARAMETER_LABELS: Record<keyof AdvancedModelSettings, string> = {
   reasoningEnabled: "Reasoning",
   reasoningEffort: "Reasoning Effort",
   reasoningBudgetTokens: "Reasoning Budget",
+  promptCachingEnabled: "Prompt Caching",
+  promptCachingTtl: "Prompt Caching TTL",
 };
 
 const PARAMETER_DESCRIPTIONS: Record<keyof AdvancedModelSettings, string> = {
@@ -115,6 +117,8 @@ const PARAMETER_DESCRIPTIONS: Record<keyof AdvancedModelSettings, string> = {
   reasoningEnabled: "Enable/disable thinking mode",
   reasoningEffort: "Thinking depth - OpenAI/DeepSeek style",
   reasoningBudgetTokens: "Max tokens for extended thinking",
+  promptCachingEnabled: "Enable prompt caching",
+  promptCachingTtl: "How long a cached prompt prefix stays reusable",
 };
 
 /**

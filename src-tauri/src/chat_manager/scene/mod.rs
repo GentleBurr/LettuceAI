@@ -1538,6 +1538,7 @@ pub async fn chat_generate_scene_prompt(
         request_settings.reasoning_enabled,
         request_settings.reasoning_effort.clone(),
         request_settings.reasoning_budget,
+        request_settings.prompt_caching_enabled.unwrap_or(false),
         extra_body_fields,
     );
 
@@ -1739,6 +1740,7 @@ pub async fn chat_generate_design_reference_description(
         request_settings.reasoning_enabled,
         request_settings.reasoning_effort.clone(),
         request_settings.reasoning_budget,
+        request_settings.prompt_caching_enabled.unwrap_or(false),
         extra_body_fields,
     );
 

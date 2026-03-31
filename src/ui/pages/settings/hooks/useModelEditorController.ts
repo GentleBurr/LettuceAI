@@ -82,6 +82,8 @@ type ControllerReturn = {
   handleReasoningEnabledChange: (value: boolean) => void;
   handleReasoningEffortChange: (value: "low" | "medium" | "high" | null) => void;
   handleReasoningBudgetChange: (value: number | null) => void;
+  handlePromptCachingEnabledChange: (value: boolean) => void;
+  handlePromptCachingTtlChange: (value: "5min" | "1h") => void;
   applyLlamaRuntimeSuggestion: () => Promise<boolean>;
   handleSave: () => Promise<void>;
   saveModel: () => Promise<boolean>;
@@ -1041,6 +1043,32 @@ export function useModelEditorController(): ControllerReturn {
     [dispatch, state.modelAdvancedDraft],
   );
 
+  const handlePromptCachingEnabledChange = useCallback(
+    (value: boolean) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          promptCachingEnabled: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
+  const handlePromptCachingTtlChange = useCallback(
+    (value: "5min" | "1h") => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          promptCachingTtl: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
   const clearError = useCallback(() => {
     dispatch({ type: "set_error", payload: null });
   }, [dispatch]);
@@ -1382,6 +1410,8 @@ export function useModelEditorController(): ControllerReturn {
     handleReasoningEnabledChange,
     handleReasoningEffortChange,
     handleReasoningBudgetChange,
+    handlePromptCachingEnabledChange,
+    handlePromptCachingTtlChange,
     applyLlamaRuntimeSuggestion,
     handleSave,
     saveModel,

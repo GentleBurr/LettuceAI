@@ -405,6 +405,7 @@ pub(crate) struct RequestSettings {
     pub(crate) reasoning_enabled: bool,
     pub(crate) reasoning_effort: Option<String>,
     pub(crate) reasoning_budget: Option<u32>,
+    pub(crate) prompt_caching_enabled: Option<bool>,
 }
 
 impl RequestSettings {
@@ -426,6 +427,10 @@ impl RequestSettings {
                 reasoning_effort.as_deref(),
             ),
             reasoning_effort,
+            prompt_caching_enabled: model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|s| s.prompt_caching_enabled),
         }
     }
 
@@ -437,6 +442,7 @@ impl RequestSettings {
         top_k: Option<u32>,
         frequency_penalty: Option<f64>,
         presence_penalty: Option<f64>,
+        prompt_caching_enabled: Option<bool>,
     ) -> Self {
         Self {
             temperature: Some(temperature),
@@ -449,6 +455,7 @@ impl RequestSettings {
             reasoning_enabled: false,
             reasoning_effort: None,
             reasoning_budget: None,
+            prompt_caching_enabled,
         }
     }
 }
@@ -460,11 +467,47 @@ pub(crate) fn build_provider_extra_fields(
     settings: &Settings,
     request_settings: &RequestSettings,
 ) -> Option<HashMap<String, Value>> {
+    let mut extra = HashMap::new();
+
+    // Keep all your existing provider-specific logic
     if provider_id == "llamacpp" {
-        build_llama_extra_fields(session, model, settings)
+        if let Some(llama_extra) = build_llama_extra_fields(session, model, settings) {
+            extra.extend(llama_extra);
+        }
     } else if provider_id == "ollama" {
-        build_ollama_extra_fields(session, model, settings, request_settings)
-    } else {
+        if let Some(ollama_extra) =
+            build_ollama_extra_fields(session, model, settings, request_settings)
+        {
+            extra.extend(ollama_extra);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // NEW: Prompt caching TTL (used by Claude, Bedrock, Vertex, Gemini, etc.)
+    // ─────────────────────────────────────────────────────────────
+    let ttl_val = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.prompt_caching_ttl.clone())
+        .or_else(|| {
+            session
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.prompt_caching_ttl.clone())
+        })
+        // Global settings fallback (in case you ever add it there)
+        .or_else(|| {
+            // settings.advanced_model_settings.prompt_caching_ttl.clone()  // uncomment if the field exists
+            None
+        });
+
+    if let Some(ttl) = ttl_val {
+        extra.insert("promptCachingTtl".to_string(), json!(ttl));
+    }
+
+    if extra.is_empty() {
         None
+    } else {
+        Some(extra)
     }
 }

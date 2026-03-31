@@ -273,6 +273,9 @@ export const AdvancedModelSettingsSchema = z.object({
   reasoningEnabled: z.boolean().nullable().optional(),
   reasoningEffort: z.enum(["low", "medium", "high"]).nullable().optional(),
   reasoningBudgetTokens: z.number().int().min(1024).nullable().optional(),
+  // Caching settings
+  promptCachingEnabled: z.boolean().nullable().optional(),
+  promptCachingTtl: z.string().nullish().optional(),
 });
 
 export type AdvancedModelSettings = z.infer<typeof AdvancedModelSettingsSchema>;
@@ -650,6 +653,8 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       reasoningEnabled: true,
       reasoningEffort: true,
       reasoningBudgetTokens: true,
+      promptCachingEnabled: true,
+      promptCachingTtl: true,
       llamaGpuLayers: false,
       llamaThreads: false,
       llamaThreadsBatch: false,
@@ -699,6 +704,8 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       reasoningEnabled: true,
       reasoningEffort: false, // Uses budget-based thinking instead
       reasoningBudgetTokens: true,
+      promptCachingEnabled: true,
+      promptCachingTtl: true,
       llamaGpuLayers: false,
       llamaThreads: false,
       llamaThreadsBatch: false,
@@ -748,6 +755,8 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       reasoningEnabled: true,
       reasoningEffort: true,
       reasoningBudgetTokens: true,
+      promptCachingEnabled: true,
+      promptCachingTtl: true,
       llamaGpuLayers: false,
       llamaThreads: false,
       llamaThreadsBatch: false,
@@ -1630,6 +1639,8 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       reasoningEnabled: true,
       reasoningEffort: false,
       reasoningBudgetTokens: true,
+      promptCachingEnabled: true,
+      promptCachingTtl: true,
       llamaGpuLayers: false,
       llamaThreads: false,
       llamaThreadsBatch: false,
@@ -1722,6 +1733,30 @@ export function getSupportedParameters(providerId: string): (keyof AdvancedModel
   return Object.entries(supportedParameters)
     .filter(([_, supported]) => supported)
     .map(([param]) => param as keyof AdvancedModelSettings);
+}
+
+/**
+ * Caching Support Types
+ */
+export type CachingSupport = "none" | "supported";
+
+/**
+ * Gets the caching support type for a specific provider
+ */
+export function getProviderCachingSupport(providerId: string): CachingSupport {
+  const provider =
+    PROVIDER_PARAMETER_SUPPORT[providerId as ProviderId] ||
+    (providerId === "google-gemini" ? PROVIDER_PARAMETER_SUPPORT.gemini : null) ||
+    (providerId === "google" ? PROVIDER_PARAMETER_SUPPORT.gemini : null) ||
+    (providerId === "chutes.ai" ? PROVIDER_PARAMETER_SUPPORT.chutes : null) ||
+    (providerId === "moonshot-ai" ? PROVIDER_PARAMETER_SUPPORT.moonshot : null) ||
+    (providerId === "z.ai" ? PROVIDER_PARAMETER_SUPPORT.zai : null);
+
+  if (!provider) return "none";
+
+  // Cast to check if it exists in the support matrix
+  const isSupported = (provider.supportedParameters as any).promptCachingEnabled;
+  return isSupported ? "supported" : "none";
 }
 
 export const ImageAttachmentSchema = z.object({

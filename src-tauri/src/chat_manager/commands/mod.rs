@@ -557,6 +557,7 @@ pub fn chat_message_debug_snapshot(
         request_settings.reasoning_enabled,
         request_settings.reasoning_effort.clone(),
         request_settings.reasoning_budget,
+        request_settings.prompt_caching_enabled.unwrap_or(false),
         extra_body_fields,
     );
 

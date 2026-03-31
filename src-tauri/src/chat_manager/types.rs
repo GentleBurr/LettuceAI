@@ -462,6 +462,10 @@ pub struct AdvancedModelSettings {
     pub reasoning_effort: Option<String>, // "low", "medium", "high"
     #[serde(default)]
     pub reasoning_budget_tokens: Option<u32>,
+    // Caching settings
+    #[serde(default)]
+    pub prompt_caching_enabled: Option<bool>,
+    pub prompt_caching_ttl: Option<String>,
 }
 
 impl Default for AdvancedModelSettings {
@@ -517,6 +521,8 @@ impl Default for AdvancedModelSettings {
             reasoning_enabled: None,
             reasoning_effort: None,
             reasoning_budget_tokens: None,
+            prompt_caching_enabled: Some(false),
+            prompt_caching_ttl: Some("5min".to_string()),
         }
     }
 }

@@ -59,7 +59,7 @@ import { useModelEditorController } from "./hooks/useModelEditorController";
 import { Routes, useNavigationManager } from "../../navigation";
 import { addOrUpdateModel } from "../../../core/storage/repo";
 import type { LlamaLastRuntimeReport, ReasoningSupport } from "../../../core/storage/schemas";
-import { getProviderReasoningSupport } from "../../../core/storage/schemas";
+import { getProviderReasoningSupport, getProviderCachingSupport } from "../../../core/storage/schemas";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
@@ -148,8 +148,8 @@ function getLlamaRuntimeDetail(report: LlamaLastRuntimeReport): string {
 }
 
 type EditorViewMode = "simple" | "advanced";
-type EditorSectionKey = "generation" | "runtime" | "reasoning";
-type SimpleEditorSectionKey = EditorSectionKey | "capabilities";
+type EditorSectionKey = "generation" | "runtime" | "reasoning" | "caching";
+type SimpleEditorSectionKey = "generation" | "runtime" | "reasoning" | "capabilities";
 
 const EDITOR_FADE_DURATION = 0.16;
 const MODEL_EDITOR_VIEW_MODE_STORAGE_KEY = "lettuce.settings.models.editorViewMode";
@@ -451,6 +451,8 @@ export function EditModelPage() {
     handleReasoningEnabledChange,
     handleReasoningEffortChange,
     handleReasoningBudgetChange,
+    handlePromptCachingEnabledChange,
+    handlePromptCachingTtlChange,
     applyLlamaRuntimeSuggestion,
     handleSave,
     saveModel,
@@ -942,6 +944,11 @@ export function EditModelPage() {
   const showReasoningSection = reasoningSupport !== "none";
   const isAutoReasoning = reasoningSupport === "auto";
   const showEffortOptions = reasoningSupport === "effort" || reasoningSupport === "dynamic";
+  // Get caching support for the current provider
+  const cachingSupport = editorModel?.providerId 
+    ? getProviderCachingSupport(editorModel.providerId) 
+    : "none";
+  const showCachingSection = cachingSupport !== "none";
   const numberInputClassName =
     "w-full rounded-lg border border-fg/10 bg-surface-el/20 px-4 py-3.5 text-[13px] text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none";
   const selectInputClassName =
@@ -1963,6 +1970,24 @@ export function EditModelPage() {
                           <div className="text-[13px] font-medium">Reasoning</div>
                           <div className="mt-1 text-[13px] text-fg/45">
                             Thinking mode, effort, and token budget controls.
+                          </div>
+                        </button>
+                      )}
+
+                      {showCachingSection && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveAdvancedPanel("caching")}
+                          className={cn(
+                            "rounded-lg border px-4 py-3 text-left transition",
+                            activeAdvancedPanel === "caching"
+                              ? "border-fg/22 bg-fg/8 text-fg"
+                              : "border-fg/10 bg-transparent text-fg/65 hover:border-fg/18 hover:bg-fg/4 hover:text-fg/90",
+                          )}
+                        >
+                          <div className="text-[13px] font-medium">Prompt Caching</div>
+                          <div className="mt-1 text-[13px] text-fg/45">
+                            Context reuse and prefix caching behavior.
                           </div>
                         </button>
                       )}
@@ -4132,6 +4157,135 @@ export function EditModelPage() {
                             </div>
                           </div>
                         )}
+
+                        {/* Prompt Caching Section */}
+                        {activeDetailPanel === "caching" && showCachingSection && (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                                Prompt Caching
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setShowParameterSupport(true)}
+                                className="text-fg/40 hover:text-fg/60 transition"
+                                title="View Parameter Support"
+                              >
+                                <Info size={14} />
+                              </button>
+                            </div>
+
+                            <div className="space-y-6">
+                              {/* ── Enable toggle ── */}
+                              <div className="flex items-center justify-between rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-3 border-l-2 border-accent/30 pl-3">
+                                  <HardDrive size={16} className="text-accent/80" />
+                                  <div className="space-y-0.5">
+                                    <span className="block text-[13px] font-medium text-fg/70">
+                                      Enable Context Caching
+                                    </span>
+                                    <span className="block text-[13px] text-fg/40">
+                                      Preserve static system prompts and document context across
+                                      interactions.
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <label className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={modelAdvancedDraft.promptCachingEnabled || false}
+                                    onChange={(e) => handlePromptCachingEnabledChange(e.target.checked)}
+                                    className="sr-only"
+                                  />
+                                  <span
+                                    className={cn(
+                                      "inline-block h-full w-full rounded-full transition-colors duration-200",
+                                      modelAdvancedDraft.promptCachingEnabled
+                                        ? "bg-accent"
+                                        : "bg-fg/10",
+                                    )}
+                                  />
+                                  <span
+                                    className={cn(
+                                      "absolute h-3.5 w-3.5 transform rounded-full bg-fg transition-transform duration-200",
+                                      modelAdvancedDraft.promptCachingEnabled
+                                        ? "translate-x-4.5"
+                                        : "translate-x-1",
+                                    )}
+                                  />
+                                </label>
+                              </div>
+
+                              {modelAdvancedDraft.promptCachingEnabled && (
+                                <>
+                                  {/* ── TTL toggle ── */}
+                                  <div className="flex items-center justify-between rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                    <div className="flex items-center gap-3 border-l-2 border-fg/10 pl-3">
+                                      <div className="space-y-0.5">
+                                        <span className="block text-[13px] font-medium text-fg/70">
+                                          Cache TTL
+                                        </span>
+                                        <span className="block text-[13px] text-fg/40">
+                                          How long cached prefixes remain valid between requests.
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="inline-flex shrink-0 rounded-lg border border-fg/10 bg-fg/4 p-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          handlePromptCachingTtlChange("5min");
+                                        }}
+                                        className={cn(
+                                          "rounded-md px-3 py-1 text-[12px] font-medium transition",
+                                          (modelAdvancedDraft.promptCachingTtl ?? "5min") === "5min"
+                                            ? "bg-accent/15 text-accent"
+                                            : "text-fg/45 hover:text-fg/70",
+                                        )}
+                                      >
+                                        5 min
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          handlePromptCachingTtlChange("1h");
+                                        }}
+                                        className={cn(
+                                          "rounded-md px-3 py-1 text-[12px] font-medium transition",
+                                          modelAdvancedDraft.promptCachingTtl === "1h"
+                                            ? "bg-accent/15 text-accent"
+                                            : "text-fg/45 hover:text-fg/70",
+                                        )}
+                                      >
+                                        1 hr
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* ── Pricing / TTL notes ── */}
+                                  <div className="rounded-lg border border-fg/10 bg-fg/4 px-4 py-3 text-[13px] leading-relaxed text-fg/65">
+                                    <strong className="text-fg/80">Note on pricing:</strong> While
+                                    caching reduces the cost of repeated input tokens, the initial
+                                    write to the cache may incur a slight premium depending on the
+                                    selected provider.
+                                    {modelAdvancedDraft.promptCachingTtl === "1h" && (
+                                      <span className="mt-1.5 block text-fg/50">
+                                        Extended 1-hour TTL may not be honoured by all providers.
+                                        Falls back to the provider's default cache lifetime when
+                                        unsupported.
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
                         {activeDetailPanel === "capabilities" && (
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">

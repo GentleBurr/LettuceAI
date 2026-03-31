@@ -19,7 +19,9 @@ use rusqlite::OptionalExtension;
 
 use crate::abort_manager::AbortRegistry;
 use crate::api::{api_request, ApiRequest, ApiResponse};
-use crate::chat_manager::service::{apply_openrouter_cost_to_usage, require_api_key};
+use crate::chat_manager::service::{
+    apply_openrouter_cost_to_usage, insert_extended_usage_metadata, require_api_key,
+};
 use crate::dynamic_memory_run_manager::{DynamicMemoryCancellationToken, DynamicMemoryRunManager};
 use crate::usage::add_usage_record;
 use crate::usage::tracking::{RequestUsage, UsageFinishReason, UsageOperationType};
@@ -700,10 +702,14 @@ async fn record_group_usage(
         prompt_tokens: usage_info.prompt_tokens,
         completion_tokens: usage_info.completion_tokens,
         total_tokens: usage_info.total_tokens,
+        cached_prompt_tokens: usage_info.cached_prompt_tokens,
+        cache_write_tokens: usage_info.cache_write_tokens,
         memory_tokens: None,
         summary_tokens: None,
         reasoning_tokens: usage_info.reasoning_tokens,
         image_tokens: usage_info.image_tokens,
+        web_search_requests: usage_info.web_search_requests,
+        api_cost: usage_info.api_cost,
         cost: None,
         success: true,
         error_message: None,
@@ -737,6 +743,12 @@ async fn record_group_usage(
             log_scope,
         )
         .await;
+    } else if usage_info.cached_prompt_tokens.is_some()
+        || usage_info.cache_write_tokens.is_some()
+        || usage_info.web_search_requests.is_some()
+        || usage_info.api_cost.is_some()
+    {
+        insert_extended_usage_metadata(&mut request_usage.metadata, usage_info);
     }
 
     if let Err(e) = add_usage_record(app, request_usage) {
@@ -780,10 +792,14 @@ async fn record_decision_maker_usage(
         prompt_tokens: usage_info.prompt_tokens,
         completion_tokens: usage_info.completion_tokens,
         total_tokens: usage_info.total_tokens,
+        cached_prompt_tokens: usage_info.cached_prompt_tokens,
+        cache_write_tokens: usage_info.cache_write_tokens,
         memory_tokens: None,
         summary_tokens: None,
         reasoning_tokens: usage_info.reasoning_tokens,
         image_tokens: usage_info.image_tokens,
+        web_search_requests: usage_info.web_search_requests,
+        api_cost: usage_info.api_cost,
         cost: None,
         success: true,
         error_message: None,
@@ -800,6 +816,12 @@ async fn record_decision_maker_usage(
             log_scope,
         )
         .await;
+    } else if usage_info.cached_prompt_tokens.is_some()
+        || usage_info.cache_write_tokens.is_some()
+        || usage_info.web_search_requests.is_some()
+        || usage_info.api_cost.is_some()
+    {
+        insert_extended_usage_metadata(&mut request_usage.metadata, usage_info);
     }
 
     if let Err(e) = add_usage_record(app, request_usage) {
@@ -1417,6 +1439,7 @@ async fn send_dynamic_memory_request(
         false,
         None,
         None,
+        false,
         extra_body_fields.clone(),
     );
 
@@ -1470,6 +1493,7 @@ async fn send_dynamic_memory_request(
                     false,
                     None,
                     None,
+                    false,
                     extra_body_fields,
                 );
 
@@ -4521,6 +4545,7 @@ async fn select_speaker_via_llm_with_tracking(
         false, // reasoning_enabled
         None,  // reasoning_effort
         None,  // reasoning_budget
+        false, // prompt_caching_enabled
         extra_body_fields,
     );
 
@@ -4825,6 +4850,11 @@ async fn generate_character_response(
         .as_ref()
         .and_then(|a| a.top_k)
         .or_else(|| sampler_defaults.and_then(|defaults| defaults.top_k));
+    let prompt_caching_enabled = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|s| s.prompt_caching_enabled)
+        .unwrap_or(false);
     let extra_body_fields = if credential.provider_id == "llamacpp" {
         build_llama_extra_fields(model, &settings)
     } else if credential.provider_id == "ollama" {
@@ -4853,15 +4883,16 @@ async fn generate_character_response(
         Some(top_p),
         max_tokens,
         context_length,
-        true,              // Stream
-        None,              // request_id will be passed via ApiRequest
-        frequency_penalty, // frequency_penalty
-        presence_penalty,  // presence_penalty
-        top_k,             // top_k
-        None,              // No tools for response generation
-        reasoning_enabled, // reasoning_enabled
-        reasoning_effort,  // reasoning_effort
-        reasoning_budget,  // reasoning_budget
+        true,                   // Stream
+        None,                   // request_id will be passed via ApiRequest
+        frequency_penalty,      // frequency_penalty
+        presence_penalty,       // presence_penalty
+        top_k,                  // top_k
+        None,                   // No tools for response generation
+        reasoning_enabled,      // reasoning_enabled
+        reasoning_effort,       // reasoning_effort
+        reasoning_budget,       // reasoning_budget
+        prompt_caching_enabled, // prompt_caching_enabled
         extra_body_fields,
     );
 
@@ -6047,6 +6078,7 @@ pub async fn group_chat_generate_user_reply(
         false,              // reasoning_enabled
         None,               // reasoning_effort
         None,               // reasoning_budget
+        false,              // prompt_caching_enabled
         extra_body_fields,
     );
 

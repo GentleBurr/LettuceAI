@@ -145,6 +145,8 @@ export function sanitizeAdvancedModelSettings(input: AdvancedModelSettings): Adv
       ADVANCED_REASONING_BUDGET_RANGE,
       true,
     ),
+    promptCachingEnabled: input.promptCachingEnabled ?? null,
+    promptCachingTtl: input.promptCachingTtl ?? "5min",
   };
 }
 
@@ -215,6 +217,11 @@ export function formatAdvancedModelSettingsSummary(
     if (budgetValue) {
       parts.push(`Budget: ${budgetValue}`);
     }
+  }
+
+  // Prompt caching
+  if (settings.promptCachingEnabled) {
+    parts.push("Caching: On");
   }
 
   return parts.length ? parts.join(" • ") : fallbackLabel;
@@ -475,6 +482,38 @@ export function AdvancedModelSettingsForm({
           placeholder="40"
           className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none disabled:opacity-50"
         />
+      </div>
+
+      {/* Prompt Caching Section */}
+      <div className="space-y-4 rounded-2xl border border-blue-400/20 bg-blue-400/5 p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+            <h3 className="text-sm font-semibold">
+              Prompt Caching
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              onChange({ ...settings, promptCachingEnabled: !settings.promptCachingEnabled })
+            }
+            disabled={disabled}
+            className={cn(
+              "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50",
+              settings.promptCachingEnabled ? "bg-blue-500" : "bg-white/10",
+            )}
+          >
+            <span
+              className={cn(
+                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                settings.promptCachingEnabled ? "translate-x-5" : "translate-x-0",
+              )}
+            />
+          </button>
+        </div>
+        <p className="text-[11px] text-white/50 leading-relaxed">
+          Speeds up generation and reduces costs for long, repetitive contexts (like large system prompts or deep chat histories).
+        </p>
       </div>
 
       {/* Reasoning / Thinking Section */}

@@ -10,6 +10,9 @@ use crate::abort_manager::AbortRegistry;
 use crate::api::{api_request, ApiRequest, ApiResponse};
 use crate::chat_manager::request as chat_request;
 use crate::chat_manager::request_builder::{build_chat_request, effective_streaming_enabled};
+use crate::chat_manager::service::{
+    apply_openrouter_cost_to_usage, insert_extended_usage_metadata,
+};
 use crate::chat_manager::sse::accumulate_tool_calls_from_sse;
 use crate::chat_manager::tooling::{parse_tool_calls, ToolChoice, ToolConfig};
 use crate::image_generator::commands::generate_image;
@@ -1392,6 +1395,7 @@ async fn send_creation_api_request(
             false,
             None,
             None,
+            false,
             None,
         );
 
@@ -1501,10 +1505,14 @@ fn record_image_generation_usage(
         prompt_tokens: None,
         completion_tokens: None,
         total_tokens: None,
+        cached_prompt_tokens: None,
+        cache_write_tokens: None,
         memory_tokens: None,
         summary_tokens: None,
         reasoning_tokens: None,
         image_tokens: None,
+        web_search_requests: None,
+        api_cost: None,
         cost: None,
         success,
         error_message,
@@ -2669,10 +2677,12 @@ async fn process_assistant_turn(
             model_name,
             provider_id,
             provider_label,
+            api_key,
             session.draft.name.as_deref().unwrap_or(""),
             false,
             Some(err.to_string()),
-        );
+        )
+        .await;
         log_error(&app, "creation_helper", format!("API error: {}", err));
         return Err(err.to_string());
     }
@@ -2702,6 +2712,7 @@ async fn process_assistant_turn(
         model_name,
         provider_id,
         provider_label,
+        api_key,
         session.draft.name.as_deref().unwrap_or(""),
         initial_has_meaningful,
         if let Some(err) = &initial_provider_error {
@@ -2711,7 +2722,8 @@ async fn process_assistant_turn(
         } else {
             Some("Model returned empty response".to_string())
         },
-    );
+    )
+    .await;
     log_info(
         &app,
         "creation_helper",
@@ -2882,10 +2894,12 @@ async fn process_assistant_turn(
                 model_name,
                 provider_id,
                 provider_label,
+                api_key,
                 session.draft.name.as_deref().unwrap_or(""),
                 false,
                 Some(err.to_string()),
-            );
+            )
+            .await;
             return Err(err.to_string());
         }
 
@@ -2915,6 +2929,7 @@ async fn process_assistant_turn(
             model_name,
             provider_id,
             provider_label,
+            api_key,
             session.draft.name.as_deref().unwrap_or(""),
             followup_has_meaningful,
             if let Some(err) = &followup_provider_error {
@@ -2924,7 +2939,8 @@ async fn process_assistant_turn(
             } else {
                 Some("Model returned empty follow-up response".to_string())
             },
-        );
+        )
+        .await;
         log_info(
             &app,
             "creation_helper",
@@ -2998,6 +3014,7 @@ async fn process_assistant_turn(
             false,
             None,
             None,
+            false,
             None,
         );
 
@@ -3055,10 +3072,12 @@ async fn process_assistant_turn(
                 model_name,
                 provider_id,
                 provider_label,
+                api_key,
                 session.draft.name.as_deref().unwrap_or(""),
                 finalize_provider_error.is_none(),
                 finalize_provider_error.clone(),
-            );
+            )
+            .await;
             let finalize_content =
                 chat_request::extract_text(finalize_data, Some(provider_id)).unwrap_or_default();
             let finalize_tool_calls = if finalize_data.is_string() {
@@ -3361,7 +3380,7 @@ pub fn cleanup_old_sessions(max_age_ms: i64) -> Result<usize, String> {
     Ok(count)
 }
 
-fn record_creation_usage(
+async fn record_creation_usage(
     app: &AppHandle,
     response_data: &Value,
     session_id: &str,
@@ -3369,6 +3388,7 @@ fn record_creation_usage(
     model_name: &str,
     provider_id: &str,
     provider_label: &str,
+    api_key: &str,
     character_name: &str,
     success: bool,
     error_message: Option<String>,
@@ -3376,7 +3396,7 @@ fn record_creation_usage(
     let usage_summary = chat_request::extract_usage(response_data);
     let request_id = Uuid::new_v4().to_string();
 
-    let usage = RequestUsage {
+    let mut usage = RequestUsage {
         id: request_id,
         timestamp: now_ms() as u64,
         session_id: session_id.to_string(),
@@ -3399,15 +3419,39 @@ fn record_creation_usage(
         prompt_tokens: usage_summary.as_ref().and_then(|u| u.prompt_tokens),
         completion_tokens: usage_summary.as_ref().and_then(|u| u.completion_tokens),
         total_tokens: usage_summary.as_ref().and_then(|u| u.total_tokens),
+        cached_prompt_tokens: usage_summary.as_ref().and_then(|u| u.cached_prompt_tokens),
+        cache_write_tokens: usage_summary.as_ref().and_then(|u| u.cache_write_tokens),
         memory_tokens: None,
         summary_tokens: None,
         reasoning_tokens: usage_summary.as_ref().and_then(|u| u.reasoning_tokens),
         image_tokens: usage_summary.as_ref().and_then(|u| u.image_tokens),
+        web_search_requests: usage_summary.as_ref().and_then(|u| u.web_search_requests),
+        api_cost: usage_summary.as_ref().and_then(|u| u.api_cost),
         cost: None,
         success,
         error_message,
         metadata: HashMap::new(),
     };
+
+    if let Some(summary) = usage_summary.as_ref() {
+        if provider_id.eq_ignore_ascii_case("openrouter") {
+            apply_openrouter_cost_to_usage(
+                app,
+                &mut usage,
+                summary,
+                model_name,
+                api_key,
+                "creation_helper",
+            )
+            .await;
+        } else if summary.cached_prompt_tokens.is_some()
+            || summary.cache_write_tokens.is_some()
+            || summary.web_search_requests.is_some()
+            || summary.api_cost.is_some()
+        {
+            insert_extended_usage_metadata(&mut usage.metadata, summary);
+        }
+    }
 
     if let Err(e) = add_usage_record(app, usage) {
         log_error(
