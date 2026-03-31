@@ -55,6 +55,76 @@ fn dynamic_memory_request_id(session_id: &str, phase: &str) -> String {
     format!("dynamic-memory:{}:{}", session_id, phase)
 }
 
+fn uses_local_dynamic_memory_model(provider_cred: &ProviderCredential, model: &Model) -> bool {
+    crate::llama_cpp::is_llama_cpp(Some(provider_cred.provider_id.as_str()))
+        || crate::llama_cpp::is_llama_cpp(Some(model.provider_id.as_str()))
+}
+
+fn emit_dynamic_memory_transition_toast(app: &AppHandle, title: &str, description: String) {
+    let _ = app.emit(
+        "app://toast",
+        json!({
+            "variant": "info",
+            "title": title,
+            "description": description,
+        }),
+    );
+}
+
+async fn prepare_local_dynamic_memory_cycle(
+    app: &AppHandle,
+    model: &Model,
+    session_id: &str,
+) -> Result<(), String> {
+    emit_dynamic_memory_transition_toast(
+        app,
+        "Preparing dynamic memory",
+        format!(
+            "Unloading the active local chat model before loading {}.",
+            model.display_name
+        ),
+    );
+    crate::llama_cpp::llamacpp_unload(app.clone())
+        .await
+        .map_err(|err| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!(
+                    "Failed to unload local chat model before dynamic memory for session {}: {}",
+                    session_id, err
+                ),
+            )
+        })
+}
+
+async fn finish_local_dynamic_memory_cycle(
+    app: &AppHandle,
+    model: &Model,
+    session_id: &str,
+) -> Result<(), String> {
+    emit_dynamic_memory_transition_toast(
+        app,
+        "Finishing dynamic memory",
+        format!(
+            "Unloading {} after the memory update completes.",
+            model.display_name
+        ),
+    );
+    crate::llama_cpp::llamacpp_unload(app.clone())
+        .await
+        .map_err(|err| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!(
+                    "Failed to unload local dynamic memory model for session {}: {}",
+                    session_id, err
+                ),
+            )
+        })
+}
+
 fn is_cancelled_request_error(message: &str) -> bool {
     let normalized = message.to_ascii_lowercase();
     normalized.contains("aborted")
@@ -706,6 +776,15 @@ async fn process_dynamic_memory_cycle_with_model(
             return Err(err);
         }
     };
+    let using_local_dynamic_memory_model =
+        uses_local_dynamic_memory_model(summary_provider, summary_model);
+    if using_local_dynamic_memory_model {
+        if let Err(err) = prepare_local_dynamic_memory_cycle(app, summary_model, &session.id).await
+        {
+            record_dynamic_memory_error(app, session, &err, "prepare_local_model");
+            return Err(err);
+        }
+    }
     // Set processing state
     session.memory_status = Some("processing".to_string());
     session.memory_error = None;
@@ -764,7 +843,14 @@ async fn process_dynamic_memory_cycle_with_model(
         Err(err) => {
             run_guard.set_active_request_id(None);
             if is_cancelled_request_error(&err) {
+                if using_local_dynamic_memory_model {
+                    let _ =
+                        finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
+                }
                 return cancel_dynamic_memory_cycle(app, session, &err);
+            }
+            if using_local_dynamic_memory_model {
+                let _ = finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
             }
             record_dynamic_memory_error(app, session, &err, "summarization");
             return Err(err);
@@ -818,6 +904,10 @@ async fn process_dynamic_memory_cycle_with_model(
         Err(err) => {
             run_guard.set_active_request_id(None);
             if is_cancelled_request_error(&err) {
+                if using_local_dynamic_memory_model {
+                    let _ =
+                        finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
+                }
                 return cancel_dynamic_memory_cycle(app, session, &err);
             }
             log_error(
@@ -825,6 +915,9 @@ async fn process_dynamic_memory_cycle_with_model(
                 "dynamic_memory",
                 format!("memory tool update failed: {}", err),
             );
+            if using_local_dynamic_memory_model {
+                let _ = finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
+            }
 
             let event = json!({
                 "id": Uuid::new_v4().to_string(),
@@ -898,6 +991,9 @@ async fn process_dynamic_memory_cycle_with_model(
     session.memory_progress_step = None;
     session.updated_at = now_millis()?;
     if let Err(err) = save_session(app, session) {
+        if using_local_dynamic_memory_model {
+            let _ = finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
+        }
         record_dynamic_memory_error(app, session, &err, "save_session");
         return Err(err);
     }
@@ -932,6 +1028,10 @@ async fn process_dynamic_memory_cycle_with_model(
             window_end
         ),
     );
+
+    if using_local_dynamic_memory_model {
+        finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await?;
+    }
 
     Ok(())
 }
