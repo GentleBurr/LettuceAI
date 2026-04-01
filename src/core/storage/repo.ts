@@ -71,6 +71,16 @@ export const SETTINGS_UPDATED_EVENT = "lettuceai:settings-updated";
 export const SESSION_UPDATED_EVENT = "lettuceai:session-updated";
 export const LLAMA_RUNTIME_REPORT_UPDATED_EVENT = "llama-runtime-report-updated";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let lastKnownGoodSettings: Settings | null = null;
+
+function cloneSettingsSnapshot(settings: Settings): Settings {
+  return JSON.parse(JSON.stringify(settings)) as Settings;
+}
+
+function rememberSettings(settings: Settings): Settings {
+  lastKnownGoodSettings = cloneSettingsSnapshot(settings);
+  return settings;
+}
 
 function normalizeProviderCredentialIds(input: unknown): { next: unknown; changed: boolean } {
   if (!input || typeof input !== "object") {
@@ -426,8 +436,18 @@ function hasDynamicMemoryState(
 }
 
 export async function readSettings(): Promise<Settings> {
-  const fallback = createDefaultSettings();
-  const data = await storageBridge.readSettings<Settings>(fallback);
+  const fallback = lastKnownGoodSettings
+    ? cloneSettingsSnapshot(lastKnownGoodSettings)
+    : createDefaultSettings();
+  const data = await storageBridge.readSettings<Settings | null>(null);
+
+  if (data == null) {
+    if (lastKnownGoodSettings) {
+      console.warn("Falling back to last known good settings after read failure.");
+      return cloneSettingsSnapshot(lastKnownGoodSettings);
+    }
+    return fallback;
+  }
 
   const parsed = SettingsSchema.safeParse(data);
   if (parsed.success) {
@@ -474,14 +494,19 @@ export async function readSettings(): Promise<Settings> {
       await saveAdvancedSettings(settings.advancedSettings);
     }
 
-    return settings;
+    return rememberSettings(settings);
   }
 
   const repaired = normalizeProviderCredentialIds(data);
   const repairedParsed = SettingsSchema.safeParse(repaired.next);
   if (repaired.changed && repairedParsed.success) {
     await writeSettings(repairedParsed.data, true);
-    return repairedParsed.data;
+    return rememberSettings(repairedParsed.data);
+  }
+
+  if (lastKnownGoodSettings) {
+    console.warn("Falling back to last known good settings after validation failure.");
+    return cloneSettingsSnapshot(lastKnownGoodSettings);
   }
 
   await storageBridge.settingsSetDefaults(null, null);
@@ -491,6 +516,7 @@ export async function readSettings(): Promise<Settings> {
 export async function writeSettings(s: Settings, suppressBroadcast = false): Promise<void> {
   SettingsSchema.parse(s);
   await storageBridge.writeSettings(s);
+  rememberSettings(s);
   if (!suppressBroadcast) {
     broadcastSettingsUpdated();
   }

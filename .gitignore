@@ -49,3 +49,4 @@ docs/sync-architecture-report.md
 docs/sync-current-system.md
 docs/sync-old-architecture.mmd
 docs/sync-old-architecture.svg
+src-tauri/target-check/

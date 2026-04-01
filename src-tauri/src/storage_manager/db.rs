@@ -2,6 +2,7 @@ use rusqlite::{params, Connection};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::RwLock;
+use std::time::Duration;
 
 use super::legacy::storage_root;
 use crate::migrations;
@@ -83,12 +84,14 @@ impl SwappablePool {
 /// Create a new pool for a given database path
 pub fn create_pool_for_path(path: &PathBuf) -> Result<DbPool, String> {
     let manager = SqliteConnectionManager::file(path).with_init(|c| {
+        c.busy_timeout(Duration::from_secs(5))?;
         c.execute_batch(
             r#"
                 PRAGMA journal_mode=WAL;
                 PRAGMA synchronous=NORMAL;
                 PRAGMA temp_store=MEMORY;
                 PRAGMA cache_size=-8000;
+                PRAGMA busy_timeout=5000;
                 PRAGMA wal_autocheckpoint=1000;
                 PRAGMA mmap_size=268435456;
                 PRAGMA foreign_keys=ON;
@@ -177,12 +180,14 @@ pub fn init_pool(app: &tauri::AppHandle) -> Result<DbPool, String> {
     }
 
     let manager = SqliteConnectionManager::file(&path).with_init(|c| {
+        c.busy_timeout(Duration::from_secs(5))?;
         c.execute_batch(
             r#"
                 PRAGMA journal_mode=WAL;
                 PRAGMA synchronous=NORMAL;
                 PRAGMA temp_store=MEMORY;
                 PRAGMA cache_size=-8000;
+                PRAGMA busy_timeout=5000;
                 PRAGMA wal_autocheckpoint=1000;
                 PRAGMA mmap_size=268435456;
                 PRAGMA foreign_keys=ON;
