@@ -6,6 +6,11 @@ use llama_cpp_sys_2::{
     GGML_BACKEND_DEVICE_TYPE_ACCEL, GGML_BACKEND_DEVICE_TYPE_GPU, GGML_BACKEND_DEVICE_TYPE_IGPU,
 };
 use std::sync::OnceLock;
+#[cfg(target_os = "windows")]
+use windows::Win32::Graphics::Dxgi::{
+    CreateDXGIFactory1, IDXGIAdapter1, IDXGIAdapter3, IDXGIFactory6, DXGI_ADAPTER_FLAG_SOFTWARE,
+    DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+};
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -144,7 +149,22 @@ pub(crate) fn get_available_memory_bytes() -> Option<u64> {
     Some(sys.available_memory())
 }
 
-pub(crate) fn get_available_vram_bytes() -> Option<u64> {
+fn choose_effective_vram_bytes(
+    ggml_free_bytes: Option<u64>,
+    platform_cap_bytes: Option<u64>,
+) -> Option<u64> {
+    match (
+        ggml_free_bytes.filter(|value| *value > 0),
+        platform_cap_bytes.filter(|value| *value > 0),
+    ) {
+        (Some(ggml_free), Some(platform_cap)) => Some(ggml_free.min(platform_cap)),
+        (Some(ggml_free), None) => Some(ggml_free),
+        (None, Some(platform_cap)) => Some(platform_cap),
+        (None, None) => None,
+    }
+}
+
+fn ggml_available_vram_bytes() -> Option<u64> {
     let mut max_free: u64 = 0;
     // SAFETY: read-only ggml backend device enumeration and memory queries.
     unsafe {
@@ -178,6 +198,67 @@ pub(crate) fn get_available_vram_bytes() -> Option<u64> {
     } else {
         None
     }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_local_vram_cap_bytes() -> Option<u64> {
+    // SAFETY: read-only DXGI factory/adapter enumeration and local-memory queries.
+    unsafe {
+        let factory: IDXGIFactory6 = CreateDXGIFactory1().ok()?;
+        let mut best: u64 = 0;
+        let mut index: u32 = 0;
+
+        loop {
+            let adapter: IDXGIAdapter1 = match factory.EnumAdapters1(index) {
+                Ok(adapter) => adapter,
+                Err(_) => break,
+            };
+            index = index.saturating_add(1);
+
+            let desc = match adapter.GetDesc1() {
+                Ok(desc) => desc,
+                Err(_) => continue,
+            };
+            if desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 != 0 {
+                continue;
+            }
+
+            let dedicated_bytes = desc.DedicatedVideoMemory as u64;
+            if dedicated_bytes == 0 {
+                continue;
+            }
+
+            let local_available_bytes = adapter
+                .cast::<IDXGIAdapter3>()
+                .ok()
+                .and_then(|adapter3| {
+                    adapter3
+                        .QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL)
+                        .ok()
+                        .map(|info| {
+                            (info.Budget as u64)
+                                .saturating_sub(info.CurrentUsage as u64)
+                                .min(dedicated_bytes)
+                        })
+                })
+                .unwrap_or(dedicated_bytes);
+
+            if local_available_bytes > best {
+                best = local_available_bytes;
+            }
+        }
+
+        (best > 0).then_some(best)
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn windows_local_vram_cap_bytes() -> Option<u64> {
+    None
+}
+
+pub(crate) fn get_available_vram_bytes() -> Option<u64> {
+    choose_effective_vram_bytes(ggml_available_vram_bytes(), windows_local_vram_cap_bytes())
 }
 
 /// Detect if the system uses unified memory (shared RAM/VRAM).
@@ -325,7 +406,7 @@ pub(super) fn compute_cpu_fallback_limits(
 
 #[cfg(test)]
 mod tests {
-    use super::cpu_fallback_headroom_bytes;
+    use super::{choose_effective_vram_bytes, cpu_fallback_headroom_bytes};
 
     #[test]
     fn cpu_fallback_headroom_does_not_exceed_budget() {
@@ -345,6 +426,27 @@ mod tests {
 
         assert!(headroom < budget);
         assert!(budget - headroom >= 128_u64 * 1024 * 1024);
+    }
+
+    #[test]
+    fn windows_vram_cap_clamps_inflated_backend_free_memory() {
+        let ggml_free = Some(14_u64 * 1024 * 1024 * 1024);
+        let windows_cap = Some(4_u64 * 1024 * 1024 * 1024);
+
+        assert_eq!(
+            choose_effective_vram_bytes(ggml_free, windows_cap),
+            Some(4_u64 * 1024 * 1024 * 1024)
+        );
+    }
+
+    #[test]
+    fn windows_vram_cap_preserves_backend_value_without_platform_cap() {
+        let ggml_free = Some(3_u64 * 1024 * 1024 * 1024);
+
+        assert_eq!(
+            choose_effective_vram_bytes(ggml_free, None),
+            Some(3_u64 * 1024 * 1024 * 1024)
+        );
     }
 }
 
