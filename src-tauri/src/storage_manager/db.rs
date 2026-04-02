@@ -1333,6 +1333,37 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
         );
     }
 
+    let mut stmt_lorebooks = conn
+        .prepare("PRAGMA table_info(lorebooks)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut has_lorebook_avatar_path = false;
+    let mut has_lorebook_keyword_detection_mode = false;
+    let mut rows_lorebooks = stmt_lorebooks
+        .query([])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    while let Some(row) = rows_lorebooks
+        .next()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+    {
+        let col_name: String = row
+            .get(1)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        match col_name.as_str() {
+            "avatar_path" => has_lorebook_avatar_path = true,
+            "keyword_detection_mode" => has_lorebook_keyword_detection_mode = true,
+            _ => {}
+        }
+    }
+    if !has_lorebook_avatar_path {
+        let _ = conn.execute("ALTER TABLE lorebooks ADD COLUMN avatar_path TEXT", []);
+    }
+    if !has_lorebook_keyword_detection_mode {
+        let _ = conn.execute(
+            "ALTER TABLE lorebooks ADD COLUMN keyword_detection_mode TEXT NOT NULL DEFAULT 'recent_message_window'",
+            [],
+        );
+    }
+
     let mut stmt_prompt_templates = conn
         .prepare("PRAGMA table_info(prompt_templates)")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

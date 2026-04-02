@@ -37,13 +37,18 @@ const TAG_PAIRS: [(&str, &str); 4] = [
 
 fn partial_suffix_len(buffer: &str, tag: &str) -> usize {
     let buffer_lower = buffer.to_ascii_lowercase();
-    let max_len = buffer.len().min(tag.len().saturating_sub(1));
-    for len in (1..=max_len).rev() {
-        if tag.starts_with(&buffer_lower[buffer_lower.len() - len..]) {
-            return len;
+    let max_len = buffer_lower.len().min(tag.len().saturating_sub(1));
+    let mut best = 0;
+
+    for (start, _) in buffer_lower.char_indices() {
+        let suffix = &buffer_lower[start..];
+        let suffix_len = suffix.len();
+        if suffix_len <= max_len && tag.starts_with(suffix) {
+            best = best.max(suffix_len);
         }
     }
-    0
+
+    best
 }
 
 fn partial_suffix_len_any(buffer: &str, tags: &[&str]) -> usize {
@@ -221,5 +226,21 @@ mod tests {
             split_thinking_tags("visible<THINKING>hidden</THINKING><ReAsOn>more</ReAsOn>end");
         assert_eq!(split.content, "visibleend");
         assert_eq!(split.reasoning, "hiddenmore");
+    }
+
+    #[test]
+    fn supports_unicode_before_partial_tag_boundaries() {
+        let mut parser = ThinkingTagStreamParser::default();
+
+        let a = parser.feed("“<th");
+        let b = parser.feed("ink>hidden</think>");
+        let tail = parser.finish();
+
+        assert_eq!(a.content, "“");
+        assert_eq!(a.reasoning, "");
+        assert_eq!(b.content, "");
+        assert_eq!(b.reasoning, "hidden");
+        assert_eq!(tail.content, "");
+        assert_eq!(tail.reasoning, "");
     }
 }
