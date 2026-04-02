@@ -24,20 +24,45 @@ impl ThinkingSplit {
 #[derive(Debug, Default, Clone)]
 pub struct ThinkingTagStreamParser {
     in_think: bool,
+    close_tag: Option<&'static str>,
     pending: String,
 }
 
-const OPEN_TAG: &str = "<think>";
-const CLOSE_TAG: &str = "</think>";
+const TAG_PAIRS: [(&str, &str); 4] = [
+    ("<think>", "</think>"),
+    ("<thinking>", "</thinking>"),
+    ("<reason>", "</reason>"),
+    ("<reasoning>", "</reasoning>"),
+];
 
 fn partial_suffix_len(buffer: &str, tag: &str) -> usize {
+    let buffer_lower = buffer.to_ascii_lowercase();
     let max_len = buffer.len().min(tag.len().saturating_sub(1));
     for len in (1..=max_len).rev() {
-        if tag.starts_with(&buffer[buffer.len() - len..]) {
+        if tag.starts_with(&buffer_lower[buffer_lower.len() - len..]) {
             return len;
         }
     }
     0
+}
+
+fn partial_suffix_len_any(buffer: &str, tags: &[&str]) -> usize {
+    tags.iter()
+        .map(|tag| partial_suffix_len(buffer, tag))
+        .max()
+        .unwrap_or(0)
+}
+
+fn earliest_open_tag(buffer: &str) -> Option<(usize, &'static str, &'static str)> {
+    let buffer_lower = buffer.to_ascii_lowercase();
+    TAG_PAIRS
+        .iter()
+        .filter_map(|(open_tag, close_tag)| {
+            buffer_lower
+                .find(open_tag)
+                .map(|index| (index, *open_tag, *close_tag))
+        })
+        .min_by_key(|(index, _, _)| *index)
 }
 
 impl ThinkingTagStreamParser {
@@ -47,14 +72,17 @@ impl ThinkingTagStreamParser {
 
         loop {
             if self.in_think {
-                if let Some(index) = self.pending.find(CLOSE_TAG) {
+                let close_tag = self.close_tag.expect("close tag must exist when in_think");
+                let pending_lower = self.pending.to_ascii_lowercase();
+                if let Some(index) = pending_lower.find(close_tag) {
                     split.reasoning.push_str(&self.pending[..index]);
-                    self.pending.drain(..index + CLOSE_TAG.len());
+                    self.pending.drain(..index + close_tag.len());
                     self.in_think = false;
+                    self.close_tag = None;
                     continue;
                 }
 
-                let keep = partial_suffix_len(&self.pending, CLOSE_TAG);
+                let keep = partial_suffix_len(&self.pending, close_tag);
                 let emit_len = self.pending.len().saturating_sub(keep);
                 if emit_len == 0 {
                     break;
@@ -64,14 +92,16 @@ impl ThinkingTagStreamParser {
                 break;
             }
 
-            if let Some(index) = self.pending.find(OPEN_TAG) {
+            if let Some((index, open_tag, close_tag)) = earliest_open_tag(&self.pending) {
                 split.content.push_str(&self.pending[..index]);
-                self.pending.drain(..index + OPEN_TAG.len());
+                self.pending.drain(..index + open_tag.len());
                 self.in_think = true;
+                self.close_tag = Some(close_tag);
                 continue;
             }
 
-            let keep = partial_suffix_len(&self.pending, OPEN_TAG);
+            let open_tags = TAG_PAIRS.map(|(open_tag, _)| open_tag);
+            let keep = partial_suffix_len_any(&self.pending, &open_tags);
             let emit_len = self.pending.len().saturating_sub(keep);
             if emit_len == 0 {
                 break;
@@ -91,6 +121,7 @@ impl ThinkingTagStreamParser {
         } else {
             split.content.push_str(&self.pending);
         }
+        self.close_tag = None;
         self.pending.clear();
         split
     }
@@ -155,5 +186,40 @@ mod tests {
         let split = normalize_thinking_content(Some("<think>alpha</think>done"), Some("alpha"));
         assert_eq!(split.content, "done");
         assert_eq!(split.reasoning, "alpha");
+    }
+
+    #[test]
+    fn supports_reasoning_tag_aliases() {
+        let split =
+            split_thinking_tags("visible<reasoning>hidden</reasoning><thinking>more</thinking>end");
+        assert_eq!(split.content, "visibleend");
+        assert_eq!(split.reasoning, "hiddenmore");
+    }
+
+    #[test]
+    fn supports_fragmented_reason_alias_streaming() {
+        let mut parser = ThinkingTagStreamParser::default();
+
+        let a = parser.feed("Hello<rea");
+        let b = parser.feed("son>hidden");
+        let c = parser.feed("</reason>world");
+        let tail = parser.finish();
+
+        assert_eq!(a.content, "Hello");
+        assert_eq!(a.reasoning, "");
+        assert_eq!(b.content, "");
+        assert_eq!(b.reasoning, "hidden");
+        assert_eq!(c.content, "world");
+        assert_eq!(c.reasoning, "");
+        assert_eq!(tail.content, "");
+        assert_eq!(tail.reasoning, "");
+    }
+
+    #[test]
+    fn supports_mixed_case_tags() {
+        let split =
+            split_thinking_tags("visible<THINKING>hidden</THINKING><ReAsOn>more</ReAsOn>end");
+        assert_eq!(split.content, "visibleend");
+        assert_eq!(split.reasoning, "hiddenmore");
     }
 }
