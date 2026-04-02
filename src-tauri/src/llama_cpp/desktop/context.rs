@@ -10,7 +10,7 @@ use windows::core::Interface;
 #[cfg(target_os = "windows")]
 use windows::Win32::Graphics::Dxgi::{
     CreateDXGIFactory1, IDXGIAdapter1, IDXGIAdapter3, IDXGIFactory6, DXGI_ADAPTER_FLAG_SOFTWARE,
-    DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+    DXGI_MEMORY_SEGMENT_GROUP_LOCAL, DXGI_QUERY_VIDEO_MEMORY_INFO,
 };
 
 #[derive(serde::Serialize)]
@@ -208,14 +208,15 @@ fn windows_local_vram_cap_bytes() -> Option<u64> {
                 .cast::<IDXGIAdapter3>()
                 .ok()
                 .and_then(|adapter3: IDXGIAdapter3| {
+                    let mut info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
                     adapter3
-                        .QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL)
-                        .ok()
-                        .map(|info| {
-                            (info.Budget as u64)
-                                .saturating_sub(info.CurrentUsage as u64)
-                                .min(dedicated_bytes)
-                        })
+                        .QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mut info)
+                        .ok()?;
+                    Some(
+                        info.Budget
+                            .saturating_sub(info.CurrentUsage)
+                            .min(dedicated_bytes),
+                    )
                 })
                 .unwrap_or(dedicated_bytes);
 
