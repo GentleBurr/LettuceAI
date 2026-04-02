@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, TrendingUp, Flame, Clock, AlertCircle, ArrowUpDown, Check } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useDragRegionProps } from "../../components/App/TopNav";
 import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
 import { resolveBackTarget, Routes, useNavigationManager } from "../../navigation";
@@ -31,6 +32,7 @@ export function DiscoveryBrowsePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const dragRegionProps = useDragRegionProps();
   const { t } = useI18n();
 
   const SECTION_CONFIGS: Record<CardType, SectionConfig> = {
@@ -133,6 +135,7 @@ export function DiscoveryBrowsePage() {
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
           paddingBottom: "12px",
         }}
+        {...dragRegionProps}
       >
         <div className="mx-auto flex w-full max-w-md items-center justify-between px-4 lg:max-w-none lg:px-8">
           <div className="flex items-center gap-2">

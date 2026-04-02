@@ -328,7 +328,7 @@ export function GroupChatSettingsPage() {
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col text-fg overflow-hidden",
+        "relative flex h-full flex-col text-fg",
         !backgroundImagePath && "bg-surface",
       )}
     >
@@ -355,7 +355,7 @@ export function GroupChatSettingsPage() {
       {/* Header */}
       <header
         className={cn(
-          "z-20 shrink-0 border-b border-fg/10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] sticky top-0",
+          "z-20 shrink-0 border-b border-fg/10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] shrink-0",
           !backgroundImagePath ? "bg-surface" : "",
         )}
       >

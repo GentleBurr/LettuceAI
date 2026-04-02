@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ArrowLeft, X, Loader2, TrendingUp, Clock, Sparkles } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useDragRegionProps } from "../../components/App/TopNav";
 import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
 import { resolveBackTarget, Routes, useNavigationManager } from "../../navigation";
@@ -56,6 +57,7 @@ export function DiscoverySearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const dragRegionProps = useDragRegionProps();
   const { t } = useI18n();
 
   const TRENDING_SEARCHES = [
@@ -245,6 +247,7 @@ export function DiscoverySearchPage() {
       <div
         ref={headerRef}
         className="fixed top-0 left-0 right-0 z-50 border-b border-fg/10 bg-surface-el/95 backdrop-blur-md"
+        {...dragRegionProps}
         style={{
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
           paddingBottom: "12px",

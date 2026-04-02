@@ -764,7 +764,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
   return (
     <div
       className={cn(
-        "relative flex min-h-screen flex-col overflow-hidden",
+        "relative flex h-full flex-col",
         colors.text.primary,
         !backgroundImageData && "bg-surface",
       )}
@@ -776,7 +776,7 @@ function ChatSettingsContent({ character }: { character: Character }) {
       {/* Header */}
       <header
         className={cn(
-          "sticky top-0 z-20 shrink-0 border-b border-fg/10 px-3 lg:px-8",
+          "z-20 shrink-0 border-b border-fg/10 px-3 lg:px-8",
           !backgroundImageData ? "bg-surface" : "",
         )}
         style={{

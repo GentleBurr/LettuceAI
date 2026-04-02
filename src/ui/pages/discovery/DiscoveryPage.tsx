@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useDragRegionProps } from "../../components/App/TopNav";
 import { useI18n } from "../../../core/i18n/context";
 import { Routes, useNavigationManager } from "../../navigation";
 import { DiscoveryCard, DiscoverySection, DiscoverySectionSkeleton } from "./components";
@@ -33,6 +34,7 @@ export function DiscoveryPage() {
   const navigate = useNavigate();
   const { backOrReplace } = useNavigationManager();
   const { t } = useI18n();
+  const dragRegionProps = useDragRegionProps();
 
   const TABS: TabItem[] = [
     { id: "all", label: t("discovery.tabs.forYou"), icon: Sparkles },
@@ -127,6 +129,7 @@ export function DiscoveryPage() {
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
           paddingBottom: "12px",
         }}
+        {...dragRegionProps}
       >
         <div className="mx-auto flex w-full max-w-md items-center justify-between px-4 lg:max-w-none lg:px-8">
           <div className="flex items-center gap-2">

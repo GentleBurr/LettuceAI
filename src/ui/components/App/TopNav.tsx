@@ -38,6 +38,8 @@ interface TopNavProps {
 const appPlatform = getPlatform();
 const isDesktop = appPlatform.type === "desktop";
 const isMacOS = appPlatform.os === "macos";
+/** True when custom window control buttons will render (Linux/Windows desktop). */
+export const hasCustomWindowControls = isDesktop && !isMacOS;
 
 // Cache window chrome flags from CLI args (--osdecorations, --nobuttons).
 let _chromeFlags: { osDecorations: boolean; noButtons: boolean } | null = null;
@@ -546,7 +548,7 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
       <div
         className={cn(
           "relative mx-auto flex w-full max-w-md lg:max-w-none items-center justify-between px-3 h-10",
-          showWindowControls ? "lg:pl-8 lg:pr-2" : "lg:px-8",
+          showWindowControls ? "lg:pl-8 lg:pr-0" : "lg:px-8",
         )}
         style={isMacOS ? { paddingLeft: "72px" } : undefined}
         {...(showDragRegion ? { "data-tauri-drag-region": "" } : {})}
@@ -828,5 +830,125 @@ export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction
         </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * Just the minimize/maximize/close buttons. Import this into custom headers
+ * (e.g. discovery pages) that don't use TopNav.
+ */
+export function WindowControlButtons() {
+  const chromeFlags = useChromeFlags();
+  const show =
+    isDesktop && !isMacOS && !chromeFlags?.osDecorations && !chromeFlags?.noButtons;
+  if (!show) return null;
+
+  return (
+    <div className="ml-1 flex items-center">
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={async (e) => {
+          e.stopPropagation();
+          await getCurrentWindow().minimize();
+        }}
+        className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
+        aria-label="Minimize"
+      >
+        <Minus size={15} strokeWidth={1.5} />
+      </button>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={async (e) => {
+          e.stopPropagation();
+          await getCurrentWindow().toggleMaximize();
+        }}
+        className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
+        aria-label="Maximize"
+      >
+        <Square size={12} strokeWidth={1.5} />
+      </button>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={async (e) => {
+          e.stopPropagation();
+          await getCurrentWindow().close();
+        }}
+        className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-red-500/80 hover:text-white"
+        aria-label="Close"
+      >
+        <X size={15} strokeWidth={1.5} />
+      </button>
+    </div>
+  );
+}
+
+/** Returns props to spread onto a header element to make it a drag region. */
+export function useDragRegionProps(): Record<string, string> {
+  const chromeFlags = useChromeFlags();
+  const showDrag = isDesktop && !chromeFlags?.osDecorations;
+  return showDrag ? { "data-tauri-drag-region": "" } : {};
+}
+
+/**
+ * Compact window controls strip for pages that don't render TopNav.
+ * Renders as a thin bar in document flow (not floating) with drag region + buttons.
+ */
+export function WindowControls() {
+  const chromeFlags = useChromeFlags();
+  const showButtons =
+    isDesktop && !isMacOS && !chromeFlags?.osDecorations && !chromeFlags?.noButtons;
+  const showDrag = isDesktop && !chromeFlags?.osDecorations;
+
+  if (!showButtons && !showDrag) return null;
+
+  return (
+    <div
+      className="pointer-events-none fixed top-0 right-0 z-50 flex h-10 items-center justify-end pr-1"
+      {...(showDrag ? { "data-tauri-drag-region": "" } : {})}
+    >
+      {showButtons && (
+        <div className="pointer-events-auto flex items-center">
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={async (e) => {
+              e.stopPropagation();
+              await getCurrentWindow().minimize();
+            }}
+            className="flex h-7 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
+            aria-label="Minimize"
+          >
+            <Minus size={15} strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={async (e) => {
+              e.stopPropagation();
+              await getCurrentWindow().toggleMaximize();
+            }}
+            className="flex h-7 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
+            aria-label="Maximize"
+          >
+            <Square size={12} strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={async (e) => {
+              e.stopPropagation();
+              await getCurrentWindow().close();
+            }}
+            className="flex h-7 w-10 items-center justify-center text-fg/45 transition hover:bg-red-500/80 hover:text-white"
+            aria-label="Close"
+          >
+            <X size={15} strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

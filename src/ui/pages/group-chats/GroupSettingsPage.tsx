@@ -160,7 +160,7 @@ export function GroupSettingsPage() {
   }
 
   return (
-    <div className="relative flex h-full flex-col text-fg overflow-hidden bg-surface">
+    <div className="relative flex h-full flex-col text-fg bg-surface">
       {/* Header */}
       <header className="relative z-20 shrink-0 border-b border-fg/10 px-4 pb-3 pt-10 bg-surface">
         <div className="flex items-center gap-3">

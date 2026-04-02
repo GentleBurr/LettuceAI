@@ -43,11 +43,11 @@ export function GroupChatHistoryPage() {
   }
 
   return (
-    <div className={cn("flex min-h-screen flex-col", colors.surface.base, colors.text.primary)}>
+    <div className={cn("flex h-full flex-col", colors.surface.base, colors.text.primary)}>
       {/* Header */}
       <header
         className={cn(
-          "z-20 shrink-0 border-b border-fg/10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] sticky top-0",
+          "z-20 shrink-0 border-b border-fg/10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] shrink-0",
           "bg-surface",
         )}
       >

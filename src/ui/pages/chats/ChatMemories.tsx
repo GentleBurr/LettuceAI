@@ -1260,11 +1260,11 @@ export function ChatMemoriesPage() {
   }
 
   return (
-    <div className={cn("flex min-h-screen flex-col", colors.surface.base, colors.text.primary)}>
+    <div className={cn("flex h-full flex-col", colors.surface.base, colors.text.primary)}>
       {/* Header */}
       <header
         className={cn(
-          "sticky top-0 z-20 border-b border-white/10 px-3 lg:px-8",
+          "z-20 shrink-0 border-b border-white/10 px-3 lg:px-8",
           colors.glass.strong,
         )}
         style={{

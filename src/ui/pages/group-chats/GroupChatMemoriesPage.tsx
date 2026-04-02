@@ -159,11 +159,11 @@ export function GroupChatMemoriesPage() {
   }
 
   return (
-    <div className={cn("flex min-h-screen flex-col", colors.surface.base, colors.text.primary)}>
+    <div className={cn("flex h-full flex-col", colors.surface.base, colors.text.primary)}>
       {/* Header */}
       <header
         className={cn(
-          "sticky top-0 z-20 border-b border-fg/10 px-4",
+          "z-20 shrink-0 border-b border-fg/10 px-4",
           "pt-[calc(env(safe-area-inset-top)+24px)] pb-3",
           colors.glass.strong,
         )}

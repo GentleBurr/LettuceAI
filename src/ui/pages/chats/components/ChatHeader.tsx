@@ -7,6 +7,7 @@ import { useAvatar } from "../../../hooks/useAvatar";
 import { listen } from "@tauri-apps/api/event";
 import { Routes } from "../../../navigation";
 import { cn } from "../../../design-tokens";
+import { WindowControlButtons, useDragRegionProps, hasCustomWindowControls } from "../../../components/App/TopNav";
 import { useI18n } from "../../../../core/i18n/context";
 import { isRenderableImageUrl } from "../../../../core/utils/image";
 
@@ -44,6 +45,7 @@ export function ChatHeader({
     swapPlaces ? persona?.avatarPath : character?.avatarPath,
     "round",
   );
+  const dragRegionProps = useDragRegionProps();
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [memoryError, setMemoryError] = useState<string | null>(null);
   const isDynamic = useMemo(() => character?.memoryType === "dynamic", [character?.memoryType]);
@@ -153,33 +155,37 @@ export function ChatHeader({
     <>
       <header
         className={cn(
-          "z-20 shrink-0 border-b border-white/10 px-3 lg:px-8",
+          "z-20 shrink-0 border-b border-white/10 pl-3 lg:pl-8",
+          hasCustomWindowControls ? "pr-0" : "pr-3 lg:pr-8",
           hasBackgroundImage ? headerOverlayClassName || "bg-surface/40" : "bg-surface",
         )}
         style={{
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
           paddingBottom: "12px",
         }}
+        {...dragRegionProps}
       >
-        <div className="flex items-center h-10">
-          <button
-            onClick={() => navigate("/chat")}
-            className="flex px-[0.6em] py-[0.3em] shrink-0 items-center justify-center -ml-2 text-white transition hover:text-white/80"
-            aria-label={t("chats.header.back")}
-          >
-            <ArrowLeft size={18} strokeWidth={2.5} />
-          </button>
+        <div className="flex items-center justify-between h-10" {...dragRegionProps}>
+          <div className="flex items-center min-w-0">
+            <button
+              onClick={() => navigate("/chat")}
+              className="flex px-[0.6em] py-[0.3em] shrink-0 items-center justify-center -ml-2 text-white transition hover:text-white/80"
+              aria-label={t("chats.header.back")}
+            >
+              <ArrowLeft size={18} strokeWidth={2.5} />
+            </button>
 
-          <button
-            onClick={() => {
-              if (!characterId) return;
-              navigate(Routes.chatSettingsSession(characterId, sessionId));
-            }}
-            className="min-w-0 flex-1 text-left truncate text-xl font-bold text-white/90 p-0 hover:opacity-80 transition-opacity"
-            aria-label={t("chats.header.openSettings")}
-          >
-            {headerTitle}
-          </button>
+            <button
+              onClick={() => {
+                if (!characterId) return;
+                navigate(Routes.chatSettingsSession(characterId, sessionId));
+              }}
+              className="min-w-0 shrink text-left truncate text-xl font-bold text-white/90 p-0 hover:opacity-80 transition-opacity"
+              aria-label={t("chats.header.openSettings")}
+            >
+              {headerTitle}
+            </button>
+          </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
             {/* Memory Button */}
@@ -278,6 +284,7 @@ export function ChatHeader({
                 avatarFallback
               )}
             </button>
+            <WindowControlButtons />
           </div>
         </div>
       </header>

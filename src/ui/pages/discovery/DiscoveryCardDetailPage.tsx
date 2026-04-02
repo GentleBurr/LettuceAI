@@ -20,6 +20,7 @@ import {
   Play,
 } from "lucide-react";
 import { cn, typography, interactive } from "../../design-tokens";
+import { useDragRegionProps } from "../../components/App/TopNav";
 import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryDetailSkeleton } from "./components";
 import {
@@ -65,6 +66,7 @@ export function DiscoveryCardDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { go, backOrReplace } = useNavigationManager();
+  const dragRegionProps = useDragRegionProps();
   const { t } = useI18n();
   const { path } = useParams<{ path: string }>();
 
@@ -242,24 +244,28 @@ export function DiscoveryCardDetailPage() {
     return (
       <div className="flex h-full flex-col bg-surface">
         <header
-          className="sticky top-0 z-30 flex items-center gap-3 border-b border-fg/10 bg-surface-el/80 px-4 backdrop-blur-md"
+          className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-fg/10 bg-surface-el/80 px-4 backdrop-blur-md"
           style={{
             paddingTop: "calc(env(safe-area-inset-top) + 12px)",
             paddingBottom: "12px",
           }}
+          {...dragRegionProps}
         >
-          <button
-            onClick={handleBack}
-            className={cn(
-              "flex items-center justify-center rounded-full p-2",
-              "text-fg/70 hover:bg-fg/10 hover:text-fg",
-              interactive.transition.fast,
-              interactive.active.scale,
-            )}
-          >
-            <ArrowLeft size={20} strokeWidth={2.5} />
-          </button>
-          <div className="h-5 w-32 rounded bg-fg/10" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              className={cn(
+                "flex items-center justify-center rounded-full p-2",
+                "text-fg/70 hover:bg-fg/10 hover:text-fg",
+                interactive.transition.fast,
+                interactive.active.scale,
+              )}
+            >
+              <ArrowLeft size={20} strokeWidth={2.5} />
+            </button>
+            <div className="h-5 w-32 rounded bg-fg/10" />
+          </div>
+
         </header>
         <DiscoveryDetailSkeleton />
       </div>
@@ -270,24 +276,28 @@ export function DiscoveryCardDetailPage() {
     return (
       <div className="flex h-full flex-col bg-surface">
         <header
-          className="sticky top-0 z-30 flex items-center gap-3 border-b border-fg/10 bg-surface-el/80 px-4 backdrop-blur-md"
+          className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-fg/10 bg-surface-el/80 px-4 backdrop-blur-md"
           style={{
             paddingTop: "calc(env(safe-area-inset-top) + 12px)",
             paddingBottom: "12px",
           }}
+          {...dragRegionProps}
         >
-          <button
-            onClick={handleBack}
-            className={cn(
-              "flex items-center justify-center rounded-full p-2",
-              "text-fg/70 hover:bg-fg/10 hover:text-fg",
-              interactive.transition.fast,
-              interactive.active.scale,
-            )}
-          >
-            <ArrowLeft size={20} strokeWidth={2.5} />
-          </button>
-          <h1 className={cn(typography.h1.size, "font-bold text-fg")}>{t("discovery.detail.errorTitle")}</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              className={cn(
+                "flex items-center justify-center rounded-full p-2",
+                "text-fg/70 hover:bg-fg/10 hover:text-fg",
+                interactive.transition.fast,
+                interactive.active.scale,
+              )}
+            >
+              <ArrowLeft size={20} strokeWidth={2.5} />
+            </button>
+            <h1 className={cn(typography.h1.size, "font-bold text-fg")}>{t("discovery.detail.errorTitle")}</h1>
+          </div>
+
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center px-6">
@@ -318,6 +328,7 @@ export function DiscoveryCardDetailPage() {
         style={{
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
         }}
+        {...dragRegionProps}
       >
         <button
           onClick={handleBack}
@@ -332,18 +343,21 @@ export function DiscoveryCardDetailPage() {
           <ArrowLeft size={20} strokeWidth={2.5} />
         </button>
 
-        <button
-          onClick={handleShare}
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full",
-            "border border-fg/20 bg-surface-el/40 text-fg backdrop-blur-xl",
-            "transition-all hover:bg-surface-el/60",
-            interactive.active.scale,
-          )}
-          aria-label={t("discovery.detail.share")}
-        >
-          <Share2 size={20} strokeWidth={2.5} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full",
+              "border border-fg/20 bg-surface-el/40 text-fg backdrop-blur-xl",
+              "transition-all hover:bg-surface-el/60",
+              interactive.active.scale,
+            )}
+            aria-label={t("discovery.detail.share")}
+          >
+            <Share2 size={20} strokeWidth={2.5} />
+          </button>
+
+        </div>
       </header>
 
       {/* Main scrollable content */}

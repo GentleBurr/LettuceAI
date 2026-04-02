@@ -100,7 +100,7 @@ import { V1UpgradeToast } from "./ui/components/V1UpgradeToast";
 import { V2UpgradeToast } from "./ui/components/V2UpgradeToast";
 import { ConfirmBottomMenuHost } from "./ui/components/ConfirmBottomMenu";
 import { isOnboardingCompleted } from "./core/storage/appState";
-import { TopNav, BottomNav } from "./ui/components/App";
+import { TopNav, BottomNav, WindowControls } from "./ui/components/App";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, UnlistenFn } from "@tauri-apps/api/event";
 import { useAndroidBackHandler } from "./ui/hooks/useAndroidBackHandler";
@@ -854,10 +854,11 @@ function AppContent() {
       }`}
     >
       <div
-        className={`relative z-10 mx-auto flex min-h-screen w-full ${
-          isChatDetailRoute ? "max-w-full" : "max-w-md lg:max-w-none"
+        className={`relative z-10 mx-auto flex w-full ${
+          isChatDetailRoute ? "max-w-full h-screen" : "max-w-md lg:max-w-none min-h-screen"
         } flex-col ${showBottomNav ? "pb-[calc(72px+env(safe-area-inset-bottom))]" : "pb-0"}`}
       >
+        {!showTopNav && !isChatDetailRoute && <WindowControls />}
         {showTopNav && (
           <TopNav
             currentPath={location.pathname + location.search}
@@ -925,7 +926,7 @@ function AppContent() {
               </div>
             </div>
           )}
-          <motion.div
+          <div
             key={(() => {
               if (location.pathname.startsWith("/settings")) return location.pathname;
               if (location.pathname.startsWith("/library")) return location.pathname;
@@ -935,10 +936,6 @@ function AppContent() {
               if (groupMatch) return `/group-chats/${groupMatch[1]}`;
               return location.key;
             })()}
-            initial={shouldAnimatePage ? { opacity: 0, y: 16 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            exit={shouldAnimatePage ? { opacity: 0, y: -16 } : { opacity: 1, y: 0 }}
-            transition={shouldAnimatePage ? { duration: 0.2, ease: "easeOut" } : { duration: 0 }}
             className={
               location.pathname.startsWith("/settings")
                 ? "h-full app-text-scope settings-theme-scope"
@@ -1065,7 +1062,7 @@ function AppContent() {
                 <Route path="memories" element={<GroupChatMemoriesPage />} />
               </Route>
             </Routes>
-          </motion.div>
+          </div>
         </main>
 
         {showBottomNav && <BottomNav onCreateClick={() => setShowCreateMenu(true)} />}
