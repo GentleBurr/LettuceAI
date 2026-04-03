@@ -187,10 +187,16 @@ fn uses_local_dynamic_memory_model(provider_cred: &ProviderCredential, model: &M
         || crate::llama_cpp::is_llama_cpp(Some(model.provider_id.as_str()))
 }
 
-fn emit_dynamic_memory_transition_toast(app: &AppHandle, title: &str, description: String) {
+fn emit_dynamic_memory_transition_toast(
+    app: &AppHandle,
+    toast_id: String,
+    title: &str,
+    description: String,
+) {
     let _ = app.emit(
         "app://toast",
         json!({
+            "id": toast_id,
             "variant": "info",
             "title": title,
             "description": description,
@@ -205,6 +211,7 @@ async fn prepare_local_dynamic_memory_cycle(
 ) -> Result<(), String> {
     emit_dynamic_memory_transition_toast(
         app,
+        format!("group-dynamic-memory:prepare:{session_id}"),
         "Preparing dynamic memory",
         format!(
             "Unloading the active local chat model before loading {}.",
@@ -232,6 +239,7 @@ async fn finish_local_dynamic_memory_cycle(
 ) -> Result<(), String> {
     emit_dynamic_memory_transition_toast(
         app,
+        format!("group-dynamic-memory:finish:{session_id}"),
         "Finishing dynamic memory",
         format!(
             "Unloading {} after the memory update completes.",

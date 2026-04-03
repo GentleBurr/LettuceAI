@@ -54,7 +54,11 @@ import {
   components,
 } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
-import { WindowControlButtons, useDragRegionProps, hasCustomWindowControls } from "../../components/App/TopNav";
+import {
+  WindowControlButtons,
+  useDragRegionProps,
+  hasCustomWindowControls,
+} from "../../components/App/TopNav";
 import { BottomMenu, MenuSection } from "../../components/BottomMenu";
 import { useI18n } from "../../../core/i18n/context";
 
@@ -219,7 +223,8 @@ function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         memoryStatus: action.value,
-        memoryProgressStep: action.value === "idle" || action.value === "failed" ? null : state.memoryProgressStep,
+        memoryProgressStep:
+          action.value === "idle" || action.value === "failed" ? null : state.memoryProgressStep,
       };
     case "SET_MEMORY_PROGRESS_STEP":
       return { ...state, memoryProgressStep: action.value };
@@ -790,6 +795,8 @@ export function ChatMemoriesPage() {
   const isDynamic = useMemo(() => {
     return character?.memoryType === "dynamic";
   }, [character?.memoryType]);
+  const isMemoryCycleActive =
+    isDynamic && (session?.memoryStatus === "processing" || ui.retryStatus === "retrying");
   const [modelSearchQuery, setModelSearchQuery] = useState("");
   const [allModels, setAllModels] = useState<Model[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -1280,7 +1287,9 @@ export function ChatMemoriesPage() {
           <div className="flex items-center min-w-0">
             <button
               onClick={() =>
-                backOrReplace(characterId ? Routes.chatSession(characterId, sessionId) : Routes.chat)
+                backOrReplace(
+                  characterId ? Routes.chatSession(characterId, sessionId) : Routes.chat,
+                )
               }
               className={cn(
                 "flex shrink-0 items-center justify-center -ml-2 px-[0.6em] py-[0.3em]",
@@ -1296,7 +1305,9 @@ export function ChatMemoriesPage() {
               <p className={cn("truncate text-xl font-bold", colors.text.primary)}>
                 {t("groupChats.memories.tabMemories")}
               </p>
-              <p className={cn("mt-0.5 truncate text-xs", colors.text.tertiary)}>{character.name}</p>
+              <p className={cn("mt-0.5 truncate text-xs", colors.text.tertiary)}>
+                {character.name}
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -1358,10 +1369,7 @@ export function ChatMemoriesPage() {
             {isDynamic &&
             (ui.retryStatus === "retrying" || session.memoryStatus === "processing") ? (
               <div
-                className={cn(
-                  radius.md,
-                  "bg-blue-500/10 border border-blue-500/20 p-3 space-y-2",
-                )}
+                className={cn(radius.md, "bg-blue-500/10 border border-blue-500/20 p-3 space-y-2")}
               >
                 {(() => {
                   const step = ui.memoryProgressStep ?? session.memoryProgressStep ?? null;
@@ -1840,9 +1848,7 @@ export function ChatMemoriesPage() {
                   {(session.memoryToolEvents?.length ?? 0).toLocaleString()} events
                 </span>
                 <button
-                  onClick={
-                    session?.memoryStatus !== "idle" ? handleAbortMemoryCycle : handleTriggerManual
-                  }
+                  onClick={isMemoryCycleActive ? handleAbortMemoryCycle : handleTriggerManual}
                   className={cn(
                     "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
                     "border border-white/10 bg-white/5",
@@ -1851,12 +1857,12 @@ export function ChatMemoriesPage() {
                     "transition-all active:scale-95",
                   )}
                 >
-                  {session?.memoryStatus !== "idle" ? (
+                  {isMemoryCycleActive ? (
                     <X size={12} className="animate-pulse" />
                   ) : (
                     <Cpu size={12} />
                   )}
-                  {session?.memoryStatus !== "idle" ? t("common.buttons.cancel") : "Run"}
+                  {isMemoryCycleActive ? t("common.buttons.cancel") : "Run"}
                 </button>
               </div>
               <ToolLog events={(session.memoryToolEvents as MemoryToolEvent[]) || []} />

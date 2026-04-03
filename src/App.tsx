@@ -297,22 +297,25 @@ function App() {
           const variant = payload.variant;
           const title = payload.title;
           const description = payload.description;
+          const id = payload.id;
           if (typeof title !== "string") {
             return;
           }
           const detail = typeof description === "string" ? description : undefined;
+          const toastOptions =
+            typeof id === "string" || typeof id === "number" ? { id } : undefined;
           switch (variant) {
             case "success":
-              toast.success(title, detail);
+              toast.success(title, detail, toastOptions);
               break;
             case "warning":
-              toast.warning(title, detail);
+              toast.warning(title, detail, toastOptions);
               break;
             case "error":
-              toast.error(title, detail);
+              toast.error(title, detail, toastOptions);
               break;
             default:
-              toast.info(title, detail);
+              toast.info(title, detail, toastOptions);
           }
         });
       } catch (err) {
