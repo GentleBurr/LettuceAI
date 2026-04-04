@@ -345,6 +345,65 @@ fn build_oaicompat_prompt(
     })
 }
 
+fn build_plain_templated_prompt(
+    model: &LlamaModel,
+    messages: &[Value],
+    resolved_template: &ResolvedChatTemplate,
+    options: &OpenAICompatPromptOptions,
+) -> Result<BuiltPrompt, String> {
+    let messages_json = serde_json::to_string(messages).map_err(|e| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Failed to serialize llama.cpp messages for chat templating: {e}"),
+        )
+    })?;
+
+    let params = llama_cpp_2::openai::OpenAIChatTemplateParams {
+        messages_json: &messages_json,
+        tools_json: None,
+        tool_choice: None,
+        json_schema: None,
+        grammar: None,
+        reasoning_format: options.reasoning_format.as_deref(),
+        chat_template_kwargs: None,
+        add_generation_prompt: true,
+        use_jinja: true,
+        parallel_tool_calls: false,
+        enable_thinking: options.enable_thinking,
+        add_bos: false,
+        add_eos: false,
+        parse_tool_calls: false,
+    };
+
+    let chat_template_result = model
+        .apply_chat_template_oaicompat(&resolved_template.template, &params)
+        .map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!(
+                    "Failed to apply llama chat template from {}: {}",
+                    resolved_template.source_label, e
+                ),
+            )
+        })?;
+
+    Ok(BuiltPrompt {
+        prompt: chat_template_result.prompt.clone(),
+        attempted_template_source: Some(resolved_template.source_label.clone()),
+        attempted_template_text: Some(resolved_template.template_text.clone()),
+        applied_template_source: Some(resolved_template.source_label.clone()),
+        applied_template_text: Some(resolved_template.template_text.clone()),
+        resolved_tool_choice: None,
+        used_raw_completion_fallback: false,
+        raw_completion_fallback_reason: None,
+        prompt_mode: PromptMode::TemplatedChat,
+        chat_template_result: None,
+        additional_stop_sequences: chat_template_result.additional_stops.clone(),
+    })
+}
+
 fn chat_template_text(template: &LlamaChatTemplate) -> String {
     template.as_c_str().to_string_lossy().into_owned()
 }
@@ -494,20 +553,8 @@ pub(super) fn build_prompt(
         );
     }
 
-    match model.apply_chat_template(&resolved_template.template, &chat_messages, true) {
-        Ok(prompt) => Ok(BuiltPrompt {
-            prompt,
-            attempted_template_source: Some(resolved_template.source_label.clone()),
-            attempted_template_text: Some(resolved_template.template_text.clone()),
-            applied_template_source: Some(resolved_template.source_label),
-            applied_template_text: Some(resolved_template.template_text),
-            resolved_tool_choice: None,
-            used_raw_completion_fallback: false,
-            raw_completion_fallback_reason: None,
-            prompt_mode: PromptMode::TemplatedChat,
-            chat_template_result: None,
-            additional_stop_sequences: Vec::new(),
-        }),
+    match build_plain_templated_prompt(model, messages, &resolved_template, options) {
+        Ok(built_prompt) => Ok(built_prompt),
         Err(err) => {
             if allow_raw_completion_fallback {
                 Ok(BuiltPrompt {
@@ -527,14 +574,7 @@ pub(super) fn build_prompt(
                     additional_stop_sequences: Vec::new(),
                 })
             } else {
-                Err(crate::utils::err_msg(
-                    module_path!(),
-                    line!(),
-                    format!(
-                        "Failed to apply llama chat template from {}: {}",
-                        resolved_template.source_label, err
-                    ),
-                ))
+                Err(err)
             }
         }
     }
