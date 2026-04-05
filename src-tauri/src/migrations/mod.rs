@@ -2042,6 +2042,7 @@ fn migrate_v19_to_v20(app: &AppHandle) -> Result<(), String> {
         CREATE TABLE IF NOT EXISTS lorebooks (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
+          keyword_detection_mode TEXT NOT NULL DEFAULT 'recent_message_window',
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         );
@@ -2236,8 +2237,14 @@ fn migrate_v19_to_v20(app: &AppHandle) -> Result<(), String> {
         };
 
         conn.execute(
-            "INSERT INTO lorebooks (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)",
-            params![lorebook_id, lorebook_name, now, now],
+            "INSERT INTO lorebooks (id, name, keyword_detection_mode, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                lorebook_id,
+                lorebook_name,
+                "recent_message_window",
+                now,
+                now
+            ],
         )
         .map_err(|e| {
             crate::utils::err_msg(
