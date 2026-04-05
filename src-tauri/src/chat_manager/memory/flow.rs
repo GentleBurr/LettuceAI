@@ -1375,7 +1375,7 @@ async fn send_dynamic_memory_request(
         &model.name,
         messages_for_api,
         None,
-        Some(0.2),
+        Some(0.4),
         Some(1.0),
         max_tokens,
         context_length,

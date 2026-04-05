@@ -952,7 +952,7 @@ export function DynamicMemoryPage() {
                             Overwrite Values
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs text-fg/65">
-                            <div>Temperature: 0.2</div>
+                            <div>Temperature: 0.4</div>
                             <div>Top P: 1.0</div>
                             <div>Top K: 40</div>
                             <div>Frequency Penalty: 0.0</div>
