@@ -4,7 +4,7 @@
       {
         "decorations": true,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": false
       }
     ]
   },
