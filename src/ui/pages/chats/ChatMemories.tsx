@@ -567,13 +567,19 @@ function ActionCard({ action }: { action: MemoryToolEvent["actions"][number] }) 
   const Icon = style.icon;
   const args = action.arguments as Record<string, unknown> | undefined;
   const rawAction = action as Record<string, unknown>;
-  const memoryText = (args?.text as string | undefined) ?? (rawAction.text as string | undefined);
+  const memoryText =
+    (args?.text as string | undefined) ??
+    (rawAction.deletedText as string | undefined) ??
+    (rawAction.text as string | undefined);
   const category =
     (args?.category as string | undefined) ?? (rawAction.category as string | undefined);
   const important =
     (args?.important as boolean | undefined) ?? (rawAction.important as boolean | undefined);
   const confidence = args?.confidence as number | undefined;
-  const id = args?.id as string | undefined;
+  const id =
+    (args?.id as string | undefined) ??
+    (rawAction.deletedMemoryId as string | undefined) ??
+    (args?.text as string | undefined);
 
   return (
     <div

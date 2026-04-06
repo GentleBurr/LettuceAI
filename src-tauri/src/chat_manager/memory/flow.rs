@@ -1968,6 +1968,7 @@ async fn run_memory_tool_update(
                                 .position(|m| m.text == text)
                         };
                     if let Some(idx) = target_idx {
+                        let target_memory = session.memory_embeddings.get(idx).cloned();
                         let confidence = call
                             .arguments
                             .get("confidence")
@@ -2006,6 +2007,8 @@ async fn run_memory_tool_update(
                             actions_log.push(json!({
                                 "name": "delete_memory",
                                 "arguments": call.arguments,
+                                "deletedText": target_memory.as_ref().map(|m| m.text.clone()),
+                                "deletedMemoryId": target_memory.as_ref().map(|m| m.id.clone()),
                                 "softDelete": true,
                                 "reason": if force_soft_delete {
                                     "hard_delete_limit_reached"
@@ -2020,13 +2023,17 @@ async fn run_memory_tool_update(
                                 "updatedMemories": format_memories_with_ids(session),
                             }));
                         } else {
-                            if idx < session.memory_embeddings.len() {
-                                session.memory_embeddings.remove(idx);
-                            }
+                            let removed_memory = if idx < session.memory_embeddings.len() {
+                                Some(session.memory_embeddings.remove(idx))
+                            } else {
+                                None
+                            };
                             hard_delete_count += 1;
                             actions_log.push(json!({
                                 "name": "delete_memory",
                                 "arguments": call.arguments,
+                                "deletedText": removed_memory.as_ref().map(|m| m.text.clone()),
+                                "deletedMemoryId": removed_memory.as_ref().map(|m| m.id.clone()),
                                 "confidence": confidence,
                                 "confidenceDefaulted": confidence_defaulted,
                                 "hardDeleteCount": hard_delete_count,
