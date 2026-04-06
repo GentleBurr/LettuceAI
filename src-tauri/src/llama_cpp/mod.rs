@@ -995,6 +995,9 @@ mod desktop {
             let gpu_load_fallback_activated = engine.gpu_load_fallback_activated;
             let gpu_load_fallback_reason = engine.gpu_load_fallback_reason.clone();
             let actual_gpu_layers_used = engine.actual_gpu_layers_used;
+            let cpu_runtime_active = backend_path_used == "cpu"
+                || actual_gpu_layers_used == Some(0)
+                || !engine.supports_gpu_offload;
             let runtime_offload_kqv = if backend_path_used == "cpu"
                 || actual_gpu_layers_used == Some(0)
                 || !engine.supports_gpu_offload
@@ -1007,7 +1010,7 @@ mod desktop {
             } else {
                 None
             };
-            let recommended_ctx = compute_recommended_context(
+            let raw_recommended_ctx = compute_recommended_context(
                 model,
                 available_memory_bytes,
                 available_vram_bytes,
@@ -1015,6 +1018,20 @@ mod desktop {
                 runtime_offload_kqv,
                 llama_kv_type_raw.as_deref(),
             );
+            let recommended_ctx = if cpu_runtime_active {
+                compute_cpu_fallback_limits(
+                    model,
+                    available_memory_bytes,
+                    max_ctx,
+                    llama_kv_type_raw.as_deref(),
+                    None,
+                    llama_batch_size,
+                )
+                .map(|(safe_ctx, _)| safe_ctx)
+                .or(raw_recommended_ctx)
+            } else {
+                raw_recommended_ctx
+            };
             let mut ctx_size = if let Some(requested) = requested_context {
                 requested.min(max_ctx)
             } else if let Some(recommended) = recommended_ctx {
@@ -1095,9 +1112,6 @@ mod desktop {
                 Some(backend_path_used),
                 gpu_load_fallback_activated,
             );
-            let cpu_runtime_active = backend_path_used == "cpu"
-                || actual_gpu_layers_used == Some(0)
-                || !engine.supports_gpu_offload;
             if !llama_strict_mode && cpu_runtime_active {
                 if let Some((safe_ctx, safe_batch)) = compute_cpu_fallback_limits(
                     model,

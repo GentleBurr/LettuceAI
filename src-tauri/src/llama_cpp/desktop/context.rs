@@ -1,6 +1,7 @@
 use super::engine::{shared_backend, using_rocm_backend};
 use super::offload::{
     compute_recommended_context_for_gpu_layers, load_model_metadata, plan_smart_gpu_offload,
+    LlamaModelMetadata,
 };
 use super::*;
 use llama_cpp_sys_2::{
@@ -302,6 +303,21 @@ fn estimate_kv_bytes_per_token(model: &LlamaModel, llama_kv_type: Option<&str>) 
     Some(bytes.max(0.0) as u64)
 }
 
+fn estimate_kv_bytes_per_token_from_metadata(
+    metadata: &LlamaModelMetadata,
+    llama_kv_type: Option<&str>,
+) -> Option<u64> {
+    let n_layer = u64::from(metadata.layer_count.max(1));
+    let n_embd = metadata.n_embd.max(1);
+    let n_head = metadata.n_head.max(1);
+    let n_head_kv = metadata.n_head_kv.max(1);
+    let gqa_correction = n_head_kv as f64 / n_head as f64;
+    let effective_n_embd = (n_embd as f64 * gqa_correction) as u64;
+    let bytes_per_value = kv_bytes_per_value(llama_kv_type);
+    let bytes = (n_layer as f64) * (effective_n_embd as f64) * 2.0 * bytes_per_value;
+    Some(bytes.max(0.0) as u64)
+}
+
 fn default_memory_reserve_bytes(available_memory_bytes: u64) -> u64 {
     (available_memory_bytes / 5).max(512 * 1024 * 1024)
 }
@@ -317,6 +333,26 @@ fn cpu_fallback_headroom_bytes(base_budget: u64, available_memory_bytes: u64) ->
     availability_headroom
         .min(base_budget)
         .max(budget_headroom.min(base_budget))
+}
+
+fn safe_cpu_context_from_budget(
+    base_budget: u64,
+    available_memory_bytes: u64,
+    kv_bytes_per_token: u64,
+    max_context_length: u32,
+    requested_context: Option<u32>,
+) -> u32 {
+    let base_context = (base_budget / kv_bytes_per_token).min(u64::from(max_context_length)) as u32;
+    let requested_or_base_context = requested_context
+        .unwrap_or(base_context)
+        .min(max_context_length)
+        .max(1);
+
+    let extra_cpu_headroom = cpu_fallback_headroom_bytes(base_budget, available_memory_bytes);
+    let safe_budget = base_budget.saturating_sub(extra_cpu_headroom);
+    (safe_budget / kv_bytes_per_token)
+        .min(u64::from(requested_or_base_context))
+        .max(1) as u32
 }
 
 pub(super) fn compute_recommended_context(
@@ -361,18 +397,19 @@ pub(super) fn compute_cpu_fallback_limits(
     }
 
     let base_budget = ram_budget_for_context(model, available_memory_bytes);
-    let base_context = (base_budget / kv_bytes_per_token).min(u64::from(max_context_length)) as u32;
     let requested_batch_size = requested_batch_size.max(1);
+    let base_context = (base_budget / kv_bytes_per_token).min(u64::from(max_context_length)) as u32;
     let requested_or_base_context = requested_context
         .unwrap_or(base_context)
         .min(max_context_length)
         .max(1);
-
-    let extra_cpu_headroom = cpu_fallback_headroom_bytes(base_budget, available_memory_bytes);
-    let safe_budget = base_budget.saturating_sub(extra_cpu_headroom);
-    let safe_context = (safe_budget / kv_bytes_per_token)
-        .min(u64::from(requested_or_base_context))
-        .max(1) as u32;
+    let safe_context = safe_cpu_context_from_budget(
+        base_budget,
+        available_memory_bytes,
+        kv_bytes_per_token,
+        max_context_length,
+        requested_context,
+    );
 
     let safe_batch = u64::from(requested_batch_size)
         .saturating_mul(u64::from(safe_context))
@@ -382,6 +419,31 @@ pub(super) fn compute_cpu_fallback_limits(
         .min(u64::from(requested_batch_size)) as u32;
 
     Some((safe_context, safe_batch.max(1)))
+}
+
+fn compute_cpu_safe_recommended_context_for_metadata(
+    metadata: &LlamaModelMetadata,
+    available_memory_bytes: Option<u64>,
+    llama_kv_type: Option<&str>,
+    requested_context: Option<u32>,
+) -> Option<u32> {
+    let available_memory_bytes = available_memory_bytes?;
+    let kv_bytes_per_token = estimate_kv_bytes_per_token_from_metadata(metadata, llama_kv_type)?;
+    if kv_bytes_per_token == 0 {
+        return None;
+    }
+
+    let reserve = default_memory_reserve_bytes(available_memory_bytes);
+    let base_budget =
+        available_memory_bytes.saturating_sub(metadata.model_size_bytes.saturating_add(reserve));
+
+    Some(safe_cpu_context_from_budget(
+        base_budget,
+        available_memory_bytes,
+        kv_bytes_per_token,
+        metadata.max_context_length.max(1),
+        requested_context,
+    ))
 }
 
 #[cfg(test)]
@@ -492,14 +554,23 @@ pub(crate) async fn llamacpp_context_info(
         )?
         .estimated_gpu_layers
     };
-    let recommended_context_length = compute_recommended_context_for_gpu_layers(
-        &metadata,
-        available_memory_bytes,
-        available_vram_bytes,
-        resolved_gpu_layers,
-        resolved_offload_kqv,
-        llama_kv_type.as_deref(),
-    );
+    let recommended_context_length = if resolved_gpu_layers == 0 || !supports_gpu_offload {
+        compute_cpu_safe_recommended_context_for_metadata(
+            &metadata,
+            available_memory_bytes,
+            llama_kv_type.as_deref(),
+            None,
+        )
+    } else {
+        compute_recommended_context_for_gpu_layers(
+            &metadata,
+            available_memory_bytes,
+            available_vram_bytes,
+            resolved_gpu_layers,
+            resolved_offload_kqv,
+            llama_kv_type.as_deref(),
+        )
+    };
 
     Ok(LlamaCppContextInfo {
         max_context_length: max_ctx,
