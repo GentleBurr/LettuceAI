@@ -31,15 +31,16 @@ use crate::chat_manager::lorebook_matcher::{
 };
 use crate::chat_manager::memory::dynamic::{
     apply_memory_decay, calculate_hot_memory_tokens, cosine_similarity,
-    effective_group_dynamic_memory_settings, enforce_hot_memory_budget, ensure_pinned_hot,
-    generate_memory_id, mark_memories_accessed, normalize_query_text, promote_cold_memories,
-    search_cold_memory_indices_by_keyword, select_relevant_memory_indices,
-    select_top_cosine_memory_indices, trim_memories_to_max,
+    dynamic_memory_structured_fallback_format, effective_group_dynamic_memory_settings,
+    enforce_hot_memory_budget, ensure_pinned_hot, generate_memory_id, mark_memories_accessed,
+    normalize_query_text, promote_cold_memories, search_cold_memory_indices_by_keyword,
+    select_relevant_memory_indices, select_top_cosine_memory_indices, trim_memories_to_max,
 };
 use crate::chat_manager::memory::manual::{has_manual_memories, render_manual_memory_lines};
 use crate::chat_manager::memory::structured_fallback::{
+    memory_operations_fallback_prompt, memory_repairs_fallback_prompt,
     parse_memory_operations_from_text, parse_memory_tag_repairs_from_text,
-    MEMORY_OPERATIONS_XML_FALLBACK_PROMPT, MEMORY_REPAIRS_XML_FALLBACK_PROMPT,
+    structured_fallback_format_label,
 };
 use crate::chat_manager::prompting::entry_conditions::{
     entry_is_active, PromptEntryConditionContext,
@@ -2555,6 +2556,9 @@ async fn run_group_memory_tool_update(
     } else {
         None
     };
+    let fallback_format = dynamic_memory_structured_fallback_format(settings);
+    let fallback_label = structured_fallback_format_label(fallback_format);
+
     let calls = match send_dynamic_memory_request(
         app,
         provider_cred,
@@ -2578,8 +2582,8 @@ async fn run_group_memory_tool_update(
                     app,
                     "group_dynamic_memory",
                     format!(
-                        "memory tool request failed; retrying with JSON fallback: {}",
-                        err_message
+                        "memory tool request failed; retrying with {} fallback: {}",
+                        fallback_label, err_message
                     ),
                 );
                 if cancel_token.is_some_and(|token| token.is_cancelled()) {
@@ -2588,7 +2592,7 @@ async fn run_group_memory_tool_update(
                 let mut fallback_messages = messages_for_api.clone();
                 fallback_messages.push(json!({
                     "role": "user",
-                    "content": MEMORY_OPERATIONS_XML_FALLBACK_PROMPT
+                    "content": memory_operations_fallback_prompt(fallback_format)
                 }));
 
                 let api_response = send_dynamic_memory_request(
@@ -2621,7 +2625,7 @@ async fn run_group_memory_tool_update(
                     .ok_or_else(|| {
                         "memory fallback returned neither tool calls nor text output".to_string()
                     })?;
-                parse_memory_operations_from_text(&text)?
+                parse_memory_operations_from_text(&text, fallback_format)?
             } else {
                 let tool_calls = parse_tool_calls(&provider_cred.provider_id, api_response.data());
                 if !tool_calls.is_empty() {
@@ -2630,7 +2634,10 @@ async fn run_group_memory_tool_update(
                     log_warn(
                         app,
                         "group_dynamic_memory",
-                        "memory tool request returned no tool usage; retrying with JSON fallback",
+                        format!(
+                            "memory tool request returned no tool usage; retrying with {} fallback",
+                            fallback_label
+                        ),
                     );
                     if cancel_token.is_some_and(|token| token.is_cancelled()) {
                         return Err("Request was cancelled by user".to_string());
@@ -2638,7 +2645,7 @@ async fn run_group_memory_tool_update(
                     let mut fallback_messages = messages_for_api.clone();
                     fallback_messages.push(json!({
                         "role": "user",
-                        "content": MEMORY_OPERATIONS_XML_FALLBACK_PROMPT
+                        "content": memory_operations_fallback_prompt(fallback_format)
                     }));
 
                     let api_response = send_dynamic_memory_request(
@@ -2672,7 +2679,7 @@ async fn run_group_memory_tool_update(
                             "memory fallback returned neither tool calls nor text output"
                                 .to_string()
                         })?;
-                    parse_memory_operations_from_text(&text)?
+                    parse_memory_operations_from_text(&text, fallback_format)?
                 }
             }
         }
@@ -2681,8 +2688,8 @@ async fn run_group_memory_tool_update(
                 app,
                 "group_dynamic_memory",
                 format!(
-                    "memory tool request errored; retrying with JSON fallback: {}",
-                    err
+                    "memory tool request errored; retrying with {} fallback: {}",
+                    fallback_label, err
                 ),
             );
             if cancel_token.is_some_and(|token| token.is_cancelled()) {
@@ -2691,7 +2698,7 @@ async fn run_group_memory_tool_update(
             let mut fallback_messages = messages_for_api.clone();
             fallback_messages.push(json!({
                 "role": "user",
-                "content": MEMORY_OPERATIONS_XML_FALLBACK_PROMPT
+                "content": memory_operations_fallback_prompt(fallback_format)
             }));
 
             let api_response = send_dynamic_memory_request(
@@ -2724,7 +2731,7 @@ async fn run_group_memory_tool_update(
                 .ok_or_else(|| {
                     "memory fallback returned neither tool calls nor text output".to_string()
                 })?;
-            parse_memory_operations_from_text(&text)?
+            parse_memory_operations_from_text(&text, fallback_format)?
         }
     };
 
@@ -3033,6 +3040,7 @@ async fn run_group_memory_tool_update(
             overwrite_llama_sampler_config,
             api_key,
             &candidate_texts,
+            fallback_format,
         )
             .await
         {
@@ -3246,6 +3254,7 @@ async fn run_group_memory_tag_repair(
     overwrite_llama_sampler_config: bool,
     api_key: &str,
     texts: &[String],
+    fallback_format: crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat,
 ) -> Result<HashMap<String, String>, String> {
     if texts.is_empty() {
         return Ok(HashMap::new());
@@ -3276,6 +3285,7 @@ async fn run_group_memory_tag_repair(
     }));
 
     let mut repaired = HashMap::new();
+    let fallback_label = structured_fallback_format_label(fallback_format);
     match send_dynamic_memory_request(
         app,
         provider_cred,
@@ -3316,8 +3326,8 @@ async fn run_group_memory_tag_repair(
                 app,
                 "group_dynamic_memory",
                 format!(
-                    "memory tag repair tool request failed; retrying with JSON fallback: {}",
-                    err_message
+                    "memory tag repair tool request failed; retrying with {} fallback: {}",
+                    fallback_label, err_message
                 ),
             );
         }
@@ -3326,8 +3336,8 @@ async fn run_group_memory_tag_repair(
                 app,
                 "group_dynamic_memory",
                 format!(
-                    "memory tag repair tool request errored; retrying with JSON fallback: {}",
-                    err
+                    "memory tag repair tool request errored; retrying with {} fallback: {}",
+                    fallback_label, err
                 ),
             );
         }
@@ -3337,7 +3347,7 @@ async fn run_group_memory_tag_repair(
         let mut fallback_messages = messages_for_api.clone();
         fallback_messages.push(json!({
             "role": "user",
-            "content": MEMORY_REPAIRS_XML_FALLBACK_PROMPT
+            "content": memory_repairs_fallback_prompt(fallback_format)
         }));
         match send_dynamic_memory_request(
             app,
@@ -3359,7 +3369,11 @@ async fn run_group_memory_tag_repair(
                     extract_text(api_response.data(), Some(&provider_cred.provider_id))
                 {
                     if let Ok(parsed) =
-                        parse_memory_tag_repairs_from_text(&text, ALLOWED_MEMORY_CATEGORIES)
+                        parse_memory_tag_repairs_from_text(
+                            &text,
+                            ALLOWED_MEMORY_CATEGORIES,
+                            fallback_format,
+                        )
                     {
                         repaired.extend(parsed);
                     }
@@ -3371,14 +3385,14 @@ async fn run_group_memory_tag_repair(
                 log_warn(
                     app,
                     "group_dynamic_memory",
-                    format!("memory tag repair JSON fallback failed: {}", err_message),
+                    format!("memory tag repair {} fallback failed: {}", fallback_label, err_message),
                 );
             }
             Err(err) => {
                 log_warn(
                     app,
                     "group_dynamic_memory",
-                    format!("memory tag repair JSON fallback errored: {}", err),
+                    format!("memory tag repair {} fallback errored: {}", fallback_label, err),
                 );
             }
         }

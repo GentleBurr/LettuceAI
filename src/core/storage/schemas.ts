@@ -2053,6 +2053,11 @@ export const DynamicMemorySettingsSchema = z.object({
 });
 export type DynamicMemorySettings = z.infer<typeof DynamicMemorySettingsSchema>;
 
+export const DynamicMemoryStructuredFallbackFormatSchema = z.enum(["json", "xml"]);
+export type DynamicMemoryStructuredFallbackFormat = z.infer<
+  typeof DynamicMemoryStructuredFallbackFormatSchema
+>;
+
 export const GroupSessionSchema = z.object({
   id: z.string().uuid(),
   groupCharacterId: z.string().uuid().nullish().optional(),
@@ -2495,6 +2500,8 @@ export const SettingsSchema = z.object({
   advancedSettings: z
     .object({
       summarisationModelId: z.string().optional(),
+      dynamicMemoryStructuredFallbackFormat:
+        DynamicMemoryStructuredFallbackFormatSchema.optional(),
       dynamicMemoryLlamaSamplerOverwriteEnabled: z.boolean().optional(),
       avatarGenerationEnabled: z.boolean().optional(),
       avatarGenerationModelId: z.string().optional(),
@@ -2541,6 +2548,7 @@ export function createDefaultSettings(): Settings {
     models: [],
     appState: createDefaultAppState(),
     advancedSettings: {
+      dynamicMemoryStructuredFallbackFormat: "xml",
       dynamicMemoryLlamaSamplerOverwriteEnabled: true,
       avatarGenerationEnabled: true,
       creationHelperEnabled: false,

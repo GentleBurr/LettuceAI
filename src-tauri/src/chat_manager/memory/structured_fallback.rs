@@ -5,6 +5,7 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 use crate::chat_manager::tooling::ToolCall;
+use crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat;
 
 const OPERATION_ROOT_TAGS: &[&str] = &["memory_ops", "operations"];
 const REPAIR_ROOT_TAGS: &[&str] = &["memory_repairs", "items"];
@@ -19,6 +20,35 @@ const OPERATION_TAGS: &[&str] = &[
 pub const MEMORY_OPERATIONS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <memory_ops><create_memory important="false"><text>...</text><category>plot_event</category></create_memory><delete_memory confidence="0.9"><text>123456</text></delete_memory><pin_memory><id>123456</id></pin_memory><unpin_memory><id>123456</id></unpin_memory><done><summary>optional note</summary></done></memory_ops>. Use an empty <memory_ops /> when no changes are needed. Do not use markdown."#;
 
 pub const MEMORY_REPAIRS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <memory_repairs><item><text>...</text><category>other</category></item></memory_repairs>. Use exactly one <item> per input text. Do not use markdown."#;
+
+pub const MEMORY_OPERATIONS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"operations":[{"name":"create_memory","arguments":{"text":"...","category":"plot_event","important":false}},{"name":"delete_memory","arguments":{"text":"123456","confidence":0.9}},{"name":"pin_memory","arguments":{"id":"123456"}},{"name":"unpin_memory","arguments":{"id":"123456"}},{"name":"done","arguments":{"summary":"optional note"}}]}. Use {"operations":[]} when no changes are needed. Do not use markdown."#;
+
+pub const MEMORY_REPAIRS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"items":[{"text":"...","category":"other"}]}. Use exactly one item per input text. Do not use markdown."#;
+
+pub fn structured_fallback_format_label(format: DynamicMemoryStructuredFallbackFormat) -> &'static str {
+    match format {
+        DynamicMemoryStructuredFallbackFormat::Json => "json",
+        DynamicMemoryStructuredFallbackFormat::Xml => "xml",
+    }
+}
+
+pub fn memory_operations_fallback_prompt(
+    format: DynamicMemoryStructuredFallbackFormat,
+) -> &'static str {
+    match format {
+        DynamicMemoryStructuredFallbackFormat::Json => MEMORY_OPERATIONS_JSON_FALLBACK_PROMPT,
+        DynamicMemoryStructuredFallbackFormat::Xml => MEMORY_OPERATIONS_XML_FALLBACK_PROMPT,
+    }
+}
+
+pub fn memory_repairs_fallback_prompt(
+    format: DynamicMemoryStructuredFallbackFormat,
+) -> &'static str {
+    match format {
+        DynamicMemoryStructuredFallbackFormat::Json => MEMORY_REPAIRS_JSON_FALLBACK_PROMPT,
+        DynamicMemoryStructuredFallbackFormat::Xml => MEMORY_REPAIRS_XML_FALLBACK_PROMPT,
+    }
+}
 
 fn normalize_structured_fallback_text(raw: &str) -> String {
     let trimmed = raw.trim();
@@ -36,6 +66,55 @@ fn normalize_structured_fallback_text(raw: &str) -> String {
         return body.join("\n").trim().to_string();
     }
     trimmed.to_string()
+}
+
+fn extract_json_snippet(raw: &str) -> Option<&str> {
+    let mut start = None;
+    let mut stack: Vec<char> = Vec::new();
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (idx, ch) in raw.char_indices() {
+        if in_string {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => in_string = true,
+            '{' | '[' => {
+                if start.is_none() {
+                    start = Some(idx);
+                }
+                stack.push(ch);
+            }
+            '}' => {
+                if stack.pop() != Some('{') {
+                    return None;
+                }
+                if stack.is_empty() {
+                    return start.map(|begin| &raw[begin..=idx]);
+                }
+            }
+            ']' => {
+                if stack.pop() != Some('[') {
+                    return None;
+                }
+                if stack.is_empty() {
+                    return start.map(|begin| &raw[begin..=idx]);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
 
 fn attr_value(element: &BytesStart<'_>, key: &[u8]) -> Option<String> {
@@ -132,6 +211,105 @@ fn trimmed_option_string(slot: &mut Option<String>) -> Option<String> {
     slot.take()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
+}
+
+fn parse_memory_operations_from_json(raw: &str) -> Result<Vec<ToolCall>, String> {
+    let normalized = normalize_structured_fallback_text(raw);
+    let snippet = extract_json_snippet(&normalized).unwrap_or(normalized.as_str());
+    let value: Value =
+        serde_json::from_str(snippet).map_err(|err| format!("fallback JSON parse error: {}", err))?;
+
+    let operations = match &value {
+        Value::Array(items) => items,
+        Value::Object(map) => map
+            .get("operations")
+            .or_else(|| map.get("toolCalls"))
+            .or_else(|| map.get("calls"))
+            .and_then(Value::as_array)
+            .ok_or_else(|| "fallback response did not contain valid JSON operations".to_string())?,
+        _ => {
+            return Err("fallback response did not contain valid JSON operations".to_string());
+        }
+    };
+
+    let mut calls = Vec::new();
+    for (index, item) in operations.iter().enumerate() {
+        let Some(obj) = item.as_object() else {
+            continue;
+        };
+        let name = obj
+            .get("name")
+            .or_else(|| obj.get("tool"))
+            .or_else(|| obj.get("op"))
+            .or_else(|| obj.get("action"))
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| format!("fallback JSON operation {} is missing a name", index + 1))?;
+
+        let arguments = match obj.get("arguments") {
+            Some(Value::Object(args)) => Value::Object(args.clone()),
+            Some(other) => other.clone(),
+            None => {
+                let mut args = Map::new();
+                for (key, value) in obj {
+                    if matches!(key.as_str(), "name" | "tool" | "op" | "action") {
+                        continue;
+                    }
+                    args.insert(key.clone(), value.clone());
+                }
+                Value::Object(args)
+            }
+        };
+
+        calls.push(ToolCall {
+            id: format!("json_op_{}", index + 1),
+            name: name.to_string(),
+            raw_arguments: None,
+            arguments,
+        });
+    }
+
+    Ok(calls)
+}
+
+fn parse_memory_tag_repairs_from_json(
+    raw: &str,
+    allowed_categories: &[&str],
+) -> Result<HashMap<String, String>, String> {
+    let normalized = normalize_structured_fallback_text(raw);
+    let snippet = extract_json_snippet(&normalized).unwrap_or(normalized.as_str());
+    let value: Value =
+        serde_json::from_str(snippet).map_err(|err| format!("fallback JSON parse error: {}", err))?;
+
+    let items = match &value {
+        Value::Array(items) => items,
+        Value::Object(map) => map
+            .get("items")
+            .or_else(|| map.get("repairs"))
+            .or_else(|| map.get("results"))
+            .and_then(Value::as_array)
+            .ok_or_else(|| "fallback response did not contain valid JSON repairs".to_string())?,
+        _ => return Err("fallback response did not contain valid JSON repairs".to_string()),
+    };
+
+    let mut repaired = HashMap::new();
+    for item in items {
+        let Some(obj) = item.as_object() else {
+            continue;
+        };
+        let Some(text) = obj.get("text").and_then(Value::as_str).map(str::trim) else {
+            continue;
+        };
+        let Some(category) = obj.get("category").and_then(Value::as_str).map(str::trim) else {
+            continue;
+        };
+        if !text.is_empty() && allowed_categories.contains(&category) {
+            repaired.insert(text.to_string(), category.to_string());
+        }
+    }
+
+    Ok(repaired)
 }
 
 fn parse_memory_operations_from_xml(raw: &str) -> Result<Vec<ToolCall>, String> {
@@ -380,20 +558,35 @@ fn parse_memory_tag_repairs_from_xml(
     Ok(repaired)
 }
 
-pub fn parse_memory_operations_from_text(raw: &str) -> Result<Vec<ToolCall>, String> {
-    parse_memory_operations_from_xml(raw)
+pub fn parse_memory_operations_from_text(
+    raw: &str,
+    format: DynamicMemoryStructuredFallbackFormat,
+) -> Result<Vec<ToolCall>, String> {
+    match format {
+        DynamicMemoryStructuredFallbackFormat::Json => parse_memory_operations_from_json(raw),
+        DynamicMemoryStructuredFallbackFormat::Xml => parse_memory_operations_from_xml(raw),
+    }
 }
 
 pub fn parse_memory_tag_repairs_from_text(
     raw: &str,
     allowed_categories: &[&str],
+    format: DynamicMemoryStructuredFallbackFormat,
 ) -> Result<HashMap<String, String>, String> {
-    parse_memory_tag_repairs_from_xml(raw, allowed_categories)
+    match format {
+        DynamicMemoryStructuredFallbackFormat::Json => {
+            parse_memory_tag_repairs_from_json(raw, allowed_categories)
+        }
+        DynamicMemoryStructuredFallbackFormat::Xml => {
+            parse_memory_tag_repairs_from_xml(raw, allowed_categories)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{parse_memory_operations_from_text, parse_memory_tag_repairs_from_text};
+    use crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat;
     use serde_json::json;
 
     #[test]
@@ -409,7 +602,8 @@ mod tests {
 </memory_ops>
 ```"#;
 
-        let calls = parse_memory_operations_from_text(raw).expect("should parse xml");
+        let calls = parse_memory_operations_from_text(raw, DynamicMemoryStructuredFallbackFormat::Xml)
+            .expect("should parse xml");
 
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].name, "create_memory");
@@ -435,8 +629,12 @@ mod tests {
   </item>
 </memory_repairs>"#;
 
-        let repaired = parse_memory_tag_repairs_from_text(raw, &["preference", "other"])
-            .expect("should parse repairs");
+        let repaired = parse_memory_tag_repairs_from_text(
+            raw,
+            &["preference", "other"],
+            DynamicMemoryStructuredFallbackFormat::Xml,
+        )
+        .expect("should parse repairs");
 
         assert_eq!(repaired.get("Likes tea"), Some(&"preference".to_string()));
     }
@@ -445,9 +643,48 @@ mod tests {
     fn parses_attribute_entities() {
         let raw = r#"<memory_ops><done summary="Sam &amp; Elias synced" /></memory_ops>"#;
 
-        let calls = parse_memory_operations_from_text(raw).expect("should parse xml");
+        let calls = parse_memory_operations_from_text(raw, DynamicMemoryStructuredFallbackFormat::Xml)
+            .expect("should parse xml");
 
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].arguments, json!({ "summary": "Sam & Elias synced" }));
+    }
+
+    #[test]
+    fn parses_operations_from_wrapped_json() {
+        let raw = r#"Answer:
+```json
+{"operations":[{"name":"create_memory","arguments":{"text":"Sam apologized","category":"plot_event","important":true}},{"name":"done","arguments":{"summary":"captured"}}]}
+```"#;
+
+        let calls =
+            parse_memory_operations_from_text(raw, DynamicMemoryStructuredFallbackFormat::Json)
+                .expect("should parse json");
+
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name, "create_memory");
+        assert_eq!(
+            calls[0].arguments,
+            json!({
+                "text": "Sam apologized",
+                "category": "plot_event",
+                "important": true
+            })
+        );
+        assert_eq!(calls[1].name, "done");
+    }
+
+    #[test]
+    fn parses_repairs_from_json() {
+        let raw = r#"{"items":[{"text":"Likes tea","category":"preference"}]}"#;
+
+        let repaired = parse_memory_tag_repairs_from_text(
+            raw,
+            &["preference", "other"],
+            DynamicMemoryStructuredFallbackFormat::Json,
+        )
+        .expect("should parse repairs");
+
+        assert_eq!(repaired.get("Likes tea"), Some(&"preference".to_string()));
     }
 }
