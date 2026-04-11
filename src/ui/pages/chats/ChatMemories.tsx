@@ -472,7 +472,7 @@ function useMemoryActions(session: Session | null, setSession: (s: Session) => v
 
       try {
         const updated: Session = { ...session, memorySummary: summary };
-        await saveSession(updated);
+        await saveSession(updated, { preserveDynamicMemory: false });
         setSession(updated);
       } catch (err: any) {
         throw err;
@@ -1228,7 +1228,10 @@ export function ChatMemoriesPage() {
   const handleDismissError = useCallback(async () => {
     if (!session?.id || !session) return;
     try {
-      await saveSession({ ...session, memoryStatus: "idle", memoryError: null });
+      await saveSession(
+        { ...session, memoryStatus: "idle", memoryError: null },
+        { preserveDynamicMemory: false },
+      );
       void reload();
       dispatch({ type: "SET_ACTION_ERROR", value: null });
     } catch (err) {
@@ -1254,7 +1257,7 @@ export function ChatMemoriesPage() {
           memoryToolEvents: nextEvents,
           updatedAt: Date.now(),
         };
-        await saveSession(nextSession);
+        await saveSession(nextSession, { preserveDynamicMemory: false });
         setSession(nextSession);
         dispatch({ type: "SET_ACTION_ERROR", value: null });
       } catch (err: any) {
@@ -1296,7 +1299,10 @@ export function ChatMemoriesPage() {
       if (session.memoryStatus === "processing") {
         await storageBridge.abortDynamicMemory(sessionId);
       }
-      await saveSession({ ...session, memoryStatus: "idle", memoryError: null });
+      await saveSession(
+        { ...session, memoryStatus: "idle", memoryError: null },
+        { preserveDynamicMemory: false },
+      );
       dispatch({ type: "SET_ACTION_ERROR", value: null });
       dispatch({ type: "SET_RETRY_STATUS", value: "idle" });
       dispatch({ type: "SET_MEMORY_STATUS", value: "idle" });

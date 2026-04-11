@@ -1040,9 +1040,39 @@ export async function deleteMessagesAfter(sessionId: string, messageId: string):
   await storageBridge.messagesDeleteAfter(sessionId, messageId);
 }
 
-export async function saveSession(s: Session): Promise<void> {
+interface SaveSessionOptions {
+  preserveDynamicMemory?: boolean;
+}
+
+function mergePreservedDynamicMemoryState(latest: Session, next: Session): Session {
+  return {
+    ...next,
+    memories: cloneSerializable(latest.memories ?? []),
+    memoryEmbeddings: cloneSerializable(latest.memoryEmbeddings ?? []),
+    memorySummary: latest.memorySummary ?? "",
+    memorySummaryTokenCount: latest.memorySummaryTokenCount ?? 0,
+    memoryToolEvents: cloneSerializable(latest.memoryToolEvents ?? []),
+    memoryStatus: latest.memoryStatus ?? "idle",
+    memoryError: latest.memoryError,
+    memoryProgressStep: latest.memoryProgressStep ?? null,
+  };
+}
+
+export async function saveSession(
+  s: Session,
+  options: SaveSessionOptions = {},
+): Promise<void> {
   SessionSchema.parse(s);
-  await storageBridge.sessionUpsert(s);
+
+  let sessionToSave = s;
+  if (options.preserveDynamicMemory !== false) {
+    const latest = await getSessionMeta(s.id).catch(() => null);
+    if (latest) {
+      sessionToSave = mergePreservedDynamicMemoryState(latest, s);
+    }
+  }
+
+  await storageBridge.sessionUpsert(sessionToSave);
   broadcastSessionUpdated();
 }
 
