@@ -2423,6 +2423,8 @@ mod tests {
             fallback_model_id: None,
             memory_type: "manual".into(),
             prompt_template_id: None,
+            group_chat_prompt_template_id: None,
+            group_chat_roleplay_prompt_template_id: None,
             system_prompt: None,
             created_at: 0,
             updated_at: 0,
