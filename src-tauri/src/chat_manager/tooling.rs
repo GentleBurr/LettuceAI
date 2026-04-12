@@ -298,6 +298,7 @@ pub fn parse_tool_calls(provider_id: &str, payload: &Value) -> Vec<ToolCall> {
     calls
 }
 
+#[cfg(any(test, not(mobile)))]
 pub fn parse_tool_calls_from_text(raw: &str) -> Vec<ToolCall> {
     let mut calls = Vec::new();
     let normalized = raw.trim();
@@ -328,6 +329,7 @@ pub fn parse_tool_calls_from_text(raw: &str) -> Vec<ToolCall> {
     calls
 }
 
+#[cfg(any(test, not(mobile)))]
 pub fn strip_tool_call_blocks(raw: &str) -> String {
     let mut out = raw.to_string();
 
@@ -348,6 +350,7 @@ pub fn strip_tool_call_blocks(raw: &str) -> String {
         .to_string()
 }
 
+#[cfg(any(test, not(mobile)))]
 fn strip_tagged_blocks(raw: &str, open_tag: &str, close_tag: &str) -> String {
     let mut out = String::new();
     let mut cursor = 0usize;
@@ -368,6 +371,7 @@ fn strip_tagged_blocks(raw: &str, open_tag: &str, close_tag: &str) -> String {
     out
 }
 
+#[cfg(any(test, not(mobile)))]
 fn strip_inline_function_blocks(raw: &str) -> String {
     let mut out = String::new();
     let mut cursor = 0usize;
@@ -390,6 +394,7 @@ fn strip_inline_function_blocks(raw: &str) -> String {
     out
 }
 
+#[cfg(any(test, not(mobile)))]
 fn parse_tool_call_block_into(block: &str, out: &mut Vec<ToolCall>) {
     if block.is_empty() {
         return;
@@ -407,6 +412,7 @@ fn parse_tool_call_block_into(block: &str, out: &mut Vec<ToolCall>) {
     }
 }
 
+#[cfg(any(test, not(mobile)))]
 fn parse_tool_call_block_function_tag(block: &str, index: usize) -> Option<ToolCall> {
     let prefix = "<function=";
     let suffix = "</function>";
@@ -437,6 +443,7 @@ fn parse_tool_call_block_function_tag(block: &str, index: usize) -> Option<ToolC
     })
 }
 
+#[cfg(any(test, not(mobile)))]
 fn extract_tool_calls_from_json_value(value: &Value, out: &mut Vec<ToolCall>) {
     match value {
         Value::Array(items) => {
@@ -472,6 +479,7 @@ fn extract_tool_calls_from_json_value(value: &Value, out: &mut Vec<ToolCall>) {
     }
 }
 
+#[cfg(any(test, not(mobile)))]
 fn parse_json_tool_call_object(value: &Value, index: usize) -> Option<ToolCall> {
     let function = value.get("function").unwrap_or(value);
     let name = function
