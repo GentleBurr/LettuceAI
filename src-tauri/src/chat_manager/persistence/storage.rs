@@ -156,6 +156,7 @@ fn default_settings() -> Settings {
         advanced_model_settings: AdvancedModelSettings::default(),
         advanced_settings: Some(AdvancedSettings {
             summarisation_model_id: None,
+            developer_mode_enabled: Some(false),
             dynamic_memory_structured_fallback_format: Some(
                 DynamicMemoryStructuredFallbackFormat::Xml,
             ),

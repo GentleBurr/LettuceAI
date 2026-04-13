@@ -91,6 +91,21 @@ fn log_raw_memory_tool_calls(app: &AppHandle, source: &str, calls: &[ToolCall]) 
     );
 }
 
+fn dynamic_memory_debug_capture_enabled(settings: &Settings) -> bool {
+    cfg!(debug_assertions)
+        || settings
+            .advanced_settings
+            .as_ref()
+            .and_then(|advanced| advanced.developer_mode_enabled)
+            .unwrap_or(false)
+}
+
+fn push_memory_debug_step(debug_steps: &mut Vec<Value>, enabled: bool, step: Value) {
+    if enabled {
+        debug_steps.push(step);
+    }
+}
+
 fn max_hard_deletes_per_cycle(initial_count: usize, ratio: f32) -> usize {
     if initial_count == 0 {
         return 0;
@@ -197,6 +212,8 @@ async fn request_memory_tool_calls(
     context: &ChatContext,
     session: &mut Session,
     character: &Character,
+    debug_capture_enabled: bool,
+    debug_steps: &mut Vec<Value>,
     request_id: Option<&str>,
     cancel_token: Option<&DynamicMemoryCancellationToken>,
 ) -> Result<(Vec<ToolCall>, &'static str), String> {
@@ -217,6 +234,21 @@ async fn request_memory_tool_calls(
     .await
     {
         Ok(api_response) => {
+            push_memory_debug_step(
+                debug_steps,
+                debug_capture_enabled,
+                json!({
+                    "phase": "memory_tool_request",
+                    "requestId": request_id,
+                    "providerId": provider_cred.provider_id,
+                    "model": model.name,
+                    "response": {
+                        "ok": api_response.ok,
+                        "status": api_response.status,
+                        "data": api_response.data().clone(),
+                    }
+                }),
+            );
             let usage = extract_usage(api_response.data());
             record_usage_if_available(
                 context,
@@ -267,6 +299,22 @@ async fn request_memory_tool_calls(
                     cancel_token,
                 )
                 .await?;
+
+                push_memory_debug_step(
+                    debug_steps,
+                    debug_capture_enabled,
+                    json!({
+                        "phase": "memory_tool_fallback_after_http_error",
+                        "requestId": request_id,
+                        "providerId": provider_cred.provider_id,
+                        "model": model.name,
+                        "response": {
+                            "ok": api_response.ok,
+                            "status": api_response.status,
+                            "data": api_response.data().clone(),
+                        }
+                    }),
+                );
 
                 let usage = extract_usage(api_response.data());
                 record_usage_if_available(
@@ -341,6 +389,22 @@ async fn request_memory_tool_calls(
                     )
                     .await?;
 
+                    push_memory_debug_step(
+                        debug_steps,
+                        debug_capture_enabled,
+                        json!({
+                            "phase": "memory_tool_fallback_after_empty_tool_calls",
+                            "requestId": request_id,
+                            "providerId": provider_cred.provider_id,
+                            "model": model.name,
+                            "response": {
+                                "ok": api_response.ok,
+                                "status": api_response.status,
+                                "data": api_response.data().clone(),
+                            }
+                        }),
+                    );
+
                     let usage = extract_usage(api_response.data());
                     record_usage_if_available(
                         context,
@@ -381,6 +445,17 @@ async fn request_memory_tool_calls(
             }
         }
         Err(err) => {
+            push_memory_debug_step(
+                debug_steps,
+                debug_capture_enabled,
+                json!({
+                    "phase": "memory_tool_request_error",
+                    "requestId": request_id,
+                    "providerId": provider_cred.provider_id,
+                    "model": model.name,
+                    "error": err,
+                }),
+            );
             log_warn(
                 app,
                 "dynamic_memory",
@@ -412,6 +487,22 @@ async fn request_memory_tool_calls(
                 cancel_token,
             )
             .await?;
+
+            push_memory_debug_step(
+                debug_steps,
+                debug_capture_enabled,
+                json!({
+                    "phase": "memory_tool_fallback_after_request_error",
+                    "requestId": request_id,
+                    "providerId": provider_cred.provider_id,
+                    "model": model.name,
+                    "response": {
+                        "ok": api_response.ok,
+                        "status": api_response.status,
+                        "data": api_response.data().clone(),
+                    }
+                }),
+            );
 
             let usage = extract_usage(api_response.data());
             record_usage_if_available(
@@ -1178,6 +1269,8 @@ async fn process_dynamic_memory_cycle_with_model(
     };
     let using_local_dynamic_memory_model =
         uses_local_dynamic_memory_model(summary_provider, summary_model);
+    let debug_capture_enabled = dynamic_memory_debug_capture_enabled(settings);
+    let mut debug_steps: Vec<Value> = Vec::new();
     if using_local_dynamic_memory_model {
         if let Err(err) = prepare_local_dynamic_memory_cycle(app, summary_model, &session.id).await
         {
@@ -1234,6 +1327,8 @@ async fn process_dynamic_memory_cycle_with_model(
         session,
         settings,
         None,
+        debug_capture_enabled,
+        &mut debug_steps,
         Some(&summary_request_id),
         Some(&cancel_token),
     )
@@ -1242,6 +1337,27 @@ async fn process_dynamic_memory_cycle_with_model(
         Ok(s) => s,
         Err(err) => {
             run_guard.set_active_request_id(None);
+            if debug_capture_enabled && !debug_steps.is_empty() {
+                let event = json!({
+                    "id": Uuid::new_v4().to_string(),
+                    "windowStart": window_start,
+                    "windowEnd": window_end,
+                    "windowMessageIds": window_message_ids,
+                    "summary": "",
+                    "actions": [],
+                    "error": err,
+                    "status": "error",
+                    "stage": "summarization",
+                    "debugSteps": debug_steps,
+                    "createdAt": now_millis().unwrap_or_default(),
+                });
+                session.memory_tool_events.push(event);
+                if session.memory_tool_events.len() > 50 {
+                    let excess = session.memory_tool_events.len() - 50;
+                    session.memory_tool_events.drain(0..excess);
+                }
+                let _ = save_session(app, session);
+            }
             if is_cancelled_request_error(&err) {
                 if using_local_dynamic_memory_model {
                     let _ =
@@ -1296,6 +1412,8 @@ async fn process_dynamic_memory_cycle_with_model(
         &summary,
         &convo_window,
         character,
+        debug_capture_enabled,
+        &mut debug_steps,
         Some(&tools_request_id),
         Some(&cancel_token),
     )
@@ -1329,6 +1447,7 @@ async fn process_dynamic_memory_cycle_with_model(
                 "actions": [],
                 "error": err,
                 "status": "error",
+                "debugSteps": if debug_capture_enabled { Value::Array(debug_steps.clone()) } else { Value::Null },
                 "createdAt": now_millis().unwrap_or_default(),
             });
             session.memory_summary = Some(summary.clone());
@@ -1374,6 +1493,7 @@ async fn process_dynamic_memory_cycle_with_model(
         "windowMessageIds": window_message_ids,
         "summary": summary,
         "actions": actions,
+        "debugSteps": if debug_capture_enabled { Value::Array(debug_steps.clone()) } else { Value::Null },
         "createdAt": now_millis().unwrap_or_default(),
     });
     session.memory_tool_events.push(event);
@@ -1730,6 +1850,46 @@ fn tool_choice_requires_auto(error: &str) -> bool {
         || (lower.contains("tool choice") && lower.contains("auto"))
 }
 
+fn requested_parallel_tool_calls(
+    provider_cred: &ProviderCredential,
+    tool_config: Option<&ToolConfig>,
+    extra_body_fields: Option<&HashMap<String, Value>>,
+) -> Option<bool> {
+    if provider_cred.provider_id != "llamacpp"
+        || !tool_config.map(|cfg| !cfg.tools.is_empty()).unwrap_or(false)
+    {
+        return None;
+    }
+    Some(
+        extra_body_fields
+            .and_then(|extra| extra.get("parallel_tool_calls"))
+            .and_then(|value| value.as_bool())
+            .unwrap_or(true),
+    )
+}
+
+fn parallel_tool_calls_requires_disable(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    (lower.contains("parallel_tool_calls") || lower.contains("parallel tool calls"))
+        && (lower.contains("unsupported")
+            || lower.contains("unknown")
+            || lower.contains("invalid")
+            || lower.contains("unexpected")
+            || lower.contains("must be"))
+}
+
+fn tool_extra_fields_with_parallel_disabled(
+    extra_body_fields: Option<HashMap<String, Value>>,
+) -> Option<HashMap<String, Value>> {
+    let mut extra = extra_body_fields.unwrap_or_default();
+    extra.insert("parallel_tool_calls".to_string(), json!(false));
+    if extra.is_empty() {
+        None
+    } else {
+        Some(extra)
+    }
+}
+
 fn tool_config_with_auto_choice(tool_config: &ToolConfig) -> ToolConfig {
     let mut cloned = tool_config.clone();
     cloned.choice = Some(ToolChoice::Auto);
@@ -1757,6 +1917,21 @@ async fn send_dynamic_memory_request(
         extra_body_fields,
         overwrite_llama_sampler_config,
     );
+    if let Some(parallel_tool_calls) =
+        requested_parallel_tool_calls(provider_cred, tool_config, extra_body_fields.as_ref())
+    {
+        log_info(
+            app,
+            "dynamic_memory",
+            format!(
+                "sending memory tool request with parallel_tool_calls={} provider={} model={} request_id={}",
+                parallel_tool_calls,
+                provider_cred.provider_id,
+                model.name,
+                request_id.unwrap_or("none")
+            ),
+        );
+    }
     let built = request_builder::build_chat_request(
         provider_cred,
         api_key,
@@ -1792,7 +1967,75 @@ async fn send_dynamic_memory_request(
         provider_id: Some(provider_cred.provider_id.clone()),
     };
 
-    let first_response = api_request(app.clone(), api_request_payload).await?;
+    let first_response = match api_request(app.clone(), api_request_payload).await {
+        Ok(response) => response,
+        Err(err) => {
+            if tool_config.is_some()
+                && provider_cred.provider_id == "llamacpp"
+                && parallel_tool_calls_requires_disable(&err)
+            {
+                if cancel_token.is_some_and(|token| token.is_cancelled()) {
+                    return Err("Request was cancelled by user".to_string());
+                }
+                log_warn(
+                    app,
+                    "dynamic_memory",
+                    format!(
+                        "provider rejected forced parallel tool calls; retrying with parallel_tool_calls=false. Provider={}, model={}",
+                        provider_cred.provider_id, model.name
+                    ),
+                );
+                let built = request_builder::build_chat_request(
+                    provider_cred,
+                    api_key,
+                    &model.name,
+                    messages_for_api,
+                    None,
+                    Some(0.4),
+                    Some(1.0),
+                    max_tokens,
+                    context_length,
+                    false,
+                    request_id.map(|id| id.to_string()),
+                    None,
+                    None,
+                    None,
+                    tool_config,
+                    false,
+                    None,
+                    None,
+                    false,
+                    tool_extra_fields_with_parallel_disabled(extra_body_fields.clone()),
+                );
+                log_info(
+                    app,
+                    "dynamic_memory",
+                    format!(
+                        "retrying memory tool request with parallel_tool_calls=false provider={} model={} request_id={}",
+                        provider_cred.provider_id,
+                        model.name,
+                        request_id.unwrap_or("none")
+                    ),
+                );
+
+                let api_request_payload = ApiRequest {
+                    url: built.url,
+                    method: Some("POST".into()),
+                    headers: Some(built.headers),
+                    query: None,
+                    body: Some(built.body),
+                    timeout_ms: Some(crate::transport::DEFAULT_REQUEST_TIMEOUT_MS),
+                    stream: Some(false),
+                    request_id: built.request_id.clone(),
+                    provider_id: Some(provider_cred.provider_id.clone()),
+                };
+
+                api_request(app.clone(), api_request_payload).await?
+            } else {
+                return Err(err);
+            }
+        }
+    };
 
     if cancel_token.is_some_and(|token| token.is_cancelled()) {
         return Err("Request was cancelled by user".to_string());
@@ -1803,6 +2046,67 @@ async fn send_dynamic_memory_request(
         let err_message = extract_error_message(first_response.data()).unwrap_or(fallback);
 
         if let Some(cfg) = tool_config {
+            if provider_cred.provider_id == "llamacpp"
+                && parallel_tool_calls_requires_disable(&err_message)
+            {
+                if cancel_token.is_some_and(|token| token.is_cancelled()) {
+                    return Err("Request was cancelled by user".to_string());
+                }
+                log_warn(
+                    app,
+                    "dynamic_memory",
+                    format!(
+                        "provider rejected forced parallel tool calls; retrying with parallel_tool_calls=false. Provider={}, model={}",
+                        provider_cred.provider_id, model.name
+                    ),
+                );
+                let built = request_builder::build_chat_request(
+                    provider_cred,
+                    api_key,
+                    &model.name,
+                    messages_for_api,
+                    None,
+                    Some(0.4),
+                    Some(1.0),
+                    max_tokens,
+                    context_length,
+                    false,
+                    request_id.map(|id| id.to_string()),
+                    None,
+                    None,
+                    None,
+                    tool_config,
+                    false,
+                    None,
+                    None,
+                    false,
+                    tool_extra_fields_with_parallel_disabled(extra_body_fields.clone()),
+                );
+                log_info(
+                    app,
+                    "dynamic_memory",
+                    format!(
+                        "retrying memory tool request with parallel_tool_calls=false after HTTP error provider={} model={} request_id={}",
+                        provider_cred.provider_id,
+                        model.name,
+                        request_id.unwrap_or("none")
+                    ),
+                );
+
+                let api_request_payload = ApiRequest {
+                    url: built.url,
+                    method: Some("POST".into()),
+                    headers: Some(built.headers),
+                    query: None,
+                    body: Some(built.body),
+                    timeout_ms: Some(crate::transport::DEFAULT_REQUEST_TIMEOUT_MS),
+                    stream: Some(false),
+                    request_id: built.request_id.clone(),
+                    provider_id: Some(provider_cred.provider_id.clone()),
+                };
+
+                return api_request(app.clone(), api_request_payload).await;
+            }
             if !matches!(cfg.choice, Some(ToolChoice::Auto))
                 && tool_choice_requires_auto(&err_message)
             {
@@ -1923,6 +2227,8 @@ async fn run_memory_tool_update(
     summary: &str,
     convo_window: &[StoredMessage],
     character: &Character,
+    debug_capture_enabled: bool,
+    debug_steps: &mut Vec<Value>,
     request_id: Option<&str>,
     cancel_token: Option<&DynamicMemoryCancellationToken>,
 ) -> Result<Vec<Value>, String> {
@@ -2072,12 +2378,25 @@ async fn run_memory_tool_update(
             &context,
             session,
             character,
+            debug_capture_enabled,
+            debug_steps,
             iteration_request_id.as_deref(),
             cancel_token,
         )
         .await?;
 
         log_raw_memory_tool_calls(app, call_source, &calls);
+        push_memory_debug_step(
+            debug_steps,
+            debug_capture_enabled,
+            json!({
+                "phase": "memory_tool_iteration_calls",
+                "iteration": iteration + 1,
+                "requestId": iteration_request_id,
+                "source": call_source,
+                "calls": calls,
+            }),
+        );
 
         if calls.is_empty() {
             log_warn(
@@ -2460,6 +2779,19 @@ async fn run_memory_tool_update(
                 session.memory_embeddings.len(),
                 saw_done
             ),
+        );
+        push_memory_debug_step(
+            debug_steps,
+            debug_capture_enabled,
+            json!({
+                "phase": "memory_tool_iteration_applied",
+                "iteration": iteration + 1,
+                "toolCalls": tool_calls_json,
+                "toolResults": tool_results,
+                "actions": actions_log,
+                "memoriesNow": session.memory_embeddings.len(),
+                "sawDone": saw_done,
+            }),
         );
 
         if saw_done {
@@ -3054,6 +3386,8 @@ async fn summarize_messages(
     session: &Session,
     settings: &Settings,
     persona: Option<&Persona>,
+    debug_capture_enabled: bool,
+    debug_steps: &mut Vec<Value>,
     request_id: Option<&str>,
     cancel_token: Option<&DynamicMemoryCancellationToken>,
 ) -> Result<String, String> {
@@ -3128,6 +3462,21 @@ async fn summarize_messages(
 
     let tool_failure_reason = match tool_attempt {
         Ok(api_response) => {
+            push_memory_debug_step(
+                debug_steps,
+                debug_capture_enabled,
+                json!({
+                    "phase": "summary_tool_attempt",
+                    "requestId": request_id,
+                    "providerId": provider_cred.provider_id,
+                    "model": model.name,
+                    "response": {
+                        "ok": api_response.ok,
+                        "status": api_response.status,
+                        "data": api_response.data().clone(),
+                    }
+                }),
+            );
             let usage = extract_usage(api_response.data());
             record_usage_if_available(
                 &context,
@@ -3206,6 +3555,17 @@ async fn summarize_messages(
             }
         }
         Err(err) => {
+            push_memory_debug_step(
+                debug_steps,
+                debug_capture_enabled,
+                json!({
+                    "phase": "summary_tool_attempt_error",
+                    "requestId": request_id,
+                    "providerId": provider_cred.provider_id,
+                    "model": model.name,
+                    "error": err,
+                }),
+            );
             if is_cancelled_request_error(&err) {
                 return Err(err);
             }
@@ -3247,6 +3607,22 @@ async fn summarize_messages(
         cancel_token,
     )
     .await?;
+
+    push_memory_debug_step(
+        debug_steps,
+        debug_capture_enabled,
+        json!({
+            "phase": "summary_text_fallback",
+            "requestId": request_id,
+            "providerId": provider_cred.provider_id,
+            "model": model.name,
+            "response": {
+                "ok": api_response.ok,
+                "status": api_response.status,
+                "data": api_response.data().clone(),
+            }
+        }),
+    );
 
     let usage = extract_usage(api_response.data());
     record_usage_if_available(

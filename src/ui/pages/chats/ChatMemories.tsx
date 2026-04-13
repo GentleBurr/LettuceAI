@@ -68,8 +68,14 @@ import {
 import { BottomMenu } from "../../components/BottomMenu";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { useI18n } from "../../../core/i18n/context";
+import { isDevelopmentMode } from "../../../core/utils/env";
 
 type MemoryToolEvent = NonNullable<Session["memoryToolEvents"]>[number];
+
+function getDebugSteps(event: MemoryToolEvent): unknown[] {
+  const raw = (event as Record<string, unknown>).debugSteps;
+  return Array.isArray(raw) ? raw : [];
+}
 const MEMORY_CATEGORY_OPTIONS = [
   "character_trait",
   "relationship",
@@ -700,9 +706,12 @@ function CycleCard({
   reverting?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [showDebug, setShowDebug] = useState(false);
   const hasError = !!event.error;
   const isReverted = !!event.revertedAt;
   const actionSummary = event.actions?.length ? summarizeActions(event.actions) : null;
+  const debugSteps = getDebugSteps(event);
+  const debugEnabled = isDevelopmentMode() && debugSteps.length > 0;
 
   return (
     <div
@@ -839,6 +848,26 @@ function CycleCard({
               <p className={cn("text-[12px] text-red-200/90")}>{event.error}</p>
               {event.stage && (
                 <p className={cn("text-[11px] mt-1 text-red-200/60")}>Failed at: {event.stage}</p>
+              )}
+            </div>
+          )}
+
+          {debugEnabled && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowDebug((value) => !value)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-md border border-fg/10 bg-fg/5 px-2.5 py-1.5",
+                  "text-[11px] font-medium text-fg/60 transition hover:bg-fg/8 hover:text-fg/80",
+                )}
+              >
+                {showDebug ? "Hide Debug" : "Debug"}
+              </button>
+              {showDebug && (
+                <pre className="max-h-96 overflow-auto rounded-md border border-fg/10 bg-black/30 p-3 text-[10px] leading-5 text-fg/75 whitespace-pre-wrap break-all">
+                  {JSON.stringify(debugSteps, null, 2)}
+                </pre>
               )}
             </div>
           )}

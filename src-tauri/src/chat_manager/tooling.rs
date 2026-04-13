@@ -47,10 +47,74 @@ fn has_tools(cfg: &ToolConfig) -> bool {
 }
 
 fn arguments_value_from_str(raw: &str) -> (Value, Option<String>) {
+    if let Some(parsed) = parse_parameter_tag_arguments(raw) {
+        return (parsed, Some(raw.to_string()));
+    }
     match serde_json::from_str::<Value>(raw) {
         Ok(val) => (val, Some(raw.to_string())),
         Err(_) => (Value::String(raw.to_string()), Some(raw.to_string())),
     }
+}
+
+fn parse_parameter_tag_arguments(raw: &str) -> Option<Value> {
+    let trimmed = raw.trim();
+    if !trimmed.contains("<parameter") || !trimmed.contains("</parameter>") {
+        return None;
+    }
+
+    let mut map = serde_json::Map::new();
+    let mut cursor = 0usize;
+
+    while let Some(start_rel) = trimmed[cursor..].find("<parameter") {
+        let start = cursor + start_rel;
+        let after_start = &trimmed[start + "<parameter".len()..];
+
+        let Some(name_end_rel) = after_start.find('>') else {
+            break;
+        };
+        let name_fragment = after_start[..name_end_rel].trim();
+        let name = name_fragment
+            .trim_start_matches('=')
+            .trim_start_matches('-')
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'');
+        if name.is_empty() {
+            break;
+        }
+
+        let content_start = start + "<parameter".len() + name_end_rel + 1;
+        let Some(end_rel) = trimmed[content_start..].find("</parameter>") else {
+            break;
+        };
+        let content_end = content_start + end_rel;
+        let value_raw = trimmed[content_start..content_end].trim();
+        map.insert(name.to_string(), coerce_parameter_value(value_raw));
+        cursor = content_end + "</parameter>".len();
+    }
+
+    if map.is_empty() {
+        None
+    } else {
+        Some(Value::Object(map))
+    }
+}
+
+fn coerce_parameter_value(raw: &str) -> Value {
+    let trimmed = raw.trim();
+    if trimmed.eq_ignore_ascii_case("true") {
+        return Value::Bool(true);
+    }
+    if trimmed.eq_ignore_ascii_case("false") {
+        return Value::Bool(false);
+    }
+    if trimmed.eq_ignore_ascii_case("null") {
+        return Value::Null;
+    }
+    if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+        return parsed;
+    }
+    Value::String(trimmed.to_string())
 }
 
 /// Convert canonical tools into OpenAI-style `tools` array.
@@ -808,5 +872,64 @@ After<|im_end|>"#;
             calls[0].arguments,
             json!({ "text": "Likes tea", "category": "preference" })
         );
+    }
+
+    #[test]
+    fn parses_openai_tool_call_parameter_tags_into_arguments() {
+        let payload = json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [{
+                        "id": "text_tool_call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "create_memory",
+                            "arguments": "<parameter=category>\ncharacter_trait\n</parameter>\n<parameter=important>\ntrue\n</parameter>\n<parameter=text>\nMirelle is a ledger expert from House Cendre.\n</parameter>"
+                        }
+                    }]
+                }
+            }]
+        });
+
+        let calls = parse_tool_calls("llamacpp", &payload);
+
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "create_memory");
+        assert_eq!(
+            calls[0].arguments,
+            json!({
+                "category": "character_trait",
+                "important": true,
+                "text": "Mirelle is a ledger expert from House Cendre."
+            })
+        );
+    }
+
+    #[test]
+    fn parses_openai_summary_parameter_tag_argument() {
+        let payload = json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [{
+                        "id": "text_tool_call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "write_summary",
+                            "arguments": "<parameter=summary>\nshort recap\n</parameter>"
+                        }
+                    }]
+                }
+            }]
+        });
+
+        let calls = parse_tool_calls("llamacpp", &payload);
+
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "write_summary");
+        assert_eq!(calls[0].arguments, json!({ "summary": "short recap" }));
     }
 }

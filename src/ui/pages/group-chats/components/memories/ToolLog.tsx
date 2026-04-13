@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import type { GroupSession } from "../../../../../core/storage/schemas";
+import { isDevelopmentMode } from "../../../../../core/utils/env";
 import {
   components,
   colors,
@@ -27,6 +28,11 @@ import {
 import { useI18n } from "../../../../../core/i18n/context";
 
 type MemoryToolEvent = NonNullable<GroupSession["memoryToolEvents"]>[number];
+
+function getDebugSteps(event: MemoryToolEvent): unknown[] {
+  const raw = (event as Record<string, unknown>).debugSteps;
+  return Array.isArray(raw) ? raw : [];
+}
 
 function relativeTime(ts: number): string {
   const now = Date.now();
@@ -227,6 +233,7 @@ function CycleCard({
   reverting?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [showDebug, setShowDebug] = useState(false);
   const hasError = !!event.error;
   const isReverted = !!event.revertedAt;
   const actions = event.actions || [];
@@ -234,6 +241,8 @@ function CycleCard({
   const eventTime = event.createdAt || event.timestamp || 0;
   const windowStart = event.windowStart ?? 0;
   const windowEnd = event.windowEnd ?? 0;
+  const debugSteps = getDebugSteps(event);
+  const debugEnabled = isDevelopmentMode() && debugSteps.length > 0;
 
   return (
     <div
@@ -363,6 +372,26 @@ function CycleCard({
               <p className="text-[12px] text-danger/90">{event.error}</p>
               {event.stage && (
                 <p className="text-[11px] mt-1 text-danger/60">Failed at: {event.stage}</p>
+              )}
+            </div>
+          )}
+
+          {debugEnabled && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowDebug((value) => !value)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-md border border-fg/10 bg-fg/5 px-2.5 py-1.5",
+                  "text-[11px] font-medium text-fg/60 transition hover:bg-fg/8 hover:text-fg/80",
+                )}
+              >
+                {showDebug ? "Hide Debug" : "Debug"}
+              </button>
+              {showDebug && (
+                <pre className="max-h-96 overflow-auto rounded-md border border-fg/10 bg-black/30 p-3 text-[10px] leading-5 text-fg/75 whitespace-pre-wrap break-all">
+                  {JSON.stringify(debugSteps, null, 2)}
+                </pre>
               )}
             </div>
           )}

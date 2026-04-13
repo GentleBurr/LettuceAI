@@ -286,6 +286,8 @@ pub struct AdvancedSettings {
     #[serde(default)]
     pub summarisation_model_id: Option<String>,
     #[serde(default)]
+    pub developer_mode_enabled: Option<bool>,
+    #[serde(default)]
     pub dynamic_memory_structured_fallback_format: Option<DynamicMemoryStructuredFallbackFormat>,
     #[serde(default)]
     pub dynamic_memory_llama_sampler_overwrite_enabled: Option<bool>,
