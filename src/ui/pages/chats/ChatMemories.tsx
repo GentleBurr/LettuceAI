@@ -44,7 +44,7 @@ import {
 } from "../../../core/storage/repo";
 import {
   markMemoryToolEventReverted,
-  revertMemoryToolEvent,
+  reconstructMemoryStateFromEvents,
   summarizeRevertImpact,
 } from "../../../core/storage/memoryToolEvents";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
@@ -1342,17 +1342,26 @@ export function ChatMemoriesPage() {
 
       setRevertingEventId(event.id);
       try {
-        const nextEmbeddings = revertMemoryToolEvent(session.memoryEmbeddings, event);
         const nextEvents = markMemoryToolEventReverted(
           (session.memoryToolEvents as MemoryToolEvent[]) ?? [],
           event.id,
           Date.now(),
         );
+        const nextMemoryState = reconstructMemoryStateFromEvents(
+          session.memoryEmbeddings,
+          session.memorySummary ?? "",
+          session.memorySummaryTokenCount ?? 0,
+          nextEvents,
+        );
         const nextSession: Session = {
           ...session,
-          memoryEmbeddings: nextEmbeddings,
-          memories: nextEmbeddings.map((memory) => memory.text),
-          memoryToolEvents: nextEvents,
+          memoryEmbeddings: nextMemoryState.memoryEmbeddings,
+          memories: nextMemoryState.memoryEmbeddings.map((memory) => memory.text),
+          memorySummary: nextMemoryState.memorySummary,
+          memorySummaryTokenCount: nextMemoryState.memorySummaryTokenCount,
+          memoryToolEvents: nextMemoryState.memoryToolEvents,
+          memoryStatus: nextMemoryState.memoryStatus,
+          memoryError: nextMemoryState.memoryError ?? undefined,
           updatedAt: Date.now(),
         };
         await saveSession(nextSession, { preserveDynamicMemory: false });

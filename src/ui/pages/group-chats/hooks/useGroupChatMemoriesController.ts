@@ -16,7 +16,7 @@ import {
 import { storageBridge } from "../../../../core/storage/files";
 import {
   markMemoryToolEventReverted,
-  revertMemoryToolEvent,
+  reconstructMemoryStateFromEvents,
   summarizeRevertImpact,
 } from "../../../../core/storage/memoryToolEvents";
 import { confirmBottomMenu } from "../../../components/ConfirmBottomMenu";
@@ -500,27 +500,36 @@ export function useGroupChatMemoriesController(groupSessionId?: string) {
 
       setRevertingEventId(event.id);
       try {
-        const nextEmbeddings = revertMemoryToolEvent(session.memoryEmbeddings, event);
         const nextEvents = markMemoryToolEventReverted(
           session.memoryToolEvents ?? [],
           event.id,
           Date.now(),
         );
-        await storageBridge.groupSessionUpdateMemoryState(
-          session.id,
-          nextEmbeddings.map((memory) => memory.text),
-          nextEmbeddings,
+        const nextMemoryState = reconstructMemoryStateFromEvents(
+          session.memoryEmbeddings,
           session.memorySummary ?? "",
           session.memorySummaryTokenCount ?? 0,
           nextEvents,
-          session.memoryStatus ?? "idle",
-          session.memoryError ?? null,
+        );
+        await storageBridge.groupSessionUpdateMemoryState(
+          session.id,
+          nextMemoryState.memoryEmbeddings.map((memory) => memory.text),
+          nextMemoryState.memoryEmbeddings,
+          nextMemoryState.memorySummary,
+          nextMemoryState.memorySummaryTokenCount,
+          nextMemoryState.memoryToolEvents,
+          nextMemoryState.memoryStatus,
+          nextMemoryState.memoryError ?? null,
         );
         setSession({
           ...session,
-          memories: nextEmbeddings.map((memory) => memory.text),
-          memoryEmbeddings: nextEmbeddings,
-          memoryToolEvents: nextEvents,
+          memories: nextMemoryState.memoryEmbeddings.map((memory) => memory.text),
+          memoryEmbeddings: nextMemoryState.memoryEmbeddings,
+          memorySummary: nextMemoryState.memorySummary,
+          memorySummaryTokenCount: nextMemoryState.memorySummaryTokenCount,
+          memoryToolEvents: nextMemoryState.memoryToolEvents,
+          memoryStatus: nextMemoryState.memoryStatus,
+          memoryError: nextMemoryState.memoryError ?? undefined,
           updatedAt: Date.now(),
         });
         dispatch({ type: "SET_ACTION_ERROR", value: null });
