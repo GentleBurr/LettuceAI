@@ -4266,34 +4266,27 @@ fn save_group_session_memories(
 
 /// Load full Character struct from database
 fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Character, String> {
-    // Load character JSON for full data
-    let char_json: Option<String> = conn
-        .query_row(
-            "SELECT json_data FROM characters WHERE id = ?1",
-            rusqlite::params![character_id],
-            |row| row.get(0),
-        )
-        .ok();
-
-    if let Some(json_str) = char_json {
-        if let Ok(character) = serde_json::from_str::<Character>(&json_str) {
-            return Ok(character);
-        }
-    }
-
-    // Fallback: construct from basic columns
     let row: (
         String,
         String,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
         i64,
         i64,
+        Option<String>,
+        Option<String>,
+        Option<String>,
         Option<String>,
         Option<String>,
     ) = conn
         .query_row(
-            "SELECT id, name, description, definition, created_at, updated_at, default_model_id, memory_type
+            "SELECT id, name, avatar_path, design_description, design_reference_image_ids, background_image_path,
+                    description, definition, created_at, updated_at, default_model_id, memory_type,
+                    prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id
              FROM characters WHERE id = ?1",
             rusqlite::params![character_id],
             |row| {
@@ -4306,6 +4299,13 @@ fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Cha
                     row.get(5)?,
                     row.get(6)?,
                     row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                    row.get(11)?,
+                    row.get(12)?,
+                    row.get(13)?,
+                    row.get(14)?,
                 ))
             },
         )
@@ -4317,30 +4317,35 @@ fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Cha
             )
         })?;
 
-    let description = row.2;
-    let definition = row.3.or(description.clone());
+    let description = row.6;
+    let definition = row.7.or(description.clone());
+    let design_reference_image_ids = row
+        .4
+        .as_deref()
+        .and_then(|value| serde_json::from_str::<Vec<String>>(value).ok())
+        .unwrap_or_default();
 
     Ok(Character {
         id: row.0,
         name: row.1,
-        avatar_path: None,
-        design_description: None,
-        design_reference_image_ids: Vec::new(),
-        background_image_path: None,
+        avatar_path: row.2,
+        design_description: row.3,
+        design_reference_image_ids,
+        background_image_path: row.5,
         description,
         definition,
         rules: Vec::new(),
         scenes: Vec::new(),
         default_scene_id: None,
-        default_model_id: row.6,
+        default_model_id: row.10,
         fallback_model_id: None,
-        memory_type: row.7.unwrap_or_else(|| "manual".to_string()),
-        prompt_template_id: None,
-        group_chat_prompt_template_id: None,
-        group_chat_roleplay_prompt_template_id: None,
+        memory_type: row.11.unwrap_or_else(|| "manual".to_string()),
+        prompt_template_id: row.12,
+        group_chat_prompt_template_id: row.13,
+        group_chat_roleplay_prompt_template_id: row.14,
         system_prompt: None,
-        created_at: row.4 as u64,
-        updated_at: row.5 as u64,
+        created_at: row.8 as u64,
+        updated_at: row.9 as u64,
     })
 }
 
