@@ -14,8 +14,8 @@ use crate::sync::models::{
 use crate::sync::protocol::{ChangeOp, ChangeRecord, CursorSet, DomainCursor, SyncDomain};
 use crate::utils::{log_error_global, log_info_global};
 
-pub const CHANGE_SCHEMA_VERSION: u16 = 1;
-pub const LOCAL_SYNC_STATE_VERSION: u16 = 3;
+pub const CHANGE_SCHEMA_VERSION: u16 = 2;
+pub const LOCAL_SYNC_STATE_VERSION: u16 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct EntityKey {
@@ -35,7 +35,7 @@ struct CurrentEntityRecord {
 #[derive(Debug, Clone)]
 struct EntityHeadRecord {
     payload_hash: String,
-    _payload_schema: u16,
+    payload_schema: u16,
     payload: Vec<u8>,
     deleted: bool,
     _last_change_id: i64,
@@ -1103,7 +1103,7 @@ fn load_entity_heads(conn: &DbConnection) -> Result<HashMap<EntityKey, EntityHea
             },
             EntityHeadRecord {
                 payload_hash,
-                _payload_schema: payload_schema,
+                payload_schema,
                 payload,
                 deleted: deleted != 0,
                 _last_change_id: last_change_id,
@@ -1148,6 +1148,20 @@ fn append_remote_change(
     key: &EntityKey,
     change: &ChangeRecord,
 ) -> Result<Option<i64>, String> {
+    if change.op != ChangeOp::Delete && change.payload_schema != CHANGE_SCHEMA_VERSION {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!(
+                "unsupported remote sync payload schema {} for {:?}/{}; expected {}. Update both devices so sync state can be rebuilt.",
+                change.payload_schema,
+                key.domain,
+                key.entity_id,
+                CHANGE_SCHEMA_VERSION
+            ),
+        ));
+    }
+
     let current_head = load_head(tx, key)?;
     if let Some(head) = &current_head {
         match compare_change_origin(head, change) {
@@ -1281,7 +1295,7 @@ fn load_head(
         |row| {
             Ok(EntityHeadRecord {
                 payload_hash: row.get(0)?,
-                _payload_schema: row.get(1)?,
+                payload_schema: row.get(1)?,
                 payload: row.get(2)?,
                 deleted: row.get::<_, i64>(3)? != 0,
                 _last_change_id: row.get(4)?,
@@ -1511,6 +1525,33 @@ fn deserialize_head<T: serde::de::DeserializeOwned + serde::Serialize>(
     key: &EntityKey,
     head: &EntityHeadRecord,
 ) -> Result<T, String> {
+    if head.payload_schema != CHANGE_SCHEMA_VERSION {
+        log_error_global(
+            "sync_payload",
+            format!(
+                "unsupported payload schema domain={:?} entity_type={} entity_id={} source_device_id={} source_change_id={} payload_schema={} expected_schema={}",
+                key.domain,
+                key.entity_type,
+                key.entity_id,
+                head.source_device_id,
+                head.source_change_id,
+                head.payload_schema,
+                CHANGE_SCHEMA_VERSION
+            ),
+        );
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!(
+                "unsupported sync payload schema {} for {:?}/{}; expected {}. Update both devices so sync state can be rebuilt.",
+                head.payload_schema,
+                key.domain,
+                key.entity_id,
+                CHANGE_SCHEMA_VERSION
+            ),
+        ));
+    }
+
     match bincode::deserialize(&head.payload) {
         Ok(value) => {
             let pretty = serde_json::to_string_pretty(&value)
