@@ -55,6 +55,7 @@ type EditCharacterState = {
   systemPromptTemplateId: string | null;
   groupChatPromptTemplateId: string | null;
   groupChatRoleplayPromptTemplateId: string | null;
+  activeLorebookIds: string[];
   voiceConfig: CharacterVoiceConfig | null;
   voiceAutoplay: boolean;
 
@@ -113,6 +114,7 @@ const initialState: EditCharacterState = {
   systemPromptTemplateId: null,
   groupChatPromptTemplateId: null,
   groupChatRoleplayPromptTemplateId: null,
+  activeLorebookIds: [],
   voiceConfig: null,
   voiceAutoplay: false,
 
@@ -181,6 +183,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
     systemPromptTemplateId: string | null;
     groupChatPromptTemplateId: string | null;
     groupChatRoleplayPromptTemplateId: string | null;
+    activeLorebookIds: string;
     disableAvatarGradient: boolean;
     customGradientEnabled: boolean;
     customGradientColors: string;
@@ -316,6 +319,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         groupChatPromptTemplateId: character.groupChatPromptTemplateId || null,
         groupChatRoleplayPromptTemplateId:
           character.groupChatRoleplayPromptTemplateId || null,
+        activeLorebookIds: character.activeLorebookIds || [],
         voiceConfig: character.voiceConfig ?? null,
         voiceAutoplay: character.voiceAutoplay ?? false,
 
@@ -357,6 +361,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         groupChatPromptTemplateId: character.groupChatPromptTemplateId || null,
         groupChatRoleplayPromptTemplateId:
           character.groupChatRoleplayPromptTemplateId || null,
+        activeLorebookIds: JSON.stringify(character.activeLorebookIds || []),
         disableAvatarGradient: character.disableAvatarGradient || false,
         customGradientEnabled: character.customGradientEnabled || false,
         customGradientColors: JSON.stringify(character.customGradientColors || []),
@@ -521,6 +526,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         promptTemplateId: state.systemPromptTemplateId,
         groupChatPromptTemplateId: state.groupChatPromptTemplateId,
         groupChatRoleplayPromptTemplateId: state.groupChatRoleplayPromptTemplateId,
+        activeLorebookIds: state.activeLorebookIds,
         voiceConfig: state.voiceConfig ?? undefined,
         voiceAutoplay: state.voiceAutoplay,
 
@@ -547,6 +553,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         creatorNotesMultilingualText: state.creatorNotesMultilingualText.trim(),
         sourceText: state.sourceText.trim(),
         tagsText: state.tagsText.trim(),
+        activeLorebookIds: state.activeLorebookIds,
       });
 
       // Update initial state ref to match current state (for change detection)
@@ -576,6 +583,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         systemPromptTemplateId: state.systemPromptTemplateId,
         groupChatPromptTemplateId: state.groupChatPromptTemplateId,
         groupChatRoleplayPromptTemplateId: state.groupChatRoleplayPromptTemplateId,
+        activeLorebookIds: JSON.stringify(state.activeLorebookIds),
         disableAvatarGradient: state.disableAvatarGradient,
         customGradientEnabled: state.customGradientEnabled,
         customGradientColors: JSON.stringify(state.customGradientColors),
@@ -776,6 +784,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
       systemPromptTemplateId: initial.systemPromptTemplateId,
       groupChatPromptTemplateId: initial.groupChatPromptTemplateId,
       groupChatRoleplayPromptTemplateId: initial.groupChatRoleplayPromptTemplateId,
+      activeLorebookIds: JSON.parse(initial.activeLorebookIds) as string[],
       disableAvatarGradient: initial.disableAvatarGradient,
       customGradientEnabled: initial.customGradientEnabled,
       customGradientColors: JSON.parse(initial.customGradientColors) as string[],
@@ -844,6 +853,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
           state.groupChatPromptTemplateId !== initial.groupChatPromptTemplateId ||
           state.groupChatRoleplayPromptTemplateId !==
             initial.groupChatRoleplayPromptTemplateId ||
+          JSON.stringify(state.activeLorebookIds) !== initial.activeLorebookIds ||
           state.disableAvatarGradient !== initial.disableAvatarGradient ||
           state.customGradientEnabled !== initial.customGradientEnabled ||
           JSON.stringify(state.customGradientColors) !== initial.customGradientColors ||

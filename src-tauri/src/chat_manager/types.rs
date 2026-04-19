@@ -763,6 +763,8 @@ pub struct Session {
     #[serde(default)]
     pub prompt_template_id: Option<String>,
     #[serde(default)]
+    pub lorebook_ids_override: Option<Vec<String>>,
+    #[serde(default)]
     pub persona_id: Option<String>,
     #[serde(default)]
     pub persona_disabled: bool,
@@ -823,6 +825,8 @@ pub struct Character {
     pub fallback_model_id: Option<String>,
     #[serde(default = "default_memory_type")]
     pub memory_type: String,
+    #[serde(default)]
+    pub active_lorebook_ids: Vec<String>,
     /// Reference to a character-specific system prompt template (if any)
     #[serde(default)]
     pub prompt_template_id: Option<String>,

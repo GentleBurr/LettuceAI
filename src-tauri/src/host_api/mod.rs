@@ -250,6 +250,7 @@ fn build_gateway_session() -> Session {
         system_prompt: None,
         selected_scene_id: None,
         prompt_template_id: None,
+        lorebook_ids_override: None,
         persona_id: None,
         persona_disabled: false,
         voice_autoplay: None,

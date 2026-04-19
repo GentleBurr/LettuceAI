@@ -1798,6 +1798,7 @@ pub async fn chat_generate_design_reference_description(
         system_prompt: None,
         selected_scene_id: None,
         prompt_template_id: None,
+        lorebook_ids_override: None,
         persona_id: None,
         persona_disabled: false,
         voice_autoplay: None,

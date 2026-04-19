@@ -365,6 +365,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           default_model_id TEXT,
           fallback_model_id TEXT,
           memory_type TEXT NOT NULL DEFAULT 'manual',
+          active_lorebook_ids TEXT NOT NULL DEFAULT '[]',
           prompt_template_id TEXT,
           group_chat_prompt_template_id TEXT,
           group_chat_roleplay_prompt_template_id TEXT,
@@ -453,6 +454,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           name TEXT NOT NULL,
           scene_id TEXT,
           prompt_template_id TEXT,
+          lorebook_ids_override TEXT,
           created_at INTEGER NOT NULL,
           FOREIGN KEY(character_id) REFERENCES characters(id) ON DELETE CASCADE
         );
@@ -492,6 +494,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           system_prompt TEXT,
           selected_scene_id TEXT,
           prompt_template_id TEXT,
+          lorebook_ids_override TEXT,
           persona_id TEXT,
           persona_disabled INTEGER NOT NULL DEFAULT 0,
           voice_autoplay INTEGER,
@@ -1628,6 +1631,84 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     if !has_group_session_disable_lorebooks {
         let _ = conn.execute(
             "ALTER TABLE group_sessions ADD COLUMN disable_character_lorebooks INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+    }
+
+    let mut stmt_characters = conn
+        .prepare("PRAGMA table_info(characters)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut has_active_lorebook_ids = false;
+    let mut rows_characters = stmt_characters
+        .query([])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    while let Some(row) = rows_characters
+        .next()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+    {
+        let col_name: String = row
+            .get(1)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if col_name == "active_lorebook_ids" {
+            has_active_lorebook_ids = true;
+            break;
+        }
+    }
+    if !has_active_lorebook_ids {
+        let _ = conn.execute(
+            "ALTER TABLE characters ADD COLUMN active_lorebook_ids TEXT NOT NULL DEFAULT '[]'",
+            [],
+        );
+    }
+
+    let mut stmt_sessions = conn
+        .prepare("PRAGMA table_info(sessions)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut has_lorebook_ids_override = false;
+    let mut rows_sessions = stmt_sessions
+        .query([])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    while let Some(row) = rows_sessions
+        .next()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+    {
+        let col_name: String = row
+            .get(1)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if col_name == "lorebook_ids_override" {
+            has_lorebook_ids_override = true;
+            break;
+        }
+    }
+    if !has_lorebook_ids_override {
+        let _ = conn.execute(
+            "ALTER TABLE sessions ADD COLUMN lorebook_ids_override TEXT",
+            [],
+        );
+    }
+
+    let mut stmt_chat_templates = conn
+        .prepare("PRAGMA table_info(chat_templates)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut has_chat_template_lorebook_ids_override = false;
+    let mut rows_chat_templates = stmt_chat_templates
+        .query([])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    while let Some(row) = rows_chat_templates
+        .next()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+    {
+        let col_name: String = row
+            .get(1)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if col_name == "lorebook_ids_override" {
+            has_chat_template_lorebook_ids_override = true;
+            break;
+        }
+    }
+    if !has_chat_template_lorebook_ids_override {
+        let _ = conn.execute(
+            "ALTER TABLE chat_templates ADD COLUMN lorebook_ids_override TEXT",
             [],
         );
     }

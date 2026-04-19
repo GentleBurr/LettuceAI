@@ -260,6 +260,8 @@ pub struct UscChatTemplatePayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt_template: Option<UscRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub lorebook_ids_override: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<UscVariable>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_notes: Option<String>,
@@ -558,6 +560,10 @@ pub fn create_chat_template_usc(
                 name: None,
                 optional: None,
             }),
+            lorebook_ids_override: template
+                .lorebook_ids_override
+                .as_ref()
+                .and_then(|raw| serde_json::from_str::<Vec<String>>(raw).ok()),
             variables: None,
             opening_notes: None,
             requires: None,
@@ -625,6 +631,7 @@ mod tests {
             name: "Opener".into(),
             scene_id: Some("scene-1".into()),
             prompt_template_id: Some("prompt-1".into()),
+            lorebook_ids_override: None,
             created_at: 123,
         };
         let messages = vec![
@@ -733,6 +740,7 @@ mod tests {
                 messages: vec![],
                 scene_id: None,
                 system_prompt_template: None,
+                lorebook_ids_override: None,
                 variables: None,
                 opening_notes: None,
                 requires: None,

@@ -717,6 +717,10 @@ pub fn chat_template_export_as_usc(template_json: String) -> Result<String, Stri
         .get("promptTemplateId")
         .and_then(|item| item.as_str())
         .map(|item| item.to_string());
+    let lorebook_ids_override = value
+        .get("lorebookIdsOverride")
+        .filter(|item| item.is_array())
+        .map(|item| item.to_string());
     let created_at = value
         .get("createdAt")
         .and_then(|item| item.as_i64())
@@ -728,6 +732,7 @@ pub fn chat_template_export_as_usc(template_json: String) -> Result<String, Stri
         name,
         scene_id,
         prompt_template_id,
+        lorebook_ids_override,
         created_at,
     };
 
@@ -919,6 +924,7 @@ pub fn render_prompt_preview(
             system_prompt: None,
             selected_scene_id: None,
             prompt_template_id: None,
+            lorebook_ids_override: None,
             persona_id: None,
             persona_disabled: false,
             voice_autoplay: None,

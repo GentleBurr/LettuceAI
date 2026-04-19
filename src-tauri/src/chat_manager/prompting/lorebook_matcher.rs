@@ -1,7 +1,7 @@
 use crate::storage_manager::db::DbConnection;
 use crate::storage_manager::lorebook::{
-    get_enabled_character_lorebook_entry_contexts, LorebookEntry, LorebookEntryActivationContext,
-    LorebookKeywordDetectionMode,
+    get_character_active_lorebook_ids, get_enabled_lorebook_entry_contexts_for_ids, LorebookEntry,
+    LorebookEntryActivationContext, LorebookKeywordDetectionMode,
 };
 
 pub(crate) fn keyword_matches(keyword: &str, text: &str, case_sensitive: bool) -> bool {
@@ -109,7 +109,17 @@ pub fn get_active_lorebook_entries(
     recent_messages: &[String],
     latest_user_message: Option<&str>,
 ) -> Result<Vec<LorebookEntry>, String> {
-    let entries = get_enabled_character_lorebook_entry_contexts(conn, character_id)?;
+    let lorebook_ids = get_character_active_lorebook_ids(conn, character_id)?;
+    get_active_lorebook_entries_for_ids(conn, &lorebook_ids, recent_messages, latest_user_message)
+}
+
+pub fn get_active_lorebook_entries_for_ids(
+    conn: &DbConnection,
+    lorebook_ids: &[String],
+    recent_messages: &[String],
+    latest_user_message: Option<&str>,
+) -> Result<Vec<LorebookEntry>, String> {
+    let entries = get_enabled_lorebook_entry_contexts_for_ids(conn, lorebook_ids)?;
     Ok(activate_lorebook_entries(
         entries,
         recent_messages,

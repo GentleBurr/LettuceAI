@@ -1,3 +1,4 @@
+use rusqlite::OptionalExtension;
 use serde_json::Value;
 use tauri::AppHandle;
 
@@ -6,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 53;
+pub const CURRENT_MIGRATION_VERSION: u32 = 54;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -566,6 +567,26 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v52_to_v53(app)?;
         version = 53;
+    }
+
+    if version < 54 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v53 -> v54: Move character lorebook links into character/session fields",
+        );
+        migrate_v53_to_v54(app)?;
+        version = 54;
+    }
+
+    if version < 55 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v54 -> v55: Add chat template lorebook overrides",
+        );
+        migrate_v54_to_v55(app)?;
+        version = 55;
     }
 
     // Update the stored version
@@ -2962,8 +2983,7 @@ fn migrate_v51_to_v52(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     for column in rows {
-        let column =
-            column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let column = column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         if column == "group_chat_prompt_template_id" {
             has_group_chat_prompt_template_id = true;
         }
@@ -3003,8 +3023,7 @@ fn migrate_v52_to_v53(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     for column in rows {
-        let column =
-            column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let column = column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         if column == "scene_edited" {
             has_scene_edited = true;
             break;
@@ -3014,6 +3033,136 @@ fn migrate_v52_to_v53(app: &AppHandle) -> Result<(), String> {
     if !has_scene_edited {
         conn.execute(
             "ALTER TABLE messages ADD COLUMN scene_edited INTEGER NOT NULL DEFAULT 0",
+            [],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    Ok(())
+}
+
+fn migrate_v53_to_v54(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+
+    let mut has_active_lorebook_ids = false;
+    let mut stmt_characters = conn
+        .prepare("PRAGMA table_info(characters)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let character_rows = stmt_characters
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    for column in character_rows {
+        let column = column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if column == "active_lorebook_ids" {
+            has_active_lorebook_ids = true;
+            break;
+        }
+    }
+    if !has_active_lorebook_ids {
+        conn.execute(
+            "ALTER TABLE characters ADD COLUMN active_lorebook_ids TEXT NOT NULL DEFAULT '[]'",
+            [],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    let mut has_lorebook_ids_override = false;
+    let mut stmt_sessions = conn
+        .prepare("PRAGMA table_info(sessions)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let session_rows = stmt_sessions
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    for column in session_rows {
+        let column = column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if column == "lorebook_ids_override" {
+            has_lorebook_ids_override = true;
+            break;
+        }
+    }
+    if !has_lorebook_ids_override {
+        conn.execute(
+            "ALTER TABLE sessions ADD COLUMN lorebook_ids_override TEXT",
+            [],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT character_id, lorebook_id
+            FROM character_lorebooks
+            WHERE enabled = 1
+            ORDER BY character_id ASC, display_order ASC, updated_at ASC, created_at ASC
+            "#,
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let mut grouped: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+    for row in rows {
+        let (character_id, lorebook_id) =
+            row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        grouped.entry(character_id).or_default().push(lorebook_id);
+    }
+
+    for (character_id, lorebook_ids) in grouped {
+        let existing: Option<String> = conn
+            .query_row(
+                "SELECT active_lorebook_ids FROM characters WHERE id = ?1",
+                [&character_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+        let should_backfill = existing
+            .as_deref()
+            .map(|value| value.trim().is_empty() || value == "[]")
+            .unwrap_or(true);
+        if !should_backfill {
+            continue;
+        }
+
+        let lorebook_ids_json = serde_json::to_string(&lorebook_ids)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        conn.execute(
+            "UPDATE characters SET active_lorebook_ids = ?1 WHERE id = ?2",
+            [&lorebook_ids_json, &character_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    Ok(())
+}
+
+fn migrate_v54_to_v55(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+
+    let mut has_lorebook_ids_override = false;
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(chat_templates)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    for column in rows {
+        let column = column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if column == "lorebook_ids_override" {
+            has_lorebook_ids_override = true;
+            break;
+        }
+    }
+
+    if !has_lorebook_ids_override {
+        conn.execute(
+            "ALTER TABLE chat_templates ADD COLUMN lorebook_ids_override TEXT",
             [],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

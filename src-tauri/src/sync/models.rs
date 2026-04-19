@@ -239,6 +239,8 @@ pub struct Character {
     #[serde(default)]
     pub fallback_model_id: Option<String>,
     pub memory_type: String,
+    #[serde(default)]
+    pub active_lorebook_ids: Option<String>,
     pub prompt_template_id: Option<String>,
     #[serde(default)]
     pub group_chat_prompt_template_id: Option<String>,
@@ -297,6 +299,8 @@ pub struct ChatTemplate {
     pub name: String,
     pub scene_id: Option<String>,
     pub prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub lorebook_ids_override: Option<String>,
     pub created_at: i64,
 }
 
@@ -307,16 +311,6 @@ pub struct ChatTemplateMessage {
     pub idx: i64,
     pub role: String,
     pub content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CharacterLorebookLink {
-    pub character_id: String,
-    pub lorebook_id: String,
-    pub enabled: i64,
-    pub display_order: i64,
-    pub created_at: i64,
-    pub updated_at: i64,
 }
 
 // Layer 4: Sessions
@@ -332,6 +326,8 @@ pub struct Session {
     pub selected_scene_id: Option<String>,
     #[serde(default)]
     pub prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub lorebook_ids_override: Option<String>,
     pub persona_id: Option<String>,
     pub persona_disabled: Option<i64>,
     #[serde(default)]

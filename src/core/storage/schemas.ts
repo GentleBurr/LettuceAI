@@ -2068,6 +2068,7 @@ export const ChatTemplateSchema = z.object({
   messages: z.array(ChatTemplateMessageSchema).default([]),
   sceneId: z.string().uuid().nullish(),
   promptTemplateId: z.string().nullish().optional(),
+  lorebookIdsOverride: z.array(z.string().uuid()).nullable().optional(),
   createdAt: z.number().int(),
 });
 export type ChatTemplate = z.infer<typeof ChatTemplateSchema>;
@@ -2684,6 +2685,7 @@ export const CharacterSchema = z.object({
   defaultModelId: z.string().uuid().nullable().optional(),
   fallbackModelId: z.string().uuid().nullable().optional(),
   memoryType: z.enum(["manual", "dynamic"]).default("manual"),
+  activeLorebookIds: z.array(z.string().uuid()).default([]),
   promptTemplateId: z.string().nullish().optional(),
   groupChatPromptTemplateId: z.string().nullish().optional(),
   groupChatRoleplayPromptTemplateId: z.string().nullish().optional(),
@@ -2707,6 +2709,7 @@ export const SessionSchema = z.object({
   backgroundImagePath: z.string().nullish().optional(),
   selectedSceneId: z.string().uuid().nullish(), // ID of the scene from character.scenes array
   promptTemplateId: z.string().nullish().optional(),
+  lorebookIdsOverride: z.array(z.string().uuid()).nullable().optional(),
   personaId: z.union([z.string().uuid(), z.literal(""), z.null(), z.undefined()]).optional(),
   personaDisabled: z.boolean().optional().default(false),
   voiceAutoplay: z.boolean().nullable().optional(),

@@ -133,6 +133,27 @@ where
         .unwrap_or_default()
 }
 
+fn resolve_lorebook_ids_override_json(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    session: &JsonValue,
+) -> Result<Option<String>, String> {
+    match session.get("lorebookIdsOverride") {
+        Some(value) if value.is_null() => Ok(None),
+        Some(value) => Ok(Some(
+            serde_json::to_string(value).unwrap_or_else(|_| "[]".to_string()),
+        )),
+        None => conn
+            .query_row(
+                "SELECT lorebook_ids_override FROM sessions WHERE id = ?1",
+                params![session_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e)),
+    }
+}
+
 fn build_session_advanced_model_settings(
     temperature: Option<f64>,
     top_p: Option<f64>,
@@ -168,10 +189,10 @@ fn read_session_meta_typed_internal(
 ) -> Result<Option<Session>, String> {
     let row = conn
         .query_row(
-            "SELECT character_id, title, background_image_path, system_prompt, selected_scene_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, archived, created_at, updated_at, prompt_template_id, memory_progress_step FROM sessions WHERE id = ?",
+            "SELECT character_id, title, background_image_path, system_prompt, selected_scene_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, archived, created_at, updated_at, prompt_template_id, lorebook_ids_override, memory_progress_step FROM sessions WHERE id = ?",
             params![id],
             |r| Ok((
-                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<i64>>(6)?, r.get::<_, Option<i64>>(7)?, r.get::<_, Option<f64>>(8)?, r.get::<_, Option<f64>>(9)?, r.get::<_, Option<i64>>(10)?, r.get::<_, Option<f64>>(11)?, r.get::<_, Option<f64>>(12)?, r.get::<_, Option<i64>>(13)?, r.get::<_, String>(14)?, r.get::<_, String>(15)?, r.get::<_, Option<String>>(16)?, r.get::<_, i64>(17)?, r.get::<_, String>(18)?, r.get::<_, Option<String>>(19)?, r.get::<_, Option<String>>(20)?, r.get::<_, i64>(21)?, r.get::<_, i64>(22)?, r.get::<_, i64>(23)?, r.get::<_, Option<String>>(24)?, r.get::<_, Option<i64>>(25)?
+                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<i64>>(6)?, r.get::<_, Option<i64>>(7)?, r.get::<_, Option<f64>>(8)?, r.get::<_, Option<f64>>(9)?, r.get::<_, Option<i64>>(10)?, r.get::<_, Option<f64>>(11)?, r.get::<_, Option<f64>>(12)?, r.get::<_, Option<i64>>(13)?, r.get::<_, String>(14)?, r.get::<_, String>(15)?, r.get::<_, Option<String>>(16)?, r.get::<_, i64>(17)?, r.get::<_, String>(18)?, r.get::<_, Option<String>>(19)?, r.get::<_, Option<String>>(20)?, r.get::<_, i64>(21)?, r.get::<_, i64>(22)?, r.get::<_, i64>(23)?, r.get::<_, Option<String>>(24)?, r.get::<_, Option<String>>(25)?, r.get::<_, Option<i64>>(26)?
             )),
         )
         .optional()
@@ -203,6 +224,7 @@ fn read_session_meta_typed_internal(
         created_at,
         updated_at,
         prompt_template_id,
+        lorebook_ids_override_json,
         memory_progress_step,
     )) = row
     else {
@@ -217,6 +239,9 @@ fn read_session_meta_typed_internal(
         system_prompt,
         selected_scene_id,
         prompt_template_id,
+        lorebook_ids_override: parse_optional_json_or_default(
+            lorebook_ids_override_json.as_deref(),
+        ),
         persona_id,
         persona_disabled: persona_disabled.unwrap_or(0) != 0,
         voice_autoplay: voice_autoplay.map(|value| value != 0),
@@ -631,6 +656,7 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
         .get("promptTemplateId")
         .and_then(|v| v.as_str())
         .map(|x| x.to_string());
+    let lorebook_ids_override_json = resolve_lorebook_ids_override_json(&conn, &id, s)?;
     let persona_id = s
         .get("personaId")
         .and_then(|v| v.as_str())
@@ -697,8 +723,8 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
     let top_k = adv.and_then(|v| v.get("topK")).and_then(|v| v.as_i64());
 
     conn.execute(
-        r#"INSERT INTO sessions (id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, memory_progress_step, archived, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        r#"INSERT INTO sessions (id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, lorebook_ids_override, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, memory_progress_step, archived, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               character_id=excluded.character_id,
               title=excluded.title,
@@ -706,6 +732,7 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
               system_prompt=excluded.system_prompt,
               selected_scene_id=excluded.selected_scene_id,
               prompt_template_id=excluded.prompt_template_id,
+              lorebook_ids_override=excluded.lorebook_ids_override,
               persona_id=excluded.persona_id,
               persona_disabled=excluded.persona_disabled,
               voice_autoplay=excluded.voice_autoplay,
@@ -733,6 +760,7 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
             system_prompt,
             selected_scene_id,
             prompt_template_id,
+            lorebook_ids_override_json,
             persona_id,
             persona_disabled,
             voice_autoplay,
@@ -975,10 +1003,10 @@ pub fn messages_upsert_batch_internal(
 fn read_session_meta(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValue>, String> {
     let row = conn
         .query_row(
-            "SELECT character_id, title, background_image_path, system_prompt, selected_scene_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, archived, created_at, updated_at, prompt_template_id, memory_progress_step FROM sessions WHERE id = ?",
+            "SELECT character_id, title, background_image_path, system_prompt, selected_scene_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, archived, created_at, updated_at, prompt_template_id, lorebook_ids_override, memory_progress_step FROM sessions WHERE id = ?",
             params![id],
             |r| Ok((
-                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<i64>>(6)?, r.get::<_, Option<i64>>(7)?, r.get::<_, Option<f64>>(8)?, r.get::<_, Option<f64>>(9)?, r.get::<_, Option<i64>>(10)?, r.get::<_, Option<f64>>(11)?, r.get::<_, Option<f64>>(12)?, r.get::<_, Option<i64>>(13)?, r.get::<_, String>(14)?, r.get::<_, String>(15)?, r.get::<_, Option<String>>(16)?, r.get::<_, i64>(17)?, r.get::<_, String>(18)?, r.get::<_, Option<String>>(19)?, r.get::<_, Option<String>>(20)?, r.get::<_, i64>(21)?, r.get::<_, i64>(22)?, r.get::<_, i64>(23)?, r.get::<_, Option<String>>(24)?, r.get::<_, Option<i64>>(25)?
+                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<i64>>(6)?, r.get::<_, Option<i64>>(7)?, r.get::<_, Option<f64>>(8)?, r.get::<_, Option<f64>>(9)?, r.get::<_, Option<i64>>(10)?, r.get::<_, Option<f64>>(11)?, r.get::<_, Option<f64>>(12)?, r.get::<_, Option<i64>>(13)?, r.get::<_, String>(14)?, r.get::<_, String>(15)?, r.get::<_, Option<String>>(16)?, r.get::<_, i64>(17)?, r.get::<_, String>(18)?, r.get::<_, Option<String>>(19)?, r.get::<_, Option<String>>(20)?, r.get::<_, i64>(21)?, r.get::<_, i64>(22)?, r.get::<_, i64>(23)?, r.get::<_, Option<String>>(24)?, r.get::<_, Option<String>>(25)?, r.get::<_, Option<i64>>(26)?
             )),
         )
         .optional()
@@ -1009,6 +1037,7 @@ fn read_session_meta(conn: &rusqlite::Connection, id: &str) -> Result<Option<Jso
         created_at,
         updated_at,
         prompt_template_id,
+        lorebook_ids_override_json,
         memory_progress_step,
     )) = row
     else {
@@ -1049,6 +1078,7 @@ fn read_session_meta(conn: &rusqlite::Connection, id: &str) -> Result<Option<Jso
         "systemPrompt": system_prompt,
         "selectedSceneId": selected_scene_id,
         "promptTemplateId": prompt_template_id,
+        "lorebookIdsOverride": lorebook_ids_override_json.as_deref().and_then(|value| serde_json::from_str::<JsonValue>(value).ok()),
         "personaId": persona_id,
         "personaDisabled": persona_disabled.unwrap_or(0) != 0,
         "voiceAutoplay": voice_autoplay.map(|value| value != 0),
@@ -1072,10 +1102,10 @@ fn read_session_meta(conn: &rusqlite::Connection, id: &str) -> Result<Option<Jso
 fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValue>, String> {
     let row = conn
         .query_row(
-            "SELECT character_id, title, background_image_path, system_prompt, selected_scene_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, archived, created_at, updated_at, prompt_template_id, memory_progress_step FROM sessions WHERE id = ?",
+            "SELECT character_id, title, background_image_path, system_prompt, selected_scene_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, archived, created_at, updated_at, prompt_template_id, lorebook_ids_override, memory_progress_step FROM sessions WHERE id = ?",
             params![id],
             |r| Ok((
-                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<i64>>(6)?, r.get::<_, Option<i64>>(7)?, r.get::<_, Option<f64>>(8)?, r.get::<_, Option<f64>>(9)?, r.get::<_, Option<i64>>(10)?, r.get::<_, Option<f64>>(11)?, r.get::<_, Option<f64>>(12)?, r.get::<_, Option<i64>>(13)?, r.get::<_, String>(14)?, r.get::<_, String>(15)?, r.get::<_, Option<String>>(16)?, r.get::<_, i64>(17)?, r.get::<_, String>(18)?, r.get::<_, Option<String>>(19)?, r.get::<_, Option<String>>(20)?, r.get::<_, i64>(21)?, r.get::<_, i64>(22)?, r.get::<_, i64>(23)?, r.get::<_, Option<String>>(24)?, r.get::<_, Option<i64>>(25)?
+                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, Option<String>>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<i64>>(6)?, r.get::<_, Option<i64>>(7)?, r.get::<_, Option<f64>>(8)?, r.get::<_, Option<f64>>(9)?, r.get::<_, Option<i64>>(10)?, r.get::<_, Option<f64>>(11)?, r.get::<_, Option<f64>>(12)?, r.get::<_, Option<i64>>(13)?, r.get::<_, String>(14)?, r.get::<_, String>(15)?, r.get::<_, Option<String>>(16)?, r.get::<_, i64>(17)?, r.get::<_, String>(18)?, r.get::<_, Option<String>>(19)?, r.get::<_, Option<String>>(20)?, r.get::<_, i64>(21)?, r.get::<_, i64>(22)?, r.get::<_, i64>(23)?, r.get::<_, Option<String>>(24)?, r.get::<_, Option<String>>(25)?, r.get::<_, Option<i64>>(26)?
             )),
         )
         .optional()
@@ -1106,6 +1136,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
         created_at,
         updated_at,
         prompt_template_id,
+        lorebook_ids_override_json,
         memory_progress_step,
     )) = row
     else {
@@ -1258,6 +1289,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
         "systemPrompt": system_prompt,
         "selectedSceneId": selected_scene_id,
         "promptTemplateId": prompt_template_id,
+        "lorebookIdsOverride": lorebook_ids_override_json.as_deref().and_then(|value| serde_json::from_str::<JsonValue>(value).ok()),
         "personaId": persona_id,
         "personaDisabled": persona_disabled.unwrap_or(0) != 0,
         "voiceAutoplay": voice_autoplay.map(|value| value != 0),
@@ -1965,6 +1997,7 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
         .get("promptTemplateId")
         .and_then(|v| v.as_str())
         .map(|x| x.to_string());
+    let lorebook_ids_override_json = resolve_lorebook_ids_override_json(&conn, &id, &s)?;
     let persona_id = s
         .get("personaId")
         .and_then(|v| v.as_str())
@@ -2031,8 +2064,8 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
     let top_k = adv.and_then(|v| v.get("topK")).and_then(|v| v.as_i64());
 
     conn.execute(
-        r#"INSERT INTO sessions (id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, memory_progress_step, archived, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        r#"INSERT INTO sessions (id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, lorebook_ids_override, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, memory_progress_step, archived, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               character_id=excluded.character_id,
               title=excluded.title,
@@ -2040,6 +2073,7 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
               system_prompt=excluded.system_prompt,
               selected_scene_id=excluded.selected_scene_id,
               prompt_template_id=excluded.prompt_template_id,
+              lorebook_ids_override=excluded.lorebook_ids_override,
               persona_id=excluded.persona_id,
               persona_disabled=excluded.persona_disabled,
               voice_autoplay=excluded.voice_autoplay,
@@ -2067,6 +2101,7 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
             system_prompt,
             selected_scene_id,
             prompt_template_id,
+            lorebook_ids_override_json,
             persona_id,
             persona_disabled,
             voice_autoplay,
@@ -2393,6 +2428,7 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
         .get("promptTemplateId")
         .and_then(|v| v.as_str())
         .map(|x| x.to_string());
+    let lorebook_ids_override_json = resolve_lorebook_ids_override_json(&conn, &id, &s)?;
     let persona_id = s
         .get("personaId")
         .and_then(|v| v.as_str())
@@ -2470,8 +2506,8 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
         .transaction()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     tx.execute(
-        r#"INSERT INTO sessions (id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, archived, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        r#"INSERT INTO sessions (id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, lorebook_ids_override, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, archived, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               character_id=excluded.character_id,
               title=excluded.title,
@@ -2479,6 +2515,7 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
               system_prompt=excluded.system_prompt,
               selected_scene_id=excluded.selected_scene_id,
               prompt_template_id=excluded.prompt_template_id,
+              lorebook_ids_override=excluded.lorebook_ids_override,
               persona_id=excluded.persona_id,
               persona_disabled=excluded.persona_disabled,
               voice_autoplay=excluded.voice_autoplay,
@@ -2495,7 +2532,7 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
               memory_tool_events=excluded.memory_tool_events,
               archived=excluded.archived,
               updated_at=excluded.updated_at"#,
-        params![&id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, &memories_json, &memory_embeddings_json, memory_summary, memory_summary_token_count, &memory_tool_events_json, archived, created_at, updated_at],
+        params![&id, character_id, title, background_image_path, system_prompt, selected_scene_id, prompt_template_id, lorebook_ids_override_json, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, &memories_json, &memory_embeddings_json, memory_summary, memory_summary_token_count, &memory_tool_events_json, archived, created_at, updated_at],
     ).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     if let Some(msgs) = s.get("messages").and_then(|v| v.as_array()) {

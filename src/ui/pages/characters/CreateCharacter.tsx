@@ -162,6 +162,7 @@ export function CreateCharacterPage() {
       defaultModelId: state.selectedModelId,
       fallbackModelId: state.selectedFallbackModelId,
       promptTemplateId: state.systemPromptTemplateId,
+      activeLorebookIds: state.activeLorebookIds,
       memoryType: state.memoryType,
       disableAvatarGradient: state.disableAvatarGradient,
       voiceConfig: state.voiceConfig,
@@ -189,6 +190,7 @@ export function CreateCharacterPage() {
     state.selectedModelId,
     state.selectedFallbackModelId,
     state.systemPromptTemplateId,
+    state.activeLorebookIds,
     state.memoryType,
     state.disableAvatarGradient,
     state.voiceConfig,
@@ -374,6 +376,8 @@ export function CreateCharacterPage() {
               onCreatorNotesMultilingualTextChange={actions.setCreatorNotesMultilingualText}
               tagsText={state.tagsText}
               onTagsTextChange={actions.setTagsText}
+              activeLorebookIds={state.activeLorebookIds}
+              onActiveLorebookIdsChange={actions.setActiveLorebookIds}
               onSave={handleSave}
               saving={state.saving}
               error={state.error}

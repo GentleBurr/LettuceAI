@@ -1,4 +1,5 @@
 export { CreateCharacterHeader } from "./CreateCharacterHeader";
+export { ActiveLorebooksSelector } from "./ActiveLorebooksSelector";
 export { ProgressIndicator } from "./ProgressIndicator";
 export { IdentityStep } from "./IdentityStep";
 export { StartingSceneStep } from "./StartingSceneStep";

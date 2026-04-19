@@ -904,6 +904,7 @@ export async function saveCharacter(c: Partial<Character>): Promise<Character> {
     defaultModelId: c.defaultModelId ?? null,
     fallbackModelId: c.fallbackModelId ?? null,
     memoryType: c.memoryType ?? "manual",
+    activeLorebookIds: c.activeLorebookIds ?? [],
     promptTemplateId: c.promptTemplateId ?? null,
     groupChatPromptTemplateId: c.groupChatPromptTemplateId ?? null,
     groupChatRoleplayPromptTemplateId: c.groupChatRoleplayPromptTemplateId ?? null,
@@ -1245,6 +1246,7 @@ export async function createSession(
 
   const messages: StoredMessage[] = [];
   let sessionPromptTemplateId: string | null | undefined = undefined;
+  let sessionLorebookIdsOverride: string[] | null = null;
 
   const characters = await listCharacters();
   const character = characters.find((c) => c.id === characterId);
@@ -1259,6 +1261,9 @@ export async function createSession(
     if (template) {
       sessionSceneId = template.sceneId ?? undefined;
       sessionPromptTemplateId = template.promptTemplateId ?? character.promptTemplateId ?? null;
+      sessionLorebookIdsOverride = Array.isArray(template.lorebookIdsOverride)
+        ? template.lorebookIdsOverride
+        : null;
 
       for (let i = 0; i < template.messages.length; i++) {
         const msg = template.messages[i];
@@ -1303,6 +1308,7 @@ export async function createSession(
     title,
     selectedSceneId: sessionSceneId,
     promptTemplateId: sessionPromptTemplateId,
+    lorebookIdsOverride: sessionLorebookIdsOverride,
     personaDisabled: false,
     memories: [],
     memorySummaryTokenCount: 0,

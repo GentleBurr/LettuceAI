@@ -302,42 +302,13 @@ pub fn list_character_lorebooks(
     conn: &DbConnection,
     character_id: &str,
 ) -> Result<Vec<Lorebook>, String> {
-    let mut stmt = conn
-        .prepare(
-            r#"
-            SELECT l.id, l.name, l.avatar_path, l.keyword_detection_mode, l.created_at, l.updated_at
-            FROM character_lorebooks cl
-            JOIN lorebooks l ON l.id = cl.lorebook_id
-            WHERE cl.character_id = ?1 AND cl.enabled = 1
-            ORDER BY cl.display_order ASC, l.updated_at DESC
-            "#,
-        )
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to prepare character lorebooks list: {}", e),
-            )
-        })?;
-
-    let items = stmt
-        .query_map(params![character_id], Lorebook::from_row)
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to query character lorebooks: {}", e),
-            )
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to collect character lorebooks: {}", e),
-            )
-        })?;
-
+    let lorebook_ids = get_character_active_lorebook_ids(conn, character_id)?;
+    let mut items = Vec::with_capacity(lorebook_ids.len());
+    for lorebook_id in lorebook_ids {
+        if let Some(lorebook) = get_lorebook(conn, &lorebook_id)? {
+            items.push(lorebook);
+        }
+    }
     Ok(items)
 }
 
@@ -346,47 +317,50 @@ pub fn set_character_lorebooks(
     character_id: &str,
     lorebook_ids: &[String],
 ) -> Result<(), String> {
-    let now = now_millis()? as i64;
-    let tx = conn.transaction().map_err(|e| {
+    let lorebook_ids_json = serde_json::to_string(lorebook_ids).map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
             line!(),
-            format!("Failed to start transaction: {}", e),
+            format!("Failed to serialize character lorebook ids: {}", e),
         )
     })?;
-
-    tx.execute(
-        "DELETE FROM character_lorebooks WHERE character_id = ?1",
-        params![character_id],
+    conn.execute(
+        "UPDATE characters SET active_lorebook_ids = ?1, updated_at = ?2 WHERE id = ?3",
+        params![lorebook_ids_json, now_millis()? as i64, character_id],
     )
     .map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
             line!(),
-            format!("Failed to clear character lorebooks: {}", e),
-        )
-    })?;
-
-    for (idx, lorebook_id) in lorebook_ids.iter().enumerate() {
-        tx.execute(
-            r#"
-            INSERT INTO character_lorebooks (character_id, lorebook_id, enabled, display_order, created_at, updated_at)
-            VALUES (?1, ?2, 1, ?3, ?4, ?4)
-            "#,
-            params![character_id, lorebook_id, idx as i32, now],
-        )
-        .map_err(|e| crate::utils::err_msg(module_path!(), line!(), format!("Failed to set character lorebook mapping: {}", e)))?;
-    }
-
-    tx.commit().map_err(|e| {
-        crate::utils::err_msg(
-            module_path!(),
-            line!(),
-            format!("Failed to commit character lorebooks: {}", e),
+            format!("Failed to set character lorebook ids: {}", e),
         )
     })?;
 
     Ok(())
+}
+
+pub fn get_character_active_lorebook_ids(
+    conn: &DbConnection,
+    character_id: &str,
+) -> Result<Vec<String>, String> {
+    let raw: Option<String> = conn
+        .query_row(
+            "SELECT active_lorebook_ids FROM characters WHERE id = ?1",
+            params![character_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to query character active lorebook ids: {}", e),
+            )
+        })?;
+
+    Ok(raw
+        .and_then(|value| serde_json::from_str::<Vec<String>>(&value).ok())
+        .unwrap_or_default())
 }
 
 // ============================================================================
@@ -441,51 +415,8 @@ pub fn get_enabled_character_lorebook_entry_contexts(
     conn: &DbConnection,
     character_id: &str,
 ) -> Result<Vec<LorebookEntryActivationContext>, String> {
-    let mut stmt = conn
-        .prepare(
-            r#"
-            SELECT e.id, e.lorebook_id, e.title, e.enabled, e.always_active, e.keywords,
-                   e.case_sensitive, e.content, e.priority, e.display_order,
-                   e.created_at, e.updated_at, l.keyword_detection_mode
-            FROM lorebook_entries e
-            JOIN character_lorebooks cl ON cl.lorebook_id = e.lorebook_id
-            JOIN lorebooks l ON l.id = e.lorebook_id
-            WHERE cl.character_id = ?1 AND cl.enabled = 1 AND e.enabled = 1
-            ORDER BY cl.display_order ASC, e.display_order ASC, e.created_at ASC
-            "#,
-        )
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to prepare enabled entries query: {}", e),
-            )
-        })?;
-
-    let entries = stmt
-        .query_map(params![character_id], |row| {
-            Ok(LorebookEntryActivationContext {
-                entry: LorebookEntry::from_row(row)?,
-                keyword_detection_mode: LorebookKeywordDetectionMode::from_db_value(row.get(12)?),
-            })
-        })
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to execute enabled entries query: {}", e),
-            )
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Failed to collect enabled entries: {}", e),
-            )
-        })?;
-
-    Ok(entries)
+    let lorebook_ids = get_character_active_lorebook_ids(conn, character_id)?;
+    get_enabled_lorebook_entry_contexts_for_ids(conn, &lorebook_ids)
 }
 
 pub fn get_enabled_lorebook_entry_contexts_for_ids(

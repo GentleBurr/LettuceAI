@@ -65,6 +65,7 @@ interface CharacterFormState {
   systemPromptTemplateId: string | null;
   groupChatPromptTemplateId: string | null;
   groupChatRoleplayPromptTemplateId: string | null;
+  activeLorebookIds: string[];
   memoryType: "manual" | "dynamic";
   dynamicMemoryEnabled: boolean;
   disableAvatarGradient: boolean;
@@ -110,6 +111,7 @@ type CharacterFormAction =
   | { type: "SET_SYSTEM_PROMPT_TEMPLATE_ID"; payload: string | null }
   | { type: "SET_GROUP_CHAT_PROMPT_TEMPLATE_ID"; payload: string | null }
   | { type: "SET_GROUP_CHAT_ROLEPLAY_PROMPT_TEMPLATE_ID"; payload: string | null }
+  | { type: "SET_ACTIVE_LOREBOOK_IDS"; payload: string[] }
   | { type: "SET_MEMORY_TYPE"; payload: "manual" | "dynamic" }
   | { type: "SET_DYNAMIC_MEMORY_ENABLED"; payload: boolean }
   | { type: "SET_DISABLE_AVATAR_GRADIENT"; payload: boolean }
@@ -149,6 +151,7 @@ const initialState: CharacterFormState = {
   systemPromptTemplateId: null,
   groupChatPromptTemplateId: null,
   groupChatRoleplayPromptTemplateId: null,
+  activeLorebookIds: [],
   memoryType: "manual",
   dynamicMemoryEnabled: false,
   disableAvatarGradient: false,
@@ -215,6 +218,8 @@ function characterFormReducer(
       return { ...state, groupChatPromptTemplateId: action.payload };
     case "SET_GROUP_CHAT_ROLEPLAY_PROMPT_TEMPLATE_ID":
       return { ...state, groupChatRoleplayPromptTemplateId: action.payload };
+    case "SET_ACTIVE_LOREBOOK_IDS":
+      return { ...state, activeLorebookIds: action.payload };
     case "SET_MEMORY_TYPE":
       return { ...state, memoryType: action.payload };
     case "SET_DYNAMIC_MEMORY_ENABLED":
@@ -344,6 +349,12 @@ export function useCharacterForm(draftCharacter?: any) {
           dispatch({
             type: "SET_GROUP_CHAT_ROLEPLAY_PROMPT_TEMPLATE_ID",
             payload: draftCharacter.groupChatRoleplayPromptTemplateId || null,
+          });
+          dispatch({
+            type: "SET_ACTIVE_LOREBOOK_IDS",
+            payload: Array.isArray(draftCharacter.activeLorebookIds)
+              ? draftCharacter.activeLorebookIds
+              : [],
           });
 
           if (draftCharacter.scenes && draftCharacter.scenes.length > 0) {
@@ -501,6 +512,10 @@ export function useCharacterForm(draftCharacter?: any) {
 
   const setGroupChatRoleplayPromptTemplateId = useCallback((id: string | null) => {
     dispatch({ type: "SET_GROUP_CHAT_ROLEPLAY_PROMPT_TEMPLATE_ID", payload: id });
+  }, []);
+
+  const setActiveLorebookIds = useCallback((ids: string[]) => {
+    dispatch({ type: "SET_ACTIVE_LOREBOOK_IDS", payload: ids });
   }, []);
 
   const setMemoryType = useCallback((memoryType: "manual" | "dynamic") => {
@@ -663,6 +678,12 @@ export function useCharacterForm(draftCharacter?: any) {
       dispatch({
         type: "SET_SYSTEM_PROMPT_TEMPLATE_ID",
         payload: characterData.promptTemplateId || null,
+      });
+      const importedActiveLorebookIds = (characterData as { activeLorebookIds?: string[] })
+        .activeLorebookIds;
+      dispatch({
+        type: "SET_ACTIVE_LOREBOOK_IDS",
+        payload: Array.isArray(importedActiveLorebookIds) ? importedActiveLorebookIds : [],
       });
       const importedMemoryType = characterData.memoryType === "dynamic" ? "dynamic" : "manual";
       dispatch({
@@ -914,6 +935,7 @@ export function useCharacterForm(draftCharacter?: any) {
         promptTemplateId: state.systemPromptTemplateId,
         groupChatPromptTemplateId: state.groupChatPromptTemplateId,
         groupChatRoleplayPromptTemplateId: state.groupChatRoleplayPromptTemplateId,
+        activeLorebookIds: state.activeLorebookIds,
         memoryType: state.dynamicMemoryEnabled ? state.memoryType : "manual",
         disableAvatarGradient: state.disableAvatarGradient,
         voiceConfig: state.voiceConfig || undefined,
@@ -957,7 +979,10 @@ export function useCharacterForm(draftCharacter?: any) {
           });
         }
 
-        await setCharacterLorebooks(characterId, [lorebook.id]);
+        await setCharacterLorebooks(characterId, [
+          ...state.activeLorebookIds.filter((id) => id !== lorebook.id),
+          lorebook.id,
+        ]);
       }
 
       return true; // Success
@@ -991,6 +1016,7 @@ export function useCharacterForm(draftCharacter?: any) {
     state.systemPromptTemplateId,
     state.groupChatPromptTemplateId,
     state.groupChatRoleplayPromptTemplateId,
+    state.activeLorebookIds,
     state.memoryType,
     state.dynamicMemoryEnabled,
     state.voiceConfig,
@@ -1038,6 +1064,7 @@ export function useCharacterForm(draftCharacter?: any) {
       setSystemPromptTemplateId,
       setGroupChatPromptTemplateId,
       setGroupChatRoleplayPromptTemplateId,
+      setActiveLorebookIds,
       setMemoryType,
       setDisableAvatarGradient,
       setVoiceConfig,

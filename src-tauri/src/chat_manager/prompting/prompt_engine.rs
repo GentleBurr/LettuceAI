@@ -3,7 +3,9 @@ use blake3::Hasher;
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use super::lorebook_matcher::{format_lorebook_for_prompt, get_active_lorebook_entries};
+use super::lorebook_matcher::{
+    format_lorebook_for_prompt, get_active_lorebook_entries, get_active_lorebook_entries_for_ids,
+};
 use super::prompts;
 use crate::chat_manager::execution::RequestSettings;
 use crate::chat_manager::memory::manual::{has_manual_memories, render_manual_memory_lines};
@@ -1273,8 +1275,17 @@ fn get_lorebook_content(
         ),
     );
 
-    let active_entries =
-        get_active_lorebook_entries(&conn, character_id, &recent_messages, latest_user_message)?;
+    let active_entries = if let Some(lorebook_ids_override) = session.lorebook_ids_override.as_ref()
+    {
+        get_active_lorebook_entries_for_ids(
+            &conn,
+            lorebook_ids_override,
+            &recent_messages,
+            latest_user_message,
+        )?
+    } else {
+        get_active_lorebook_entries(&conn, character_id, &recent_messages, latest_user_message)?
+    };
 
     if active_entries.is_empty() {
         utils::log_info(
@@ -1335,14 +1346,25 @@ pub fn resolve_used_lorebook_entries(
         .find(|msg| msg.role == "user" && !msg.content.trim().is_empty())
         .map(|msg| msg.content.as_str());
 
-    let active_entries = match get_active_lorebook_entries(
-        &conn,
-        character_id,
-        &recent_messages,
-        latest_user_message,
-    ) {
-        Ok(entries) => entries,
-        Err(_) => return Vec::new(),
+    let active_entries = match session.lorebook_ids_override.as_ref() {
+        Some(lorebook_ids_override) => match get_active_lorebook_entries_for_ids(
+            &conn,
+            lorebook_ids_override,
+            &recent_messages,
+            latest_user_message,
+        ) {
+            Ok(entries) => entries,
+            Err(_) => return Vec::new(),
+        },
+        None => match get_active_lorebook_entries(
+            &conn,
+            character_id,
+            &recent_messages,
+            latest_user_message,
+        ) {
+            Ok(entries) => entries,
+            Err(_) => return Vec::new(),
+        },
     };
     if active_entries.is_empty() {
         return Vec::new();
@@ -2530,6 +2552,7 @@ mod tests {
             default_model_id: None,
             fallback_model_id: None,
             memory_type: "manual".into(),
+            active_lorebook_ids: vec![],
             prompt_template_id: None,
             group_chat_prompt_template_id: None,
             group_chat_roleplay_prompt_template_id: None,
@@ -2581,6 +2604,7 @@ mod tests {
             system_prompt: None,
             selected_scene_id: None,
             prompt_template_id: None,
+            lorebook_ids_override: None,
             persona_id: None,
             persona_disabled: false,
             voice_autoplay: None,

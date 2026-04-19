@@ -11,6 +11,7 @@ type LegacyChatTemplateExport = {
     messages: Array<{ role: "user" | "assistant"; content: string }>;
     sceneId?: string | null;
     promptTemplateId?: string | null;
+    lorebookIdsOverride?: string[] | null;
   };
 };
 
@@ -37,6 +38,7 @@ function normalizeImportedTemplate(input: {
   messages?: unknown;
   sceneId?: unknown;
   promptTemplateId?: unknown;
+  lorebookIdsOverride?: unknown;
 }): ChatTemplate {
   const name = typeof input.name === "string" ? input.name.trim() : "";
   if (!name) {
@@ -52,6 +54,9 @@ function normalizeImportedTemplate(input: {
     messages,
     sceneId: typeof input.sceneId === "string" ? input.sceneId : null,
     promptTemplateId: typeof input.promptTemplateId === "string" ? input.promptTemplateId : null,
+    lorebookIdsOverride: Array.isArray(input.lorebookIdsOverride)
+      ? input.lorebookIdsOverride.filter((id): id is string => typeof id === "string")
+      : null,
     createdAt: Date.now(),
   };
 }
@@ -74,6 +79,9 @@ export function serializeChatTemplateExport(template: ChatTemplate): string {
       })),
       sceneId: template.sceneId ?? null,
       promptTemplateId: template.promptTemplateId ?? null,
+      lorebookIdsOverride: Array.isArray(template.lorebookIdsOverride)
+        ? template.lorebookIdsOverride
+        : null,
     },
   };
 
@@ -92,6 +100,7 @@ export function importChatTemplate(raw: string): ChatTemplate {
         typeof parsed.payload.systemPromptTemplate?.id === "string"
           ? parsed.payload.systemPromptTemplate.id
           : null,
+      lorebookIdsOverride: parsed.payload.lorebookIdsOverride,
     });
   }
 

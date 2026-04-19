@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User, PenTool, Tag, FileText, Globe, AlertCircle } from "lucide-react";
 import { radius, interactive, typography, spacing, shadows, cn } from "../../../design-tokens";
 import { useI18n } from "../../../../core/i18n/context";
+import { ActiveLorebooksSelector } from "./ActiveLorebooksSelector";
 
 interface ExtrasStepProps {
   nickname: string;
@@ -14,6 +15,8 @@ interface ExtrasStepProps {
   onCreatorNotesMultilingualTextChange: (value: string) => void;
   tagsText: string;
   onTagsTextChange: (value: string) => void;
+  activeLorebookIds: string[];
+  onActiveLorebookIdsChange: (ids: string[]) => void;
   onSave: () => void;
   saving: boolean;
   error: string | null;
@@ -30,6 +33,8 @@ export function ExtrasStep({
   onCreatorNotesMultilingualTextChange,
   tagsText,
   onTagsTextChange,
+  activeLorebookIds,
+  onActiveLorebookIdsChange,
   onSave,
   saving,
   error,
@@ -245,6 +250,12 @@ export function ExtrasStep({
           </p>
         </div>
       </div>
+
+      <ActiveLorebooksSelector
+        selectedIds={activeLorebookIds}
+        onChange={onActiveLorebookIdsChange}
+        disabled={saving}
+      />
 
       {/* Error Display */}
       <AnimatePresence>

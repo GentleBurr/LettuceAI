@@ -14,6 +14,7 @@ use tauri::Manager;
 
 use super::db::{now_ms, open_db};
 use super::legacy::storage_root;
+use super::lorebook::{get_lorebook, get_lorebook_entries, Lorebook, LorebookEntry};
 use super::media::storage_write_image_bytes;
 use crate::storage_manager::internal_read_settings;
 use crate::utils::log_info;
@@ -70,6 +71,10 @@ pub struct CharacterExportData {
     pub default_model_id: Option<String>,
     #[serde(default)]
     pub memory_type: Option<String>,
+    #[serde(default)]
+    pub active_lorebook_ids: Vec<String>,
+    #[serde(default)]
+    pub lorebooks: Vec<LorebookExportData>,
     pub prompt_template_id: Option<String>,
     pub system_prompt: Option<String>,
     pub voice_config: Option<JsonValue>,
@@ -84,6 +89,14 @@ pub struct CharacterExportData {
     pub chat_templates: Vec<ChatTemplateExport>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_chat_template_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LorebookExportData {
+    pub lorebook: Lorebook,
+    #[serde(default)]
+    pub entries: Vec<LorebookEntry>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -633,6 +646,22 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
     let memory_type = app_specific
         .and_then(|map| map.get("memoryType").and_then(|v| v.as_str()))
         .map(|value| value.to_string());
+    let active_lorebook_ids = app_specific
+        .and_then(|map| map.get("activeLorebookIds"))
+        .or_else(|| payload.get("activeLorebookIds"))
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(|id| id.to_string()))
+                .collect::<Vec<String>>()
+        })
+        .unwrap_or_default();
+    let lorebooks = app_specific
+        .and_then(|map| map.get("lorebooks"))
+        .or_else(|| payload.get("lorebooks"))
+        .and_then(|value| serde_json::from_value::<Vec<LorebookExportData>>(value.clone()).ok())
+        .unwrap_or_default();
     let disable_avatar_gradient = app_specific
         .and_then(|map| map.get("disableAvatarGradient").and_then(|v| v.as_bool()))
         .unwrap_or(false);
@@ -689,6 +718,8 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
             default_scene_id,
             default_model_id,
             memory_type,
+            active_lorebook_ids,
+            lorebooks,
             prompt_template_id,
             system_prompt,
             voice_config,
@@ -1069,6 +1100,7 @@ fn load_character_export_snapshot(
         voice_config_raw,
         voice_autoplay_raw,
         memory_type,
+        active_lorebook_ids_json,
         disable_avatar_gradient,
         custom_gradient_enabled,
         custom_gradient_colors,
@@ -1100,6 +1132,7 @@ fn load_character_export_snapshot(
         Option<String>, // voice_config
         Option<i64>,    // voice_autoplay
         Option<String>, // memory_type
+        Option<String>, // active_lorebook_ids
         i64,            // disable_avatar_gradient
         i64,            // custom_gradient_enabled
         Option<String>, // custom_gradient_colors
@@ -1113,7 +1146,7 @@ fn load_character_export_snapshot(
         i64,            // updated_at
     ) = conn
         .query_row(
-            "SELECT name, avatar_path, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, avatar_crop_x, avatar_crop_y, avatar_crop_scale, default_chat_template_id, created_at, updated_at FROM characters WHERE id = ?",
+            "SELECT name, avatar_path, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, active_lorebook_ids, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, avatar_crop_x, avatar_crop_y, avatar_crop_scale, default_chat_template_id, created_at, updated_at FROM characters WHERE id = ?",
             params![character_id],
             |r| {
                 Ok((
@@ -1136,9 +1169,9 @@ fn load_character_export_snapshot(
                     r.get(16)?,
                     r.get(17)?,
                     r.get(18)?,
-                    r.get::<_, i64>(19)?,
+                    r.get(19)?,
                     r.get::<_, i64>(20)?,
-                    r.get(21)?,
+                    r.get::<_, i64>(21)?,
                     r.get(22)?,
                     r.get(23)?,
                     r.get(24)?,
@@ -1147,6 +1180,7 @@ fn load_character_export_snapshot(
                     r.get(27)?,
                     r.get(28)?,
                     r.get(29)?,
+                    r.get(30)?,
                 ))
             },
         )
@@ -1294,6 +1328,17 @@ fn load_character_export_snapshot(
     let tags = tags
         .as_ref()
         .and_then(|value| serde_json::from_str::<Vec<String>>(value).ok());
+    let active_lorebook_ids = active_lorebook_ids_json
+        .as_ref()
+        .and_then(|value| serde_json::from_str::<Vec<String>>(value).ok())
+        .unwrap_or_default();
+    let mut lorebooks = Vec::new();
+    for lorebook_id in &active_lorebook_ids {
+        if let Some(lorebook) = get_lorebook(&conn, lorebook_id)? {
+            let entries = get_lorebook_entries(&conn, lorebook_id)?;
+            lorebooks.push(LorebookExportData { lorebook, entries });
+        }
+    }
 
     let custom_gradient_colors = custom_gradient_colors
         .as_ref()
@@ -1323,6 +1368,8 @@ fn load_character_export_snapshot(
             default_scene_id,
             default_model_id,
             memory_type: Some(memory_value),
+            active_lorebook_ids,
+            lorebooks,
             prompt_template_id,
             system_prompt,
             voice_config,
@@ -1459,6 +1506,19 @@ fn build_uec_from_package(
         JsonValue::Bool(package.character.disable_avatar_gradient),
     );
     app_specific.insert("memoryType".into(), JsonValue::String(memory_value));
+    if !package.character.active_lorebook_ids.is_empty() {
+        app_specific.insert(
+            "activeLorebookIds".into(),
+            serde_json::json!(package.character.active_lorebook_ids),
+        );
+    }
+    if !package.character.lorebooks.is_empty() {
+        app_specific.insert(
+            "lorebooks".into(),
+            serde_json::to_value(&package.character.lorebooks)
+                .unwrap_or(JsonValue::Array(Vec::new())),
+        );
+    }
     app_specific.insert(
         "customGradientEnabled".into(),
         JsonValue::Bool(package.character.custom_gradient_enabled.unwrap_or(false)),
@@ -1661,6 +1721,84 @@ pub fn character_detect_format(import_json: String) -> Result<CharacterFormatInf
     Ok(engine::character_format_info(format))
 }
 
+fn import_lorebooks_for_character_package(
+    tx: &rusqlite::Transaction<'_>,
+    package: &CharacterExportPackage,
+    now: i64,
+) -> Result<Vec<String>, String> {
+    let mut lorebook_id_map = std::collections::HashMap::new();
+
+    for bundled in &package.character.lorebooks {
+        let new_lorebook_id = uuid::Uuid::new_v4().to_string();
+        lorebook_id_map.insert(bundled.lorebook.id.clone(), new_lorebook_id.clone());
+        tx.execute(
+            "INSERT INTO lorebooks (id, name, avatar_path, keyword_detection_mode, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                &new_lorebook_id,
+                &bundled.lorebook.name,
+                &bundled.lorebook.avatar_path,
+                bundled.lorebook.keyword_detection_mode.as_db_value(),
+                now,
+                now,
+            ],
+        )
+        .map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to import bundled lorebook: {}", e),
+            )
+        })?;
+
+        for entry in &bundled.entries {
+            let keywords_json = serde_json::to_string(&entry.keywords).map_err(|e| {
+                crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!("Failed to serialize bundled lorebook entry keywords: {}", e),
+                )
+            })?;
+            tx.execute(
+                r#"
+                INSERT INTO lorebook_entries (
+                    id, lorebook_id, title, enabled, always_active, keywords,
+                    case_sensitive, content, priority, display_order, created_at, updated_at
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                "#,
+                params![
+                    uuid::Uuid::new_v4().to_string(),
+                    &new_lorebook_id,
+                    &entry.title,
+                    entry.enabled as i64,
+                    entry.always_active as i64,
+                    keywords_json,
+                    entry.case_sensitive as i64,
+                    &entry.content,
+                    entry.priority,
+                    entry.display_order,
+                    now,
+                    now,
+                ],
+            )
+            .map_err(|e| {
+                crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!("Failed to import bundled lorebook entry: {}", e),
+                )
+            })?;
+        }
+    }
+
+    Ok(package
+        .character
+        .active_lorebook_ids
+        .iter()
+        .map(|id| lorebook_id_map.get(id).cloned().unwrap_or_else(|| id.clone()))
+        .collect())
+}
+
 /// Import a character from a JSON package
 #[tauri::command]
 pub fn character_import(app: tauri::AppHandle, import_json: String) -> Result<String, String> {
@@ -1854,6 +1992,22 @@ pub fn character_import(app: tauri::AppHandle, import_json: String) -> Result<St
         ],
     )
     .map_err(|e| crate::utils::err_msg(module_path!(), line!(), format!("Failed to insert character: {}", e)))?;
+
+    let active_lorebook_ids = import_lorebooks_for_character_package(&tx, &package, now)?;
+    if !active_lorebook_ids.is_empty() {
+        let active_lorebook_ids_json = serde_json::to_string(&active_lorebook_ids).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to serialize imported character lorebook ids: {}", e),
+            )
+        })?;
+        tx.execute(
+            "UPDATE characters SET active_lorebook_ids = ?1 WHERE id = ?2",
+            params![active_lorebook_ids_json, &new_character_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
 
     // Insert rules
     for (idx, rule) in package.character.rules.iter().enumerate() {
@@ -2049,6 +2203,8 @@ fn build_character_import_preview(
         "defaultSceneId": package.character.default_scene_id,
         "defaultChatTemplateId": package.character.default_chat_template_id,
         "promptTemplateId": package.character.prompt_template_id,
+        "activeLorebookIds": package.character.active_lorebook_ids,
+        "lorebooks": package.character.lorebooks,
         "memoryType": memory_type,
         "disableAvatarGradient": package.character.disable_avatar_gradient,
         "fileFormat": format,
@@ -2229,6 +2385,19 @@ pub fn convert_export_to_uec(import_json: String) -> Result<String, String> {
                 .clone()
                 .unwrap_or_else(|| "manual".to_string());
             app_specific.insert("memoryType".into(), JsonValue::String(memory_type));
+            if !package.character.active_lorebook_ids.is_empty() {
+                app_specific.insert(
+                    "activeLorebookIds".into(),
+                    serde_json::json!(package.character.active_lorebook_ids),
+                );
+            }
+            if !package.character.lorebooks.is_empty() {
+                app_specific.insert(
+                    "lorebooks".into(),
+                    serde_json::to_value(&package.character.lorebooks)
+                        .unwrap_or(JsonValue::Array(Vec::new())),
+                );
+            }
             if let Some(enabled) = package.character.custom_gradient_enabled {
                 app_specific.insert("customGradientEnabled".into(), JsonValue::Bool(enabled));
             }
@@ -2676,6 +2845,7 @@ fn read_imported_character(
         default_scene_id,
         default_model_id,
         prompt_template_id,
+        active_lorebook_ids,
         system_prompt,
         voice_config,
         voice_autoplay,
@@ -2706,6 +2876,7 @@ fn read_imported_character(
         Option<String>, // default_scene_id
         Option<String>, // default_model_id
         Option<String>, // prompt_template_id
+        Option<String>, // active_lorebook_ids
         Option<String>, // system_prompt
         Option<String>, // voice_config
         Option<i64>,    // voice_autoplay
@@ -2719,7 +2890,7 @@ fn read_imported_character(
         i64,            // updated_at
     ) = conn
         .query_row(
-            "SELECT name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, created_at, updated_at FROM characters WHERE id = ?",
+            "SELECT name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, prompt_template_id, active_lorebook_ids, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, created_at, updated_at FROM characters WHERE id = ?",
             params![character_id],
             |r| {
                 Ok((
@@ -2745,13 +2916,14 @@ fn read_imported_character(
                     r.get(19)?,
                     r.get(20)?,
                     r.get(21)?,
-                    r.get::<_, i64>(22)?,
+                    r.get(22)?,
                     r.get::<_, i64>(23)?,
-                    r.get(24)?,
+                    r.get::<_, i64>(24)?,
                     r.get(25)?,
                     r.get(26)?,
                     r.get(27)?,
                     r.get(28)?,
+                    r.get(29)?,
                 ))
             },
         )
@@ -2893,6 +3065,11 @@ fn read_imported_character(
     }
     if let Some(dm) = default_model_id {
         root.insert("defaultModelId".into(), JsonValue::String(dm));
+    }
+    if let Some(value) = active_lorebook_ids {
+        if let Ok(parsed) = serde_json::from_str::<Vec<String>>(&value) {
+            root.insert("activeLorebookIds".into(), serde_json::json!(parsed));
+        }
     }
     let memory_value = memory_type.unwrap_or_else(|| "manual".to_string());
     root.insert("memoryType".into(), JsonValue::String(memory_value));

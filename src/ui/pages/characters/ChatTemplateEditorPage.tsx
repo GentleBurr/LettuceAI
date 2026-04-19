@@ -15,8 +15,9 @@ import {
   MessageSquare,
   ChevronDown,
   SlidersHorizontal,
+  BookOpen,
 } from "lucide-react";
-import { listCharacters, saveCharacter } from "../../../core/storage/repo";
+import { listCharacters, listLorebooks, saveCharacter } from "../../../core/storage/repo";
 import { listPromptTemplates } from "../../../core/prompts/service";
 import { useI18n } from "../../../core/i18n/context";
 import {
@@ -31,6 +32,7 @@ import type {
   ChatTemplateMessage,
   SystemPromptTemplate,
   StoredMessage,
+  Lorebook,
 } from "../../../core/storage/schemas";
 import { ChatMessage } from "../chats/components/ChatMessage";
 import { getDefaultThemeSync } from "../../../core/utils/imageAnalysis";
@@ -236,8 +238,11 @@ export default function ChatTemplateEditorPage() {
   const [showSceneMenu, setShowSceneMenu] = useState(false);
   const [_showMobileOptionsMenu, setShowMobileOptionsMenu] = useState(false);
   const [showPromptTemplateMenu, setShowPromptTemplateMenu] = useState(false);
+  const [showLorebookMenu, setShowLorebookMenu] = useState(false);
   const [promptTemplates, setPromptTemplates] = useState<SystemPromptTemplate[]>([]);
   const [selectedPromptTemplateId, setSelectedPromptTemplateId] = useState<string | null>(null);
+  const [lorebooks, setLorebooks] = useState<Lorebook[]>([]);
+  const [lorebookIdsOverride, setLorebookIdsOverride] = useState<string[] | null>(null);
 
   // Inline editing
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -251,6 +256,7 @@ export default function ChatTemplateEditorPage() {
     messages: string;
     selectedSceneId: string | null;
     selectedPromptTemplateId: string | null;
+    lorebookIdsOverride: string;
   } | null>(null);
 
   const loadCharacter = useCallback(async () => {
@@ -258,6 +264,8 @@ export default function ChatTemplateEditorPage() {
     try {
       const chars = await listCharacters();
       const templates = await listPromptTemplates();
+      const allLorebooks = await listLorebooks();
+      setLorebooks(allLorebooks);
       setPromptTemplates(
         templates.filter(
           (template) =>
@@ -282,11 +290,16 @@ export default function ChatTemplateEditorPage() {
             setSelectedSceneId(sceneId);
             const promptTemplateId = existing.promptTemplateId ?? null;
             setSelectedPromptTemplateId(promptTemplateId);
+            const templateLorebookIdsOverride = Array.isArray(existing.lorebookIdsOverride)
+              ? existing.lorebookIdsOverride
+              : null;
+            setLorebookIdsOverride(templateLorebookIdsOverride);
             initialStateRef.current = {
               name: existing.name,
               messages: JSON.stringify(existing.messages),
               selectedSceneId: sceneId,
               selectedPromptTemplateId: promptTemplateId,
+              lorebookIdsOverride: JSON.stringify(templateLorebookIdsOverride),
             };
           }
         } else {
@@ -295,11 +308,13 @@ export default function ChatTemplateEditorPage() {
           setSelectedSceneId(sceneId);
           const promptTemplateId = c.promptTemplateId ?? null;
           setSelectedPromptTemplateId(promptTemplateId);
+          setLorebookIdsOverride(null);
           initialStateRef.current = {
             name: "",
             messages: "[]",
             selectedSceneId: sceneId,
             selectedPromptTemplateId: promptTemplateId,
+            lorebookIdsOverride: "null",
           };
         }
       }
@@ -401,6 +416,7 @@ export default function ChatTemplateEditorPage() {
           : (character.chatTemplates?.find((t) => t.id === templateId)?.createdAt ?? now),
         sceneId: selectedSceneId,
         promptTemplateId: selectedPromptTemplateId,
+        lorebookIdsOverride,
       };
 
       const existingTemplates = character.chatTemplates ?? [];
@@ -423,6 +439,7 @@ export default function ChatTemplateEditorPage() {
     navigate,
     selectedSceneId,
     selectedPromptTemplateId,
+    lorebookIdsOverride,
   ]);
 
   // Change detection: only enable save when something actually changed
@@ -439,9 +456,18 @@ export default function ChatTemplateEditorPage() {
       name !== initial.name ||
       JSON.stringify(messages) !== initial.messages ||
       selectedSceneId !== initial.selectedSceneId ||
-      selectedPromptTemplateId !== initial.selectedPromptTemplateId
+      selectedPromptTemplateId !== initial.selectedPromptTemplateId ||
+      JSON.stringify(lorebookIdsOverride) !== initial.lorebookIdsOverride
     );
-  }, [name, messages, saving, isNew, selectedSceneId, selectedPromptTemplateId]);
+  }, [
+    name,
+    messages,
+    saving,
+    isNew,
+    selectedSceneId,
+    selectedPromptTemplateId,
+    lorebookIdsOverride,
+  ]);
 
   // Wire up save button to global TopNav
   useEffect(() => {
@@ -482,6 +508,15 @@ export default function ChatTemplateEditorPage() {
   const selectedPromptTemplate = promptTemplates.find(
     (template) => template.id === selectedPromptTemplateId,
   );
+  const selectedLorebooks = Array.isArray(lorebookIdsOverride)
+    ? lorebooks.filter((lorebook) => lorebookIdsOverride.includes(lorebook.id))
+    : [];
+  const lorebookLabel =
+    lorebookIdsOverride === null
+      ? "Character default"
+      : selectedLorebooks.length > 0
+        ? selectedLorebooks.map((lorebook) => lorebook.name).join(", ")
+        : "No lorebooks";
 
   // Build scene message for display
   const sceneStoredMessage: StoredMessage | null = selectedScene
@@ -653,6 +688,22 @@ export default function ChatTemplateEditorPage() {
         >
           <span className={selectedPromptTemplate ? "text-fg" : "text-fg/40"}>
             {selectedPromptTemplate?.name ?? t("characters.templateEditor.characterDefault")}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-fg/40" />
+        </button>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-fg/40">
+          Active Lorebooks
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowLorebookMenu(true)}
+          className="flex w-full items-center justify-between rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-left text-sm text-fg transition hover:bg-fg/10"
+        >
+          <span className={lorebookIdsOverride === null ? "text-fg/40" : "text-fg"}>
+            {lorebookLabel}
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-fg/40" />
         </button>
@@ -845,6 +896,69 @@ export default function ChatTemplateEditorPage() {
               }}
             />
           ))}
+        </MenuButtonGroup>
+      </BottomMenu>
+
+      <BottomMenu
+        isOpen={showLorebookMenu}
+        onClose={() => setShowLorebookMenu(false)}
+        title="Active Lorebooks"
+      >
+        <MenuButtonGroup>
+          <MenuButton
+            icon={<BookOpen className="h-4 w-4" />}
+            title="Use character default"
+            description="Template sessions inherit the character active lorebooks."
+            color="from-blue-500 to-cyan-600"
+            rightElement={
+              lorebookIdsOverride === null ? (
+                <Check className="h-4 w-4 text-emerald-300" />
+              ) : undefined
+            }
+            onClick={() => {
+              setLorebookIdsOverride(null);
+              setShowLorebookMenu(false);
+            }}
+          />
+          <MenuButton
+            icon={<X className="h-4 w-4" />}
+            title="No lorebooks"
+            description="Template sessions override the character and start with no active lorebooks."
+            color="from-blue-500 to-cyan-600"
+            rightElement={
+              Array.isArray(lorebookIdsOverride) && lorebookIdsOverride.length === 0 ? (
+                <Check className="h-4 w-4 text-emerald-300" />
+              ) : undefined
+            }
+            onClick={() => setLorebookIdsOverride([])}
+          />
+          {lorebooks.map((lorebook) => {
+            const selected =
+              Array.isArray(lorebookIdsOverride) && lorebookIdsOverride.includes(lorebook.id);
+            return (
+              <MenuButton
+                key={lorebook.id}
+                icon={<BookOpen className="h-4 w-4" />}
+                title={lorebook.name}
+                description={selected ? "Enabled for this template" : "Tap to toggle"}
+                color="from-blue-500 to-cyan-600"
+                rightElement={
+                  selected ? <Check className="h-4 w-4 text-emerald-300" /> : undefined
+                }
+                onClick={() => {
+                  setLorebookIdsOverride((current) => {
+                    const next = new Set(Array.isArray(current) ? current : []);
+                    if (next.has(lorebook.id)) {
+                      next.delete(lorebook.id);
+                    } else {
+                      next.add(lorebook.id);
+                    }
+                    return Array.from(next);
+                  });
+                }}
+              />
+            );
+          })}
         </MenuButtonGroup>
       </BottomMenu>
     </>

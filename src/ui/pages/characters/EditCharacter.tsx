@@ -34,6 +34,7 @@ import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomM
 import { BackgroundPositionModal } from "../../components/BackgroundPositionModal";
 import { CharacterExportMenu } from "../../components/CharacterExportMenu";
 import { Switch } from "../../components/Switch";
+import { ActiveLorebooksSelector } from "./components/ActiveLorebooksSelector";
 import { cn, radius, colors, interactive, spacing, typography } from "../../design-tokens";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { useI18n } from "../../../core/i18n/context";
@@ -114,6 +115,7 @@ export function EditCharacterPage() {
     selectedFallbackModelId,
     groupChatPromptTemplateId,
     groupChatRoleplayPromptTemplateId,
+    activeLorebookIds,
 
     disableAvatarGradient,
     customGradientEnabled,
@@ -1312,87 +1314,148 @@ export function EditCharacterPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                {/* Voice Selection */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg border border-accent/30 bg-accent/10 p-1.5">
-                      <Volume2 className="h-4 w-4 text-accent/80" />
+                <div className="space-y-4">
+                  {/* Voice Selection */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg border border-accent/30 bg-accent/10 p-1.5">
+                        <Volume2 className="h-4 w-4 text-accent/80" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-fg">Voice</h3>
+                      <span className="ml-auto text-xs text-fg/40">(Optional)</span>
                     </div>
-                    <h3 className="text-sm font-semibold text-fg">Voice</h3>
-                    <span className="ml-auto text-xs text-fg/40">(Optional)</span>
+
+                    {loadingVoices ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
+                        <Loader2 className="h-4 w-4 animate-spin text-fg/50" />
+                        <span className="text-sm text-fg/50">Loading voices...</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowVoiceMenu(true)}
+                        className="flex w-full items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-left transition hover:bg-surface-el/30 focus:border-fg/25 focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="h-5 w-5 text-fg/40" />
+                          <span
+                            className={`text-sm ${voiceSelectionValue ? "text-fg" : "text-fg/50"}`}
+                          >
+                            {voiceSelectionValue
+                              ? (() => {
+                                  if (voiceConfig?.source === "user") {
+                                    const v = userVoices.find(
+                                      (uv) => uv.id === voiceConfig.userVoiceId,
+                                    );
+                                    return v?.name || "Custom Voice";
+                                  }
+                                  if (voiceConfig?.source === "provider") {
+                                    const pv = providerVoices[voiceConfig.providerId || ""]?.find(
+                                      (pv) => pv.voiceId === voiceConfig.voiceId,
+                                    );
+                                    return pv?.name || "Provider Voice";
+                                  }
+                                  return "Selected Voice";
+                                })()
+                              : "No voice assigned"}
+                          </span>
+                        </div>
+                        <ChevronDown className="h-4 w-4 text-fg/40" />
+                      </button>
+                    )}
+
+                    {voiceError && <p className="text-xs font-medium text-danger">{voiceError}</p>}
+                    {!loadingVoices && audioProviders.length === 0 && userVoices.length === 0 && (
+                      <p className="text-xs text-fg/40">Add voices in Settings → Voices</p>
+                    )}
+                    <p className="text-xs text-fg/50">
+                      Assign a voice for future text-to-speech playback
+                    </p>
+                    <div
+                      className={cn(
+                        "flex items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3",
+                        !voiceConfig && "opacity-50",
+                      )}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-fg">Autoplay voice</p>
+                        <p className="mt-1 text-xs text-fg/50">
+                          {voiceConfig
+                            ? "Play this character's replies automatically"
+                            : "Select a voice first"}
+                        </p>
+                      </div>
+                      <Switch
+                        id="character-voice-autoplay"
+                        checked={voiceAutoplay}
+                        onChange={(next) => setFields({ voiceAutoplay: next })}
+                        disabled={!voiceConfig}
+                      />
+                    </div>
                   </div>
 
-                  {loadingVoices ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                      <Loader2 className="h-4 w-4 animate-spin text-fg/50" />
-                      <span className="text-sm text-fg/50">Loading voices...</span>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowVoiceMenu(true)}
-                      className="flex w-full items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-left transition hover:bg-surface-el/30 focus:border-fg/25 focus:outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Volume2 className="h-5 w-5 text-fg/40" />
-                        <span
-                          className={`text-sm ${voiceSelectionValue ? "text-fg" : "text-fg/50"}`}
-                        >
-                          {voiceSelectionValue
-                            ? (() => {
-                                if (voiceConfig?.source === "user") {
-                                  const v = userVoices.find(
-                                    (uv) => uv.id === voiceConfig.userVoiceId,
-                                  );
-                                  return v?.name || "Custom Voice";
-                                }
-                                if (voiceConfig?.source === "provider") {
-                                  const pv = providerVoices[voiceConfig.providerId || ""]?.find(
-                                    (pv) => pv.voiceId === voiceConfig.voiceId,
-                                  );
-                                  return pv?.name || "Provider Voice";
-                                }
-                                return "Selected Voice";
-                              })()
-                            : "No voice assigned"}
-                        </span>
+                  {/* Memory Mode */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
+                        <Layers className="h-4 w-4 text-warning" />
                       </div>
-                      <ChevronDown className="h-4 w-4 text-fg/40" />
-                    </button>
-                  )}
-
-                  {voiceError && <p className="text-xs font-medium text-danger">{voiceError}</p>}
-                  {!loadingVoices && audioProviders.length === 0 && userVoices.length === 0 && (
-                    <p className="text-xs text-fg/40">Add voices in Settings → Voices</p>
-                  )}
-                  <p className="text-xs text-fg/50">
-                    Assign a voice for future text-to-speech playback
-                  </p>
-                  <div
-                    className={cn(
-                      "flex items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3",
-                      !voiceConfig && "opacity-50",
-                    )}
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-fg">Autoplay voice</p>
-                      <p className="mt-1 text-xs text-fg/50">
-                        {voiceConfig
-                          ? "Play this character's replies automatically"
-                          : "Select a voice first"}
-                      </p>
+                      <h3 className="text-sm font-semibold text-fg">Memory Mode</h3>
+                      {!dynamicMemoryEnabled && (
+                        <span className="ml-auto text-xs text-fg/40">
+                          Enable Dynamic Memory to switch
+                        </span>
+                      )}
                     </div>
-                    <Switch
-                      id="character-voice-autoplay"
-                      checked={voiceAutoplay}
-                      onChange={(next) => setFields({ voiceAutoplay: next })}
-                      disabled={!voiceConfig}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFields({ memoryType: "manual" })}
+                        className={`rounded-xl border px-3.5 py-3 text-left transition ${
+                          memoryType === "manual"
+                            ? "border-accent/40 bg-accent/15 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]"
+                            : "border-fg/15 bg-surface-el/20 hover:border-fg/20 hover:bg-surface-el/30"
+                        }`}
+                      >
+                        <p
+                          className={`text-sm font-semibold ${memoryType === "manual" ? "text-fg" : "text-fg/70"}`}
+                        >
+                          Manual Memory
+                        </p>
+                        <p className="mt-1 text-xs text-fg/50">
+                          Manage notes yourself (current system).
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!dynamicMemoryEnabled}
+                        onClick={() => dynamicMemoryEnabled && setFields({ memoryType: "dynamic" })}
+                        className={`rounded-xl border px-3.5 py-3 text-left transition ${
+                          memoryType === "dynamic" && dynamicMemoryEnabled
+                            ? "border-info/50 bg-info/20 shadow-[0_0_0_1px_rgba(96,165,250,0.3)]"
+                            : "border-fg/15 bg-surface-el/15"
+                        } ${!dynamicMemoryEnabled ? "cursor-not-allowed opacity-50" : "hover:border-fg/20 hover:bg-surface-el/25"}`}
+                      >
+                        <p
+                          className={`text-sm font-semibold ${memoryType === "dynamic" && dynamicMemoryEnabled ? "text-fg" : "text-fg/70"}`}
+                        >
+                          Dynamic Memory
+                        </p>
+                        <p className="mt-1 text-xs text-fg/50">
+                          Automatic summaries when enabled globally.
+                        </p>
+                      </button>
+                    </div>
+                    <p className="text-xs text-fg/50">
+                      Dynamic Memory must be turned on in Advanced settings; otherwise manual
+                      memory is used.
+                    </p>
                   </div>
                 </div>
 
-                {/* System Prompt Template Section */}
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* System Prompt Template Section */}
+                  <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                       <BookOpen className="h-4 w-4 text-info" />
@@ -1433,6 +1496,12 @@ export function EditCharacterPage() {
                     Override the default system prompt for this character
                   </p>
                 </div>
+
+                <ActiveLorebooksSelector
+                  selectedIds={activeLorebookIds}
+                  onChange={(ids) => setFields({ activeLorebookIds: ids })}
+                  disabled={saving}
+                />
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -1522,63 +1591,6 @@ export function EditCharacterPage() {
                   </p>
                 </div>
               </div>
-
-              {/* Memory Mode */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
-                    <Layers className="h-4 w-4 text-warning" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-fg">Memory Mode</h3>
-                  {!dynamicMemoryEnabled && (
-                    <span className="ml-auto text-xs text-fg/40">
-                      Enable Dynamic Memory to switch
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFields({ memoryType: "manual" })}
-                    className={`rounded-xl border px-3.5 py-3 text-left transition ${
-                      memoryType === "manual"
-                        ? "border-accent/40 bg-accent/15 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]"
-                        : "border-fg/15 bg-surface-el/20 hover:border-fg/20 hover:bg-surface-el/30"
-                    }`}
-                  >
-                    <p
-                      className={`text-sm font-semibold ${memoryType === "manual" ? "text-fg" : "text-fg/70"}`}
-                    >
-                      Manual Memory
-                    </p>
-                    <p className="mt-1 text-xs text-fg/50">
-                      Manage notes yourself (current system).
-                    </p>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!dynamicMemoryEnabled}
-                    onClick={() => dynamicMemoryEnabled && setFields({ memoryType: "dynamic" })}
-                    className={`rounded-xl border px-3.5 py-3 text-left transition ${
-                      memoryType === "dynamic" && dynamicMemoryEnabled
-                        ? "border-info/50 bg-info/20 shadow-[0_0_0_1px_rgba(96,165,250,0.3)]"
-                        : "border-fg/15 bg-surface-el/15"
-                    } ${!dynamicMemoryEnabled ? "cursor-not-allowed opacity-50" : "hover:border-fg/20 hover:bg-surface-el/25"}`}
-                  >
-                    <p
-                      className={`text-sm font-semibold ${memoryType === "dynamic" && dynamicMemoryEnabled ? "text-fg" : "text-fg/70"}`}
-                    >
-                      Dynamic Memory
-                    </p>
-                    <p className="mt-1 text-xs text-fg/50">
-                      Automatic summaries when enabled globally.
-                    </p>
-                  </button>
-                </div>
-                <p className="text-xs text-fg/50">
-                  Dynamic Memory must be turned on in Advanced settings; otherwise manual memory is
-                  used.
-                </p>
               </div>
             </>
           )}

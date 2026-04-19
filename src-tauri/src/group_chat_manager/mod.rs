@@ -4342,6 +4342,7 @@ fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Cha
         default_model_id: row.10,
         fallback_model_id: None,
         memory_type: row.11.unwrap_or_else(|| "manual".to_string()),
+        active_lorebook_ids: Vec::new(),
         prompt_template_id: row.12,
         group_chat_prompt_template_id: row.13,
         group_chat_roleplay_prompt_template_id: row.14,

@@ -27,6 +27,7 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
         default_model_id,
         fallback_model_id,
         prompt_template_id,
+        active_lorebook_ids,
         group_chat_prompt_template_id,
         group_chat_roleplay_prompt_template_id,
         system_prompt,
@@ -68,6 +69,7 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
         Option<i64>,
         Option<String>,
         i64,
@@ -81,10 +83,46 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
         i64,
     ) = conn
         .query_row(
-            "SELECT name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, fallback_model_id, prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, chat_appearance, default_chat_template_id, created_at, updated_at FROM characters WHERE id = ?",
+            "SELECT name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, fallback_model_id, prompt_template_id, active_lorebook_ids, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, chat_appearance, default_chat_template_id, created_at, updated_at FROM characters WHERE id = ?",
             params![id],
             |r| Ok((
-                r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?, r.get(11)?, r.get(12)?, r.get(13)?, r.get(14)?, r.get(15)?, r.get(16)?, r.get(17)?, r.get(18)?, r.get(19)?, r.get(20)?, r.get(21)?, r.get(22)?, r.get(23)?, r.get(24)?, r.get(25)?, r.get(26)?, r.get::<_, i64>(27)?, r.get::<_, i64>(28)?, r.get(29)?, r.get(30)?, r.get(31)?, r.get(32)?, r.get(33)?, r.get(34)?, r.get(35)?
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+                r.get(8)?,
+                r.get(9)?,
+                r.get(10)?,
+                r.get(11)?,
+                r.get(12)?,
+                r.get(13)?,
+                r.get(14)?,
+                r.get(15)?,
+                r.get(16)?,
+                r.get(17)?,
+                r.get(18)?,
+                r.get(19)?,
+                r.get(20)?,
+                r.get(21)?,
+                r.get(22)?,
+                r.get(23)?,
+                r.get(24)?,
+                r.get(25)?,
+                r.get::<_, Option<i64>>(26)?,
+                r.get::<_, Option<String>>(27)?,
+                r.get::<_, i64>(28)?,
+                r.get::<_, i64>(29)?,
+                r.get(30)?,
+                r.get(31)?,
+                r.get(32)?,
+                r.get(33)?,
+                r.get(34)?,
+                r.get::<_, i64>(35)?,
+                r.get::<_, i64>(36)?
             )),
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -160,7 +198,7 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
     }
 
     // chat templates
-    let mut templates_stmt = conn.prepare("SELECT id, name, scene_id, prompt_template_id, created_at FROM chat_templates WHERE character_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut templates_stmt = conn.prepare("SELECT id, name, scene_id, prompt_template_id, lorebook_ids_override, created_at FROM chat_templates WHERE character_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let templates_rows = templates_stmt
         .query_map(params![id], |r| {
             Ok((
@@ -168,13 +206,21 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
                 r.get::<_, String>(1)?,
                 r.get::<_, Option<String>>(2)?,
                 r.get::<_, Option<String>>(3)?,
-                r.get::<_, i64>(4)?,
+                r.get::<_, Option<String>>(4)?,
+                r.get::<_, i64>(5)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let mut chat_templates: Vec<JsonValue> = Vec::new();
     for row in templates_rows {
-        let (tmpl_id, tmpl_name, tmpl_scene_id, tmpl_prompt_template_id, tmpl_created_at) =
+        let (
+            tmpl_id,
+            tmpl_name,
+            tmpl_scene_id,
+            tmpl_prompt_template_id,
+            tmpl_lorebook_ids_override,
+            tmpl_created_at,
+        ) =
             row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let mut msg_stmt = conn.prepare("SELECT id, role, content FROM chat_template_messages WHERE template_id = ? ORDER BY idx ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let msg_rows = msg_stmt
@@ -203,6 +249,11 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
         }
         if let Some(ref ptid) = tmpl_prompt_template_id {
             tmpl_json["promptTemplateId"] = JsonValue::String(ptid.clone());
+        }
+        if let Some(ref lorebook_ids_json) = tmpl_lorebook_ids_override {
+            if let Ok(value) = serde_json::from_str::<JsonValue>(lorebook_ids_json) {
+                tmpl_json["lorebookIdsOverride"] = value;
+            }
         }
         chat_templates.push(tmpl_json);
     }
@@ -284,6 +335,11 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
     }
     let memory_value = memory_type.unwrap_or_else(|| "manual".to_string());
     root.insert("memoryType".into(), JsonValue::String(memory_value));
+    if let Some(value) = active_lorebook_ids {
+        if let Ok(parsed) = serde_json::from_str::<Vec<String>>(&value) {
+            root.insert("activeLorebookIds".into(), serde_json::json!(parsed));
+        }
+    }
     if let Some(pt) = prompt_template_id {
         root.insert("promptTemplateId".into(), JsonValue::String(pt));
     }
@@ -527,6 +583,18 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
         .get("promptTemplateId")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let active_lorebook_ids_json =
+        c.get("activeLorebookIds")
+            .and_then(|v| v.as_array())
+            .map(|values| {
+                serde_json::to_string(
+                    &values
+                        .iter()
+                        .filter_map(|value| value.as_str().map(|id| id.to_string()))
+                        .collect::<Vec<_>>(),
+                )
+                .unwrap_or_else(|_| "[]".to_string())
+            });
     let group_chat_prompt_template_id = c
         .get("groupChatPromptTemplateId")
         .and_then(|v| v.as_str())
@@ -587,19 +655,29 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
     let tx = conn
         .transaction()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    let existing_created: Option<i64> = tx
+    let existing_character: Option<(i64, Option<String>)> = tx
         .query_row(
-            "SELECT created_at FROM characters WHERE id = ?",
+            "SELECT created_at, active_lorebook_ids FROM characters WHERE id = ?",
             params![&id],
-            |r| r.get(0),
+            |r| Ok((r.get(0)?, r.get(1)?)),
         )
         .optional()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    let created_at = existing_created.unwrap_or(now);
+    let created_at = existing_character
+        .as_ref()
+        .map(|(created_at, _)| *created_at)
+        .unwrap_or(now);
+    let active_lorebook_ids = active_lorebook_ids_json
+        .or_else(|| {
+            existing_character
+                .as_ref()
+                .and_then(|(_, active_lorebook_ids)| active_lorebook_ids.clone())
+        })
+        .unwrap_or_else(|| "[]".to_string());
 
     tx.execute(
-        r#"INSERT INTO characters (id, name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, fallback_model_id, prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, chat_appearance, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        r#"INSERT INTO characters (id, name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, fallback_model_id, prompt_template_id, active_lorebook_ids, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt, voice_config, voice_autoplay, memory_type, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, chat_appearance, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               name=excluded.name,
               avatar_path=excluded.avatar_path,
@@ -621,6 +699,7 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
               default_model_id=excluded.default_model_id,
               fallback_model_id=excluded.fallback_model_id,
               prompt_template_id=excluded.prompt_template_id,
+              active_lorebook_ids=excluded.active_lorebook_ids,
               group_chat_prompt_template_id=excluded.group_chat_prompt_template_id,
               group_chat_roleplay_prompt_template_id=excluded.group_chat_roleplay_prompt_template_id,
               system_prompt=excluded.system_prompt,
@@ -656,6 +735,7 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
             default_model_id,
             fallback_model_id,
             prompt_template_id,
+            active_lorebook_ids,
             group_chat_prompt_template_id,
             group_chat_roleplay_prompt_template_id,
             system_prompt,
@@ -780,10 +860,14 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
             let tscene_id: Option<&str> = t.get("sceneId").and_then(|v| v.as_str());
             let tprompt_template_id: Option<&str> =
                 t.get("promptTemplateId").and_then(|v| v.as_str());
+            let tlorebook_ids_override = t
+                .get("lorebookIdsOverride")
+                .filter(|v| v.is_array())
+                .map(|v| v.to_string());
             let tcreated = t.get("createdAt").and_then(|v| v.as_i64()).unwrap_or(now);
             tx.execute(
-                "INSERT INTO chat_templates (id, character_id, name, scene_id, prompt_template_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                params![&tid, &id, tname, tscene_id, tprompt_template_id, tcreated],
+                "INSERT INTO chat_templates (id, character_id, name, scene_id, prompt_template_id, lorebook_ids_override, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                params![&tid, &id, tname, tscene_id, tprompt_template_id, tlorebook_ids_override, tcreated],
             )
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             if let Some(msgs) = t.get("messages").and_then(|v| v.as_array()) {
