@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   BookOpen,
   Trash2,
@@ -25,16 +25,25 @@ import {
   saveLorebook,
 } from "../../../core/storage/repo";
 import { convertToImageRef, deleteImageRef } from "../../../core/storage";
+import { convertFilePathToDataUrl } from "../../../core/storage/images";
+import {
+  buildAvatarLibrarySelectionKey,
+  type AvatarLibrarySelectionPayload,
+} from "../../components/AvatarPicker/librarySelection";
 import {
   exportLorebook,
   exportLorebookAsUsc,
   downloadJson,
   generateLorebookExportFilenameWithFormat,
 } from "../../../core/storage/lorebookTransfer";
-import { BottomMenu, LorebookExportMenu, MenuButton } from "../../components";
+import {
+  BottomMenu,
+  LorebookExportMenu,
+  LorebookMetadataMenu,
+  MenuButton,
+} from "../../components";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { TopNav } from "../../components/App";
-import { LorebookAvatar } from "../../components/LorebookAvatar";
 import { Switch } from "../../components/Switch";
 import { useI18n } from "../../../core/i18n/context";
 import { Routes } from "../../navigation";
@@ -450,6 +459,8 @@ export function StandaloneLorebookEditor() {
   const { t } = useI18n();
   const { lorebookId } = useParams<{ lorebookId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnPath = `${location.pathname}${location.search}`;
 
   const [lorebook, setLorebook] = useState<Lorebook | null>(null);
   const [entries, setEntries] = useState<LorebookEntry[]>([]);
@@ -628,6 +639,74 @@ export function StandaloneLorebookEditor() {
     reader.readAsDataURL(file);
     event.target.value = "";
   };
+
+  const handleChooseAvatarFromLibrary = () => {
+    if (!lorebook) return;
+    const draftPayload = {
+      lorebookId: lorebook.id,
+      nameDraft: newName,
+      keywordMode: keywordDetectionModeDraft,
+      avatarDraft: avatarDraftPath,
+    };
+    sessionStorage.setItem(
+      `lorebook-metadata-draft:${returnPath}`,
+      JSON.stringify(draftPayload),
+    );
+    navigate("/library/images/pick", {
+      state: { returnPath, selectionKind: "avatar" },
+    });
+  };
+
+  useEffect(() => {
+    if (isLoading || !lorebook) return;
+
+    const selectionKey = buildAvatarLibrarySelectionKey(returnPath);
+    const rawSelection = sessionStorage.getItem(selectionKey);
+    if (!rawSelection) return;
+    sessionStorage.removeItem(selectionKey);
+
+    const draftKey = `lorebook-metadata-draft:${returnPath}`;
+    const rawDraft = sessionStorage.getItem(draftKey);
+    sessionStorage.removeItem(draftKey);
+
+    let parsed: AvatarLibrarySelectionPayload | null = null;
+    try {
+      parsed = JSON.parse(rawSelection) as AvatarLibrarySelectionPayload;
+    } catch {
+      return;
+    }
+    if (!parsed?.filePath) return;
+
+    let draft:
+      | {
+          lorebookId?: string;
+          nameDraft?: string;
+          keywordMode?: Lorebook["keywordDetectionMode"];
+          avatarDraft?: string | null;
+        }
+      | null = null;
+    if (rawDraft) {
+      try {
+        draft = JSON.parse(rawDraft);
+      } catch {}
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const dataUrl = await convertFilePathToDataUrl(parsed.filePath);
+      if (cancelled || !dataUrl) return;
+      if (draft && draft.lorebookId === lorebook.id) {
+        if (typeof draft.nameDraft === "string") setNewName(draft.nameDraft);
+        if (draft.keywordMode) setKeywordDetectionModeDraft(draft.keywordMode);
+      }
+      setAvatarDraftPath(dataUrl);
+      setShowRenameMenu(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, lorebook, returnPath]);
 
   const handleExportLorebook = async (format: LorebookExportFormat) => {
     if (!lorebook || isExporting) return;
@@ -908,7 +987,7 @@ export function StandaloneLorebookEditor() {
         />
 
         {/* Rename Menu */}
-        <BottomMenu
+        <LorebookMetadataMenu
           isOpen={showRenameMenu}
           onClose={() => {
             setShowRenameMenu(false);
@@ -917,113 +996,26 @@ export function StandaloneLorebookEditor() {
             setKeywordDetectionModeDraft(lorebook.keywordDetectionMode);
           }}
           title={t("library.actions.renameLorebook")}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-fg/10 bg-fg/5">
-                <LorebookAvatar
-                  avatarPath={avatarDraftPath}
-                  name={newName.trim() || lorebook.name}
-                  iconClassName="h-8 w-8 text-fg/55"
-                  fallbackClassName="bg-fg/5"
-                />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarFileChange}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-2 text-sm font-medium text-fg transition hover:border-fg/20 hover:bg-fg/10"
-                >
-                  {avatarDraftPath ? t("common.buttons.edit") : t("common.buttons.add")}
-                </button>
-                {avatarDraftPath && (
-                  <button
-                    type="button"
-                    onClick={() => setAvatarDraftPath(null)}
-                    className="rounded-xl border border-danger/25 bg-danger/10 px-3 py-2 text-sm font-medium text-danger transition hover:border-danger/40 hover:bg-danger/15"
-                  >
-                    {t("common.buttons.remove")}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[11px] font-medium text-fg/70">
-                {t("characters.lorebook.nameLabel")}
-              </label>
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleRename()}
-                placeholder={t("characters.lorebook.enterNamePlaceholder")}
-                autoFocus
-                className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[11px] font-medium text-fg/70">
-                {t("characters.lorebook.keywordDetectionMode")}
-              </label>
-              <div className="grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => setKeywordDetectionModeDraft("recentMessageWindow")}
-                  className={`rounded-xl border px-3 py-3 text-left transition ${
-                    keywordDetectionModeDraft === "recentMessageWindow"
-                      ? "border-accent/45 bg-accent/15 text-fg"
-                      : "border-fg/10 bg-fg/5 text-fg/75 hover:border-fg/20 hover:bg-fg/10"
-                  }`}
-                >
-                  <div className="text-sm font-medium">
-                    {t("characters.lorebook.keywordDetectionRecentWindow")}
-                  </div>
-                  <div className="mt-1 text-xs text-fg/55">
-                    {t("characters.lorebook.keywordDetectionRecentWindowDesc")}
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setKeywordDetectionModeDraft("latestUserMessage")}
-                  className={`rounded-xl border px-3 py-3 text-left transition ${
-                    keywordDetectionModeDraft === "latestUserMessage"
-                      ? "border-accent/45 bg-accent/15 text-fg"
-                      : "border-fg/10 bg-fg/5 text-fg/75 hover:border-fg/20 hover:bg-fg/10"
-                  }`}
-                >
-                  <div className="text-sm font-medium">
-                    {t("characters.lorebook.keywordDetectionLatestUser")}
-                  </div>
-                  <div className="mt-1 text-xs text-fg/55">
-                    {t("characters.lorebook.keywordDetectionLatestUserDesc")}
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={handleRename}
-              disabled={
-                !newName.trim() ||
-                (newName.trim() === lorebook.name &&
-                  (avatarDraftPath ?? "") === (lorebook.avatarPath ?? "") &&
-                  keywordDetectionModeDraft === lorebook.keywordDetectionMode)
-              }
-              className="w-full rounded-xl border border-accent/40 bg-accent/20 px-4 py-3.5 text-sm font-semibold text-accent/70 transition hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {t("common.buttons.save")}
-            </button>
-          </div>
-        </BottomMenu>
+          nameValue={newName}
+          previewName={newName.trim() || lorebook.name}
+          namePlaceholder={t("characters.lorebook.enterNamePlaceholder")}
+          avatarPath={avatarDraftPath}
+          avatarInputRef={avatarInputRef}
+          onNameChange={setNewName}
+          onNameSubmit={handleRename}
+          onAvatarFileChange={handleAvatarFileChange}
+          onAvatarRemove={() => setAvatarDraftPath(null)}
+          onChooseFromLibrary={handleChooseAvatarFromLibrary}
+          keywordDetectionMode={keywordDetectionModeDraft}
+          onKeywordDetectionModeChange={setKeywordDetectionModeDraft}
+          onSave={handleRename}
+          saveDisabled={
+            !newName.trim() ||
+            (newName.trim() === lorebook.name &&
+              (avatarDraftPath ?? "") === (lorebook.avatarPath ?? "") &&
+              keywordDetectionModeDraft === lorebook.keywordDetectionMode)
+          }
+        />
       </div>
     </>
   );

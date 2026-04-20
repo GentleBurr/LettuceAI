@@ -2,6 +2,7 @@ export * from "./BottomMenu";
 export * from "./ChatTemplateExportMenu";
 export * from "./CharacterExportMenu";
 export * from "./LorebookExportMenu";
+export * from "./LorebookMetadataMenu";
 export * from "./ModelExportMenu";
 export * from "./ModelSelectionBottomMenu";
 export * from "./PromptTemplateExportMenu";
