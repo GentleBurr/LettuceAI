@@ -63,6 +63,15 @@
   100% { transform: translateX(300%); }
 }
 
+@keyframes entryFocusFlash {
+  0% { background-color: rgb(var(--accent-rgb, 125 211 252) / 0.18); }
+  100% { background-color: transparent; }
+}
+
+.entry-focus-flash {
+  animation: entryFocusFlash 1.2s ease-out;
+}
+
 @keyframes bounce {
   0%,
   80%,

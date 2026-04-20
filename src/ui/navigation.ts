@@ -68,15 +68,22 @@ export const Routes = {
   createPersona: "/create/persona",
   personaEdit: (personaId: string) => `/personas/${personaId}/edit`,
   characterLorebook: (characterId: string) => `/settings/characters/${characterId}/lorebook`,
+  characterLorebookPreview: (characterId: string, lorebookId: string) =>
+    `/settings/characters/${characterId}/lorebook/preview?lorebookId=${encodeURIComponent(lorebookId)}`,
+  libraryLorebookPreview: (lorebookId: string) => `/library/lorebooks/${lorebookId}/preview`,
   sync: "/settings/sync",
   // Group Chat routes
   groupChats: "/group-chats",
   groupChatsNew: "/group-chats/new",
   groupSettings: (groupId: string) => `/group-chats/groups/${groupId}/settings`,
   groupLorebook: (groupId: string) => `/group-chats/groups/${groupId}/lorebook`,
+  groupLorebookPreview: (groupId: string, lorebookId: string) =>
+    `/group-chats/groups/${groupId}/lorebook/preview?lorebookId=${encodeURIComponent(lorebookId)}`,
   groupChat: (groupSessionId: string) => `/group-chats/${groupSessionId}`,
   groupChatSettings: (groupSessionId: string) => `/group-chats/${groupSessionId}/settings`,
   groupChatLorebook: (groupSessionId: string) => `/group-chats/${groupSessionId}/lorebook`,
+  groupChatLorebookPreview: (groupSessionId: string, lorebookId: string) =>
+    `/group-chats/${groupSessionId}/lorebook/preview?lorebookId=${encodeURIComponent(lorebookId)}`,
   groupChatMemories: (groupSessionId: string) => `/group-chats/${groupSessionId}/memories`,
   groupChatHistory: "/group-chats/history",
   // Engine routes

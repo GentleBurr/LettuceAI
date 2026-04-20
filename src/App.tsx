@@ -69,6 +69,7 @@ import { SearchPage } from "./ui/pages/search";
 import { LibraryPage } from "./ui/pages/library/LibraryPage";
 import { AvatarLibraryPickerPage } from "./ui/pages/library/ImageLibraryPage";
 import { StandaloneLorebookEditor } from "./ui/pages/library/StandaloneLorebookEditor";
+import { LorebookTriggerPreviewPage } from "./ui/pages/LorebookTriggerPreviewPage";
 import { SyncPage } from "./ui/pages/sync/SyncPage";
 import {
   DiscoveryPage,
@@ -738,9 +739,9 @@ function AppContent() {
   const isLorebookEditorRoute = useMemo(
     () =>
       location.pathname.startsWith("/library/lorebooks/") ||
-      /^\/settings\/characters\/[^/]+\/lorebook$/.test(location.pathname) ||
-      /^\/group-chats\/groups\/[^/]+\/lorebook$/.test(location.pathname) ||
-      /^\/group-chats\/[^/]+\/lorebook$/.test(location.pathname),
+      /^\/settings\/characters\/[^/]+\/lorebook(\/preview)?$/.test(location.pathname) ||
+      /^\/group-chats\/groups\/[^/]+\/lorebook(\/preview)?$/.test(location.pathname) ||
+      /^\/group-chats\/[^/]+\/lorebook(\/preview)?$/.test(location.pathname),
     [location.pathname],
   );
   const isTemplateEditorRoute = useMemo(
@@ -1152,6 +1153,10 @@ function AppContent() {
                 element={<Navigate to="/library?view=images" replace />}
               />
               <Route path="/library/lorebooks/:lorebookId" element={<StandaloneLorebookEditor />} />
+              <Route
+                path="/library/lorebooks/:lorebookId/preview"
+                element={<LorebookTriggerPreviewPage />}
+              />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/providers" element={<ProvidersPage />} />
               <Route path="/settings/models" element={<ModelsPage />} />
@@ -1223,7 +1228,15 @@ function AppContent() {
                 path="/settings/characters/:characterId/lorebook"
                 element={<LorebookEditor />}
               />
+              <Route
+                path="/settings/characters/:characterId/lorebook/preview"
+                element={<LorebookTriggerPreviewPage />}
+              />
               <Route path="/group-chats/groups/:groupId/lorebook" element={<LorebookEditor />} />
+              <Route
+                path="/group-chats/groups/:groupId/lorebook/preview"
+                element={<LorebookTriggerPreviewPage />}
+              />
               <Route
                 path="/settings/characters/:characterId/templates"
                 element={<ChatTemplateListPage />}
@@ -1251,6 +1264,7 @@ function AppContent() {
                 <Route index element={<GroupChatPage />} />
                 <Route path="settings" element={<GroupChatSettingsPage />} />
                 <Route path="lorebook" element={<LorebookEditor />} />
+                <Route path="lorebook/preview" element={<LorebookTriggerPreviewPage />} />
                 <Route path="memories" element={<GroupChatMemoriesPage />} />
               </Route>
             </Routes>
