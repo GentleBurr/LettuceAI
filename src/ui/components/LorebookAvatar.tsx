@@ -1,4 +1,3 @@
-import { BookOpen } from "lucide-react";
 import { useImageData } from "../hooks/useImageData";
 import { cn } from "../design-tokens";
 
@@ -8,8 +7,17 @@ type LorebookAvatarProps = {
   className?: string;
   imageClassName?: string;
   fallbackClassName?: string;
+  /** @deprecated retained for backwards compatibility; ignored by the letter fallback. */
   iconClassName?: string;
 };
+
+function getInitial(name?: string): string {
+  if (!name) return "·";
+  const trimmed = name.trim();
+  if (!trimmed) return "·";
+  const first = Array.from(trimmed)[0];
+  return first ? first.toUpperCase() : "·";
+}
 
 export function LorebookAvatar({
   avatarPath,
@@ -17,7 +25,6 @@ export function LorebookAvatar({
   className,
   imageClassName,
   fallbackClassName,
-  iconClassName,
 }: LorebookAvatarProps) {
   const avatarUrl = useImageData(avatarPath);
 
@@ -34,12 +41,14 @@ export function LorebookAvatar({
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center bg-linear-to-br from-warning/20 to-warning/80/30",
+        "flex h-full w-full items-center justify-center bg-fg/8 font-semibold text-fg/65",
         className,
         fallbackClassName,
       )}
     >
-      <BookOpen className={cn("h-12 w-12 text-warning/80", iconClassName)} />
+      <span className="text-[0.65em] uppercase leading-none tracking-tight">
+        {getInitial(name)}
+      </span>
     </div>
   );
 }
