@@ -175,9 +175,9 @@ function formatInjectionInfo(entry: SystemPromptEntry): string {
   }
 }
 
-function generateMockMessages(pairCount: number): PreviewMessage[] {
+function generateMockMessages(turnCount: number): PreviewMessage[] {
   const messages: PreviewMessage[] = [];
-  for (let i = 1; i <= pairCount; i++) {
+  for (let i = 1; i <= turnCount; i++) {
     messages.push({
       id: `mock-user-${i}`,
       role: "user",
@@ -185,13 +185,15 @@ function generateMockMessages(pairCount: number): PreviewMessage[] {
       content: `This is a mock user message #${i}`,
       isMock: true,
     });
-    messages.push({
-      id: `mock-assistant-${i}`,
-      role: "assistant",
-      label: `Assistant message #${i}`,
-      content: `This is a mock assistant message #${i}`,
-      isMock: true,
-    });
+    if (i < turnCount) {
+      messages.push({
+        id: `mock-assistant-${i}`,
+        role: "assistant",
+        label: `Assistant message #${i}`,
+        content: `This is a mock assistant message #${i}`,
+        isMock: true,
+      });
+    }
   }
   return messages;
 }
