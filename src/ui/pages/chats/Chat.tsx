@@ -9,16 +9,7 @@ import {
 } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import {
-  ArrowLeftRight,
-  ChevronDown,
-  Cpu,
-  Keyboard,
-  NotebookPen,
-  PanelRightOpen,
-  User,
-  X,
-} from "lucide-react";
+import { ArrowLeftRight, ChevronDown, NotebookPen, User, X } from "lucide-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type {
   AccessibilitySettings,
@@ -98,86 +89,6 @@ const STICKY_BOTTOM_THRESHOLD_PX = 80;
 const MAX_AUDIO_CACHE_ENTRIES = 50;
 const MOBILE_KEYBOARD_THRESHOLD_PX = 120;
 
-type DesktopShortcutItem = {
-  id: string;
-  icon: typeof PanelRightOpen;
-  title: string;
-  description: string;
-  keyGroups: string[][];
-};
-
-const IS_MAC =
-  typeof navigator !== "undefined" &&
-  /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || "");
-
-const MOD_LABEL = IS_MAC ? "⌘" : "Ctrl";
-
-function formatShortcutKey(key: string) {
-  if (key === "Ctrl/Cmd") return MOD_LABEL;
-  return key;
-}
-
-function ShortcutKeycap({ label }: { label: string }) {
-  const isSymbol = label.length <= 2;
-  return (
-    <kbd
-      className={cn(
-        "inline-flex items-center justify-center",
-        "h-6 min-w-6 px-1.5",
-        "rounded-md border border-fg/10 bg-fg/[0.06]",
-        "font-mono text-[11px] font-medium text-fg/80",
-        "shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]",
-        isSymbol && "text-[12px]",
-      )}
-    >
-      {label}
-    </kbd>
-  );
-}
-
-function ShortcutKeyCombo({ keys }: { keys: string[] }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      {keys.map((key, index) => (
-        <span key={`${key}-${index}`} className="inline-flex items-center gap-1.5">
-          {index > 0 && (
-            <span className="text-xs font-semibold text-fg/60">+</span>
-          )}
-          <ShortcutKeycap label={formatShortcutKey(key)} />
-        </span>
-      ))}
-    </span>
-  );
-}
-
-function ChatShortcutRow({ item, isLast }: { item: DesktopShortcutItem; isLast: boolean }) {
-  const Icon = item.icon;
-
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4 px-4 py-3",
-        !isLast && "border-b border-fg/[0.06]",
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <Icon className="h-4 w-4 shrink-0 text-fg/50" />
-        <p className="truncate text-[13px] font-medium text-fg/90">{item.title}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {item.keyGroups.map((group, groupIndex) => (
-          <div key={`${item.id}-${groupIndex}`} className="flex items-center gap-2">
-            {groupIndex > 0 && (
-              <span className="text-[10px] uppercase tracking-wider text-fg/30">or</span>
-            )}
-            <ShortcutKeyCombo keys={group} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function ChatConversationPage() {
   const { characterId } = useParams<{ characterId: string }>();
   const [searchParams] = useSearchParams();
@@ -252,7 +163,6 @@ export function ChatConversationPage() {
   const [showResultMenu, setShowResultMenu] = useState(false);
   const [showPersonaSelector, setShowPersonaSelector] = useState(false);
   const [showAuthorNoteMenu, setShowAuthorNoteMenu] = useState(false);
-  const [showShortcutsMenu, setShowShortcutsMenu] = useState(false);
   const inlineAuthorNoteEnabled = useAuthorNoteInlineEditor();
   const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
   const [showBackgroundLibraryMenu, setShowBackgroundLibraryMenu] = useState(false);
@@ -281,10 +191,6 @@ export function ChatConversationPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const isMobile = useMemo(() => getPlatform().type === "mobile", []);
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
-  const [settingsDrawerShortcutAction, setSettingsDrawerShortcutAction] = useState<"model" | null>(
-    null,
-  );
-  const [settingsDrawerShortcutKey, setSettingsDrawerShortcutKey] = useState(0);
   const footerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const shouldRestoreFooterFocusRef = useRef(false);
   const previousSettingsDrawerOpenRef = useRef(false);
@@ -298,46 +204,6 @@ export function ChatConversationPage() {
   const characterBackgroundPreview = useImageData(chatController.character?.backgroundImagePath);
   const hasSessionBackgroundOverride = !!chatController.session?.backgroundImagePath;
   const hasCharacterBackgroundDefault = !!chatController.character?.backgroundImagePath;
-  const shortcutItems = useMemo<DesktopShortcutItem[]>(
-    () => [
-      {
-        id: "settings",
-        icon: PanelRightOpen,
-        title: "Chat Settings",
-        description: "Open the session settings drawer.",
-        keyGroups: [["Ctrl/Cmd", "S"]],
-      },
-      {
-        id: "persona",
-        icon: User,
-        title: "Persona Selector",
-        description: "Switch the active persona for this chat.",
-        keyGroups: [["Ctrl/Cmd", "P"]],
-      },
-      {
-        id: "model",
-        icon: Cpu,
-        title: "Model Selector",
-        description: "Open the primary model picker from chat.",
-        keyGroups: [["Ctrl/Cmd", "M"]],
-      },
-      {
-        id: "author-note",
-        icon: NotebookPen,
-        title: "Author Note",
-        description: "Edit private session guidance for replies.",
-        keyGroups: [["Ctrl/Cmd", "A"]],
-      },
-      {
-        id: "shortcuts",
-        icon: Keyboard,
-        title: "Shortcut Reference",
-        description: "Open this shortcut sheet from anywhere in chat.",
-        keyGroups: [["Ctrl/Cmd", "H"], ["Ctrl/Cmd", "K"]],
-      },
-    ],
-    [],
-  );
 
   const handleImageClick = useCallback((src: string, alt: string) => {
     setSelectedImage({ src, alt });
@@ -354,7 +220,6 @@ export function ChatConversationPage() {
   const handleOpenAuthorNoteMenu = useCallback(() => {
     setShowPlusMenu(false);
     setSettingsDrawerOpen(false);
-    setShowShortcutsMenu(false);
     setShowAuthorNoteMenu(true);
   }, []);
 
@@ -1143,8 +1008,6 @@ export function ChatConversationPage() {
       setPersonas([]);
     }
     setShowPlusMenu(false);
-    setSettingsDrawerOpen(false);
-    setShowShortcutsMenu(false);
     setShowPersonaSelector(true);
   }, []);
 
@@ -1628,89 +1491,6 @@ export function ChatConversationPage() {
     shouldRestoreFooterFocusRef.current = document.activeElement === footerTextareaRef.current;
   }, []);
 
-  const handleOpenSettingsDrawer = useCallback(
-    (shortcutAction: "model" | null = null) => {
-      captureFooterFocusForDrawer();
-      setShowPlusMenu(false);
-      setShowChoiceMenu(false);
-      setShowResultMenu(false);
-      setShowPersonaSelector(false);
-      setShowAuthorNoteMenu(false);
-      setShowShortcutsMenu(false);
-      setShowBackgroundMenu(false);
-      setShowBackgroundLibraryMenu(false);
-      setSettingsDrawerShortcutAction(shortcutAction);
-      setSettingsDrawerShortcutKey((value) => value + 1);
-      setSettingsDrawerOpen(true);
-    },
-    [captureFooterFocusForDrawer],
-  );
-
-  const handleOpenShortcutsMenu = useCallback(() => {
-    setShowPlusMenu(false);
-    setSettingsDrawerOpen(false);
-    setShowPersonaSelector(false);
-    setShowAuthorNoteMenu(false);
-    setShowBackgroundMenu(false);
-    setShowBackgroundLibraryMenu(false);
-    setShowChoiceMenu(false);
-    setShowResultMenu(false);
-    setShowShortcutsMenu(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMobile) return;
-
-    const handleShortcutKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat) return;
-
-      const hasModKey = event.metaKey || event.ctrlKey;
-      if (!hasModKey) return;
-
-      const key = event.key.toLowerCase();
-      if (event.shiftKey || event.altKey) return;
-
-      if (key === "s") {
-        event.preventDefault();
-        handleOpenSettingsDrawer();
-        return;
-      }
-
-      if (key === "h" || key === "k") {
-        event.preventDefault();
-        handleOpenShortcutsMenu();
-        return;
-      }
-
-      if (key === "p" && session) {
-        event.preventDefault();
-        void handleOpenPersonaSelector();
-        return;
-      }
-
-      if (key === "a" && session) {
-        event.preventDefault();
-        handleOpenAuthorNoteMenu();
-        return;
-      }
-
-      if (key === "m") {
-        event.preventDefault();
-        handleOpenSettingsDrawer("model");
-      }
-    };
-
-    window.addEventListener("keydown", handleShortcutKeyDown);
-    return () => window.removeEventListener("keydown", handleShortcutKeyDown);
-  }, [
-    handleOpenAuthorNoteMenu,
-    handleOpenPersonaSelector,
-    handleOpenSettingsDrawer,
-    handleOpenShortcutsMenu,
-    isMobile,
-    session,
-  ]);
-
   const handleRegenerateMessage = useCallback(
     async (message: StoredMessage, options?: { guidance?: string }) => {
       await handleRegenerate(message, { swapPlaces, guidance: options?.guidance });
@@ -1939,7 +1719,7 @@ export function ChatConversationPage() {
           headerOverlayClassName={theme.headerOverlay}
           onSessionUpdate={handleSessionUpdate}
           onBeforeSettingsOpen={!isMobile ? captureFooterFocusForDrawer : undefined}
-          onSettingsOpen={!isMobile ? () => handleOpenSettingsDrawer() : undefined}
+          onSettingsOpen={!isMobile ? () => setSettingsDrawerOpen(true) : undefined}
         />
       </div>
 
@@ -2362,39 +2142,6 @@ export function ChatConversationPage() {
               onClick={handlePlusMenuHelpMeReply}
             />
           )}
-        </div>
-      </BottomMenu>
-
-      <BottomMenu
-        isOpen={showShortcutsMenu}
-        onClose={() => setShowShortcutsMenu(false)}
-        title="Keyboard Shortcuts"
-      >
-        <div className="space-y-4">
-          <p className="px-1 text-xs leading-relaxed text-fg/50">
-            Desktop shortcuts for the chat view. Open the same tools available from the header,
-            drawer, and extra menu.
-          </p>
-
-          <div
-            className={cn(
-              "overflow-hidden",
-              radius.md,
-              "border border-fg/10 bg-fg/[0.02]",
-            )}
-          >
-            {shortcutItems.map((item, index) => (
-              <ChatShortcutRow
-                key={item.id}
-                item={item}
-                isLast={index === shortcutItems.length - 1}
-              />
-            ))}
-          </div>
-
-          <p className="px-1 text-[11px] text-fg/35">
-            Tip: shortcuts work anywhere in the chat view, even while typing is unfocused.
-          </p>
         </div>
       </BottomMenu>
 
@@ -2940,8 +2687,6 @@ export function ChatConversationPage() {
           onClose={() => setSettingsDrawerOpen(false)}
           character={character}
           onOpenAuthorNote={handleOpenAuthorNoteMenu}
-          shortcutAction={settingsDrawerShortcutAction}
-          shortcutActionKey={settingsDrawerShortcutKey}
         />
       )}
 
