@@ -44,6 +44,9 @@ struct CompanionMemoryCandidate {
     category: &'static str,
     pinned: bool,
     importance: f32,
+    persistence_importance: f32,
+    prompt_importance: f32,
+    volatility: f32,
     canonical_entities: Vec<MemoryEntityAnchor>,
     fact_signature: Option<String>,
     fact_polarity: Option<i8>,
@@ -73,7 +76,6 @@ struct SentencePrototype {
     speaker: PrototypeSpeaker,
     description: &'static str,
     threshold: f32,
-    importance: f32,
     pinned: bool,
 }
 
@@ -101,6 +103,14 @@ struct RouterDecision {
     remember_score: f32,
     transient_score: f32,
     category_scores: HashMap<&'static str, f32>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ImportanceProfile {
+    current: f32,
+    persistence: f32,
+    prompt: f32,
+    volatility: f32,
 }
 
 fn config(character: &Character) -> super::CompanionMemoryConfig {
@@ -374,6 +384,9 @@ pub async fn process_turn(
             is_cold: false,
             last_accessed_at: now,
             importance_score: candidate.importance,
+            persistence_importance: candidate.persistence_importance,
+            prompt_importance: candidate.prompt_importance,
+            volatility: candidate.volatility,
             is_pinned: candidate.pinned,
             access_count: 0,
             match_score: None,
@@ -464,7 +477,10 @@ fn retrieval_score(
     now: u64,
 ) -> f32 {
     let mut score = cosine * 1.2 + keyword_overlap * 0.55;
-    score += memory.importance_score * 0.35;
+    score += memory.importance_score * 0.2;
+    score += memory.prompt_importance * 0.34;
+    score += memory.persistence_importance * 0.12;
+    score -= memory.volatility * 0.05;
     score += (memory.access_count.min(6) as f32) * 0.015;
     score += recency_bonus(memory.created_at, now);
     if memory.is_pinned {
@@ -510,7 +526,10 @@ fn prompt_retention_score(
         return 0.01;
     }
 
-    let mut score = memory.importance_score;
+    let mut score = memory.importance_score * 0.45
+        + memory.prompt_importance * 1.0
+        + memory.persistence_importance * 0.42;
+    score -= memory.volatility * 0.22;
     if memory.is_pinned {
         score += 2.0;
     }
@@ -873,7 +892,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "a person sets a personal limit, refusal, comfort boundary, or asks the other person to stop something",
             threshold: 0.34,
-            importance: 1.0,
             pinned: true,
         },
         SentencePrototype {
@@ -882,7 +900,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "a person states a personal preference, liking, dislike, favorite, or what they enjoy",
             threshold: 0.33,
-            importance: 0.94,
             pinned: false,
         },
         SentencePrototype {
@@ -891,7 +908,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "a person states a stable fact about their identity, background, work, home, history, or life circumstances",
             threshold: 0.31,
-            importance: 0.9,
             pinned: false,
         },
         SentencePrototype {
@@ -900,7 +916,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "a person describes a recurring habit, routine, schedule, or usual behavior",
             threshold: 0.34,
-            importance: 0.82,
             pinned: false,
         },
         SentencePrototype {
@@ -909,7 +924,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "people make a plan, promise, future commitment, or discuss an upcoming shared action",
             threshold: 0.34,
-            importance: 0.9,
             pinned: false,
         },
         SentencePrototype {
@@ -918,7 +932,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "a person expresses affection, trust, gratitude, apology, reassurance, emotional closeness, or care toward the other person",
             threshold: 0.33,
-            importance: 0.92,
             pinned: false,
         },
         SentencePrototype {
@@ -927,7 +940,6 @@ fn router_prototypes() -> Vec<SentencePrototype> {
             description:
                 "a major turning point in the relationship such as reconciliation, breakup, confession, deep promise, or changed relationship status",
             threshold: 0.35,
-            importance: 0.96,
             pinned: true,
         },
     ]
@@ -1207,17 +1219,24 @@ async fn route_sentence_candidate(
         || ((prototype.category == CATEGORY_RELATIONSHIP
             || prototype.category == CATEGORY_MILESTONE)
             && relationship_emotion_strength(emotion.as_ref()) >= 0.75);
-    let importance = if score > 0.72 || remember_score >= 0.72 {
-        (prototype.importance + 0.05).min(1.0)
-    } else {
-        (prototype.importance + remember_score * 0.06).min(1.0)
-    };
+    let importance = score_candidate_importance(
+        prototype.category,
+        speaker,
+        score,
+        remember_score,
+        router_best_category,
+        emotional_signal,
+        entities,
+    );
 
     Some(candidate(
         prototype.category,
         format_memory_text(prototype.category, speaker, sentence, entities),
         pinned,
-        importance,
+        importance.current,
+        importance.persistence,
+        importance.prompt,
+        importance.volatility,
         entities.to_vec(),
         derive_fact_signature(prototype.category, sentence, entities),
         derive_fact_polarity(prototype.category, sentence),
@@ -1254,6 +1273,64 @@ fn assistant_policy_allows(
             (remember_score >= 0.62 || router_best_category >= 0.42) && transient_score <= 0.48
         }
         _ => false,
+    }
+}
+
+fn score_candidate_importance(
+    category: &str,
+    speaker: PrototypeSpeaker,
+    semantic_score: f32,
+    remember_score: f32,
+    router_best_category: f32,
+    emotional_signal: f32,
+    entities: &[MemoryEntityAnchor],
+) -> ImportanceProfile {
+    let (mut persistence, mut prompt, mut volatility) = match category {
+        CATEGORY_BOUNDARY => (0.96, 0.82, 0.12),
+        CATEGORY_PREFERENCE => (0.72, 0.58, 0.46),
+        CATEGORY_PROFILE => (0.88, 0.58, 0.18),
+        CATEGORY_ROUTINE => (0.56, 0.42, 0.52),
+        CATEGORY_EPISODIC => (0.62, 0.56, 0.58),
+        CATEGORY_RELATIONSHIP => (0.78, 0.74, 0.44),
+        CATEGORY_MILESTONE => (0.98, 0.96, 0.08),
+        CATEGORY_EMOTIONAL_SNAPSHOT => (0.14, 0.52, 0.92),
+        _ => (0.54, 0.44, 0.46),
+    };
+
+    let entity_bonus = (entities.len().min(3) as f32) * 0.025;
+    persistence += remember_score * 0.06 + router_best_category * 0.05 + entity_bonus;
+    prompt += remember_score * 0.14 + semantic_score * 0.06 + emotional_signal * 0.1 + entity_bonus;
+    volatility -= remember_score * 0.08 + router_best_category * 0.04;
+
+    match category {
+        CATEGORY_RELATIONSHIP | CATEGORY_MILESTONE | CATEGORY_EMOTIONAL_SNAPSHOT => {
+            prompt += emotional_signal * 0.12;
+        }
+        CATEGORY_EPISODIC => {
+            volatility += 0.04;
+        }
+        CATEGORY_BOUNDARY | CATEGORY_PROFILE => {
+            volatility -= 0.06;
+        }
+        _ => {}
+    }
+
+    if speaker == PrototypeSpeaker::Assistant {
+        persistence -= 0.06;
+        prompt -= 0.04;
+        volatility += 0.05;
+    }
+
+    persistence = persistence.clamp(0.05, 1.0);
+    prompt = prompt.clamp(0.05, 1.0);
+    volatility = volatility.clamp(0.05, 0.98);
+    let current = (prompt * 0.7 + persistence * 0.3 - volatility * 0.08).clamp(0.05, 1.0);
+
+    ImportanceProfile {
+        current,
+        persistence,
+        prompt,
+        volatility,
     }
 }
 
@@ -1561,6 +1638,9 @@ fn emotional_snapshot_candidate(
         format!("Recent emotional tone: {}.", fragments.join(", ")),
         false,
         0.72,
+        0.14,
+        0.52,
+        0.92,
         Vec::new(),
         None,
         None,
@@ -1573,6 +1653,9 @@ fn candidate(
     text: String,
     pinned: bool,
     importance: f32,
+    persistence_importance: f32,
+    prompt_importance: f32,
+    volatility: f32,
     canonical_entities: Vec<MemoryEntityAnchor>,
     fact_signature: Option<String>,
     fact_polarity: Option<i8>,
@@ -1583,6 +1666,9 @@ fn candidate(
         category,
         pinned,
         importance,
+        persistence_importance,
+        prompt_importance,
+        volatility,
         canonical_entities,
         fact_signature,
         fact_polarity,
@@ -1698,6 +1784,9 @@ fn mark_memories_superseded(
             memory.superseded_at = Some(now);
             memory.is_cold = true;
             memory.importance_score = memory.importance_score.min(0.08);
+            memory.prompt_importance = memory.prompt_importance.min(0.18);
+            memory.persistence_importance = memory.persistence_importance.min(0.22);
+            memory.volatility = memory.volatility.max(0.85);
         }
     }
 }
@@ -1813,7 +1902,7 @@ fn apply_companion_decay(memories: &mut [MemoryEmbedding]) {
             continue;
         }
 
-        let (decay, cold_threshold) = decay_profile(memory.category.as_deref());
+        let (decay, cold_threshold) = decay_profile(memory);
         memory.importance_score = (memory.importance_score - decay).max(0.05);
         if memory.importance_score < cold_threshold {
             memory.is_cold = true;
@@ -1821,18 +1910,16 @@ fn apply_companion_decay(memories: &mut [MemoryEmbedding]) {
     }
 }
 
-fn decay_profile(category: Option<&str>) -> (f32, f32) {
-    match category.unwrap_or("other") {
-        CATEGORY_BOUNDARY => (0.004, 0.28),
-        CATEGORY_PREFERENCE => (0.006, 0.3),
-        CATEGORY_PROFILE => (0.007, 0.32),
-        CATEGORY_RELATIONSHIP => (0.008, 0.3),
-        CATEGORY_ROUTINE => (0.012, 0.33),
-        CATEGORY_EPISODIC => (0.018, 0.35),
-        CATEGORY_MILESTONE => (0.012, 0.32),
-        CATEGORY_EMOTIONAL_SNAPSHOT => (0.03, 0.38),
-        _ => (0.015, 0.34),
-    }
+fn decay_profile(memory: &MemoryEmbedding) -> (f32, f32) {
+    let decay = (0.004
+        + memory.volatility * 0.028
+        + (1.0 - memory.persistence_importance).max(0.0) * 0.012
+        - memory.prompt_importance * 0.006)
+        .clamp(0.002, 0.04);
+    let cold_threshold = (0.12 + memory.volatility * 0.16 - memory.persistence_importance * 0.07
+        + (0.45 - memory.prompt_importance).max(0.0) * 0.08)
+        .clamp(0.08, 0.42);
+    (decay, cold_threshold)
 }
 
 fn trim_to_max_entries(session: &mut Session, cfg: &super::CompanionMemoryConfig) {
@@ -1936,6 +2023,9 @@ mod tests {
             is_cold: false,
             last_accessed_at: 0,
             importance_score: 1.0,
+            persistence_importance: 0.72,
+            prompt_importance: 0.58,
+            volatility: 0.46,
             is_pinned: false,
             access_count: 0,
             match_score: None,
@@ -1954,6 +2044,9 @@ mod tests {
             category: CATEGORY_PREFERENCE,
             pinned: false,
             importance: 0.9,
+            persistence_importance: 0.72,
+            prompt_importance: 0.58,
+            volatility: 0.46,
             canonical_entities: Vec::new(),
             fact_signature: Some("preference::like quiet cafes".to_string()),
             fact_polarity: Some(-1),
@@ -1962,6 +2055,32 @@ mod tests {
 
         let superseded = detect_superseded_memories(&candidate, Some(&[0.96, 0.04]), &[existing]);
         assert_eq!(superseded, vec![0]);
+    }
+
+    #[test]
+    fn milestone_importance_exceeds_snapshot_importance() {
+        let milestone = score_candidate_importance(
+            CATEGORY_MILESTONE,
+            PrototypeSpeaker::User,
+            0.78,
+            0.82,
+            0.8,
+            0.72,
+            &[],
+        );
+        let snapshot = score_candidate_importance(
+            CATEGORY_EMOTIONAL_SNAPSHOT,
+            PrototypeSpeaker::User,
+            0.62,
+            0.58,
+            0.54,
+            0.7,
+            &[],
+        );
+
+        assert!(milestone.persistence > snapshot.persistence);
+        assert!(milestone.prompt > snapshot.prompt);
+        assert!(milestone.volatility < snapshot.volatility);
     }
 
     #[test]

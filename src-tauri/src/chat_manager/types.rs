@@ -728,6 +728,15 @@ pub struct MemoryEmbedding {
     /// Importance score (0.0-1.0) - decays over time, memories below threshold go cold
     #[serde(default = "default_importance_score")]
     pub importance_score: f32,
+    /// Long-term persistence importance for contradiction-safe retention.
+    #[serde(default = "default_importance_score")]
+    pub persistence_importance: f32,
+    /// Prompt-worthiness for hot retrieval and context injection.
+    #[serde(default = "default_importance_score")]
+    pub prompt_importance: f32,
+    /// Volatility of the memory; higher values decay faster.
+    #[serde(default = "default_memory_volatility")]
+    pub volatility: f32,
     /// If true, this memory never decays (user/LLM marked as critical)
     #[serde(default)]
     pub is_pinned: bool,
@@ -765,6 +774,10 @@ pub struct MemoryEmbedding {
 
 fn default_importance_score() -> f32 {
     1.0
+}
+
+fn default_memory_volatility() -> f32 {
+    0.4
 }
 
 #[derive(Deserialize, Serialize, Clone)]
