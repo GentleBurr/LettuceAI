@@ -42,6 +42,7 @@ import {
   getAppDefaultTemplateId,
   resetAppDefaultTemplate,
   resetLocalRoleplayTemplate,
+  resetCompanionTemplate,
   resetDynamicSummaryTemplate,
   resetDynamicMemoryTemplate,
   resetDynamicMemoryLocalTemplate,
@@ -72,6 +73,7 @@ import type {
 import {
   APP_DEFAULT_TEMPLATE_ID,
   APP_LOCAL_ROLEPLAY_TEMPLATE_ID,
+  APP_COMPANION_TEMPLATE_ID,
   APP_DYNAMIC_SUMMARY_TEMPLATE_ID,
   APP_DYNAMIC_MEMORY_TEMPLATE_ID,
   APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID,
@@ -2734,6 +2736,8 @@ export function EditPromptTemplate() {
         updated = await resetAppDefaultTemplate();
       } else if (id === APP_LOCAL_ROLEPLAY_TEMPLATE_ID) {
         updated = await resetLocalRoleplayTemplate();
+      } else if (id === APP_COMPANION_TEMPLATE_ID) {
+        updated = await resetCompanionTemplate();
       } else if (id === APP_DYNAMIC_SUMMARY_TEMPLATE_ID) {
         updated = await resetDynamicSummaryTemplate();
       } else if (id === APP_DYNAMIC_MEMORY_TEMPLATE_ID) {

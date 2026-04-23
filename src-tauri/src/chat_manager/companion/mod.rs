@@ -3,7 +3,7 @@ pub mod memory;
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
-use crate::chat_manager::types::{Character, Session};
+use crate::chat_manager::types::{Character, Persona, Session};
 use crate::embedding::emotion::{EmotionClassification, EmotionLabelScore};
 use crate::utils::log_warn;
 
@@ -500,7 +500,11 @@ pub async fn update_state_for_user_message(
     true
 }
 
-pub fn render_prompt_state(session: &Session, character: &Character) -> Option<String> {
+pub fn render_prompt_state(
+    session: &Session,
+    character: &Character,
+    persona: Option<&Persona>,
+) -> Option<String> {
     if !is_companion_mode(session, character) {
         return None;
     }
@@ -513,10 +517,21 @@ pub fn render_prompt_state(session: &Session, character: &Character) -> Option<S
     let expressed = describe_top_dimensions(&state.emotional_state.expressed, 3);
     let blocked = describe_top_dimensions(&state.emotional_state.blocked, 2);
     let rel = &state.relationship_state;
+    let partner_name = persona
+        .map(|value| value.title.trim())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("the current conversation partner");
 
     let mut lines = vec![
         format!(
-            "Relationship trend: closeness {:.0}%, trust {:.0}%, affection {:.0}%, tension {:.0}%.",
+            "The following relationship and emotional state describes {}'s live relationship with {}, the person currently speaking in this chat.",
+            character.name, partner_name,
+        ),
+        "Do not apply these metrics to third-party people mentioned in character definitions, persona descriptions, lore, or memories unless that relationship is explicitly stated.".to_string(),
+        format!(
+            "Current {} <-> {} relationship trend: closeness {:.0}%, trust {:.0}%, affection {:.0}%, tension {:.0}%.",
+            character.name,
+            partner_name,
             rel.closeness * 100.0,
             rel.trust * 100.0,
             rel.affection * 100.0,
@@ -550,7 +565,9 @@ pub fn render_prompt_state(session: &Session, character: &Character) -> Option<S
 
     if !state.active_signals.is_empty() {
         lines.push(format!(
-            "Recent drivers: {}.",
+            "Recent drivers in {}'s interaction with {}: {}.",
+            character.name,
+            partner_name,
             state.active_signals.join(", ")
         ));
     }

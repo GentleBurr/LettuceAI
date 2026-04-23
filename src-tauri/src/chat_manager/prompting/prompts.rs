@@ -885,20 +885,22 @@ pub fn ensure_local_roleplay_template(app: &AppHandle) -> Result<String, String>
 }
 
 pub fn ensure_companion_template(app: &AppHandle) -> Result<String, String> {
+    let defaults = prompt_engine::default_companion_entries();
     if let Some(existing) = get_template(app, APP_COMPANION_TEMPLATE_ID)? {
         let _ = maybe_backfill_entries(
             app,
             APP_COMPANION_TEMPLATE_ID,
             PromptType::CompanionPrompt,
-            prompt_engine::default_companion_entries(),
+            defaults.clone(),
         );
+        let _ = backfill_missing_entry_conditions(app, APP_COMPANION_TEMPLATE_ID, &defaults);
         return Ok(existing.id);
     }
 
     let conn = open_db(app)?;
     let now = now();
     let content = get_base_prompt(PromptType::CompanionPrompt);
-    let entries_json = serde_json::to_string(&prompt_engine::default_companion_entries())
+    let entries_json = serde_json::to_string(&defaults)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     conn.execute(
         "INSERT OR IGNORE INTO prompt_templates (id, name, prompt_type, content, entries, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
