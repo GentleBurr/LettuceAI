@@ -28,6 +28,8 @@ const CATEGORY_ROUTINE: &str = "routine";
 const CATEGORY_EPISODIC: &str = "episodic";
 const CATEGORY_MILESTONE: &str = "milestone";
 const CATEGORY_EMOTIONAL_SNAPSHOT: &str = "emotional_snapshot";
+const MAX_HOT_ASSISTANT_MEMORIES: usize = 6;
+const MAX_HOT_ASSISTANT_RELATIONSHIP_MEMORIES: usize = 3;
 const ROUTER_REMEMBER_HYPOTHESIS: &str =
     "This statement contains companion-relevant information that should be stored as memory for future conversations.";
 const ROUTER_TRANSIENT_HYPOTHESIS: &str =
@@ -405,6 +407,7 @@ pub async fn process_turn(
     }
 
     trim_to_max_entries(session, &cfg);
+    enforce_assistant_retention_limits(session, &cfg);
     demote_over_budget(session, settings, &cfg);
 
     session.memories = active_memory_texts(session);
@@ -486,6 +489,7 @@ fn retrieval_score(
     if memory.is_pinned {
         score += 0.2;
     }
+    score += source_role_retrieval_weight(memory);
 
     match memory.category.as_deref().unwrap_or("other") {
         CATEGORY_RELATIONSHIP => {
@@ -533,6 +537,7 @@ fn prompt_retention_score(
     if memory.is_pinned {
         score += 2.0;
     }
+    score += source_role_retention_weight(memory);
     score += recency_bonus(memory.created_at, now);
     score += (memory.access_count.min(5) as f32) * 0.02;
     match memory.category.as_deref().unwrap_or("other") {
@@ -1738,6 +1743,9 @@ fn detect_superseded_memories(
         if !memory_is_active(memory) || memory.category.as_deref() != Some(candidate.category) {
             continue;
         }
+        if !candidate_can_supersede_memory(candidate, memory) {
+            continue;
+        }
 
         let existing_signature = memory_signature(memory);
         let exact_signature_match = candidate_signature
@@ -1870,6 +1878,98 @@ fn canonical_entity_overlap(
         0.0
     } else {
         overlap / union
+    }
+}
+
+fn memory_source_role(memory: &MemoryEmbedding) -> &str {
+    memory.source_role.as_deref().unwrap_or("unknown")
+}
+
+fn source_role_retrieval_weight(memory: &MemoryEmbedding) -> f32 {
+    match memory_source_role(memory) {
+        "user" => 0.1,
+        "system" => 0.05,
+        "assistant" => match memory.category.as_deref().unwrap_or("other") {
+            CATEGORY_MILESTONE => 0.03,
+            CATEGORY_EPISODIC | CATEGORY_RELATIONSHIP => -0.03,
+            _ => -0.12,
+        },
+        _ => 0.0,
+    }
+}
+
+fn source_role_retention_weight(memory: &MemoryEmbedding) -> f32 {
+    match memory_source_role(memory) {
+        "user" => 0.12,
+        "system" => 0.04,
+        "assistant" => match memory.category.as_deref().unwrap_or("other") {
+            CATEGORY_MILESTONE => 0.02,
+            CATEGORY_EPISODIC | CATEGORY_RELATIONSHIP => -0.08,
+            _ => -0.18,
+        },
+        _ => 0.0,
+    }
+}
+
+fn candidate_can_supersede_memory(
+    candidate: &CompanionMemoryCandidate,
+    memory: &MemoryEmbedding,
+) -> bool {
+    let candidate_role = candidate.source_role.as_str();
+    let existing_role = memory_source_role(memory);
+    if candidate_role == "assistant" && existing_role == "user" {
+        return false;
+    }
+    if candidate_role == "system" {
+        return false;
+    }
+    true
+}
+
+fn enforce_assistant_retention_limits(session: &mut Session, cfg: &super::CompanionMemoryConfig) {
+    let now = now_millis().unwrap_or_default();
+    let mut hot_assistant = session
+        .memory_embeddings
+        .iter()
+        .enumerate()
+        .filter(|(_, memory)| {
+            memory_is_active(memory) && !memory.is_cold && memory_source_role(memory) == "assistant"
+        })
+        .map(|(index, memory)| (index, prompt_retention_score(memory, cfg, now)))
+        .collect::<Vec<_>>();
+    hot_assistant.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    for (index, _) in hot_assistant.into_iter().skip(MAX_HOT_ASSISTANT_MEMORIES) {
+        if let Some(memory) = session.memory_embeddings.get_mut(index) {
+            memory.is_cold = true;
+        }
+    }
+
+    let mut hot_assistant_relationship = session
+        .memory_embeddings
+        .iter()
+        .enumerate()
+        .filter(|(_, memory)| {
+            memory_is_active(memory)
+                && !memory.is_cold
+                && memory_source_role(memory) == "assistant"
+                && matches!(
+                    memory.category.as_deref().unwrap_or("other"),
+                    CATEGORY_RELATIONSHIP | CATEGORY_EPISODIC
+                )
+        })
+        .map(|(index, memory)| (index, prompt_retention_score(memory, cfg, now)))
+        .collect::<Vec<_>>();
+    hot_assistant_relationship
+        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    for (index, _) in hot_assistant_relationship
+        .into_iter()
+        .skip(MAX_HOT_ASSISTANT_RELATIONSHIP_MEMORIES)
+    {
+        if let Some(memory) = session.memory_embeddings.get_mut(index) {
+            memory.is_cold = true;
+        }
     }
 }
 
@@ -2055,6 +2155,51 @@ mod tests {
 
         let superseded = detect_superseded_memories(&candidate, Some(&[0.96, 0.04]), &[existing]);
         assert_eq!(superseded, vec![0]);
+    }
+
+    #[test]
+    fn assistant_memory_cannot_supersede_user_memory() {
+        let existing = MemoryEmbedding {
+            id: "old".to_string(),
+            text: "User preference: I like quiet cafes.".to_string(),
+            embedding: vec![1.0, 0.0],
+            created_at: 0,
+            token_count: 0,
+            is_cold: false,
+            last_accessed_at: 0,
+            importance_score: 1.0,
+            persistence_importance: 0.72,
+            prompt_importance: 0.58,
+            volatility: 0.46,
+            is_pinned: false,
+            access_count: 0,
+            match_score: None,
+            category: Some(CATEGORY_PREFERENCE.to_string()),
+            canonical_entities: Vec::new(),
+            fact_signature: Some("preference::like quiet cafes".to_string()),
+            fact_polarity: Some(1),
+            source_role: Some("user".to_string()),
+            superseded_by: None,
+            superseded_at: None,
+            supersedes: Vec::new(),
+        };
+
+        let candidate = CompanionMemoryCandidate {
+            text: "Companion relationship signal: I think you do not like quiet cafes.".to_string(),
+            category: CATEGORY_PREFERENCE,
+            pinned: false,
+            importance: 0.6,
+            persistence_importance: 0.4,
+            prompt_importance: 0.4,
+            volatility: 0.7,
+            canonical_entities: Vec::new(),
+            fact_signature: Some("preference::like quiet cafes".to_string()),
+            fact_polarity: Some(-1),
+            source_role: "assistant".to_string(),
+        };
+
+        let superseded = detect_superseded_memories(&candidate, Some(&[0.96, 0.04]), &[existing]);
+        assert!(superseded.is_empty());
     }
 
     #[test]
