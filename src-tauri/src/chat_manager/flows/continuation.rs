@@ -16,7 +16,9 @@ use crate::chat_manager::memory::dynamic::{
     dynamic_retrieval_strategy, dynamic_window_size, ensure_pinned_hot, mark_memories_accessed,
     promote_cold_memories,
 };
-use crate::chat_manager::memory::flow::{process_dynamic_memory_cycle, select_relevant_memories};
+use crate::chat_manager::memory::flow::{
+    enqueue_post_turn_dynamic_memory, select_relevant_memories,
+};
 use crate::chat_manager::messages::{
     push_prompt_entry_message, push_system_message, push_user_or_assistant_message_with_context,
     sanitize_placeholders_in_api_messages,
@@ -39,8 +41,7 @@ use crate::chat_manager::types::{
 };
 use crate::usage::tracking::UsageOperationType;
 use crate::utils::{
-    emit_debug, emit_error_event, emit_info, emit_warn_event, log_error, log_info, log_warn,
-    now_millis,
+    emit_debug, emit_error_event, emit_info, emit_warn_event, log_info, log_warn, now_millis,
 };
 
 pub struct ContinueFlow {
@@ -710,15 +711,13 @@ impl ContinueFlow {
         .await;
 
         if dynamic_memory_enabled {
-            if let Err(err) =
-                process_dynamic_memory_cycle(&app, &mut session, settings, &character).await
-            {
-                log_error(
-                    &app,
-                    "chat_continue",
-                    format!("dynamic memory cycle failed: {}", err),
-                );
-            }
+            enqueue_post_turn_dynamic_memory(
+                app.clone(),
+                session.id.clone(),
+                None,
+                assistant_message.id.clone(),
+                companion_memory_enabled.then(Default::default),
+            );
         }
 
         Ok(ContinueResult {

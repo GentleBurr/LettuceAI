@@ -16,7 +16,9 @@ use crate::chat_manager::memory::dynamic::{
     dynamic_retrieval_strategy, dynamic_window_size, ensure_pinned_hot, mark_memories_accessed,
     promote_cold_memories,
 };
-use crate::chat_manager::memory::flow::{process_dynamic_memory_cycle, select_relevant_memories};
+use crate::chat_manager::memory::flow::{
+    enqueue_post_turn_dynamic_memory, select_relevant_memories,
+};
 use crate::chat_manager::memory::manual::{has_manual_memories, render_manual_memory_lines};
 use crate::chat_manager::messages::{
     push_prompt_entry_message, push_system_message, push_user_or_assistant_message_with_context,
@@ -841,15 +843,13 @@ impl CompletionFlow {
         .await;
 
         if dynamic_memory_enabled {
-            if let Err(err) =
-                process_dynamic_memory_cycle(&app, &mut session, settings, &character).await
-            {
-                log_error(
-                    &app,
-                    "chat_completion",
-                    format!("dynamic memory cycle failed: {}", err),
-                );
-            }
+            enqueue_post_turn_dynamic_memory(
+                app.clone(),
+                session.id.clone(),
+                Some(user_msg.id.clone()),
+                assistant_message.id.clone(),
+                companion_memory_enabled.then(Default::default),
+            );
         }
 
         Ok(ChatTurnResult {

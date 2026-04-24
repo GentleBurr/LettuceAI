@@ -5,7 +5,7 @@ use tauri::Manager;
 
 use crate::{
     abort_manager, chat_manager, content_filter, dynamic_memory_run_manager, host_api, logger,
-    migrations, storage_manager, sync, usage, utils,
+    migrations, post_turn_memory_scheduler, storage_manager, sync, usage, utils,
 };
 
 use super::runtime::configure_onnxruntime_dylib;
@@ -63,6 +63,9 @@ fn manage_core_state(app: &mut tauri::App) -> Arc<usage::app_activity::AppActive
 
     let dynamic_memory_run_manager = dynamic_memory_run_manager::DynamicMemoryRunManager::new();
     app.manage(dynamic_memory_run_manager);
+
+    let post_turn_memory_scheduler = post_turn_memory_scheduler::PostTurnMemoryScheduler::new();
+    app.manage(post_turn_memory_scheduler);
 
     let app_usage_service = Arc::new(usage::app_activity::AppActiveUsageService::new());
     app.manage(app_usage_service.clone());

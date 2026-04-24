@@ -761,6 +761,9 @@ pub struct MemoryEmbedding {
     /// Message role that produced the memory, when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_role: Option<String>,
+    /// Message id that produced the memory, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_message_id: Option<String>,
     /// If present, this memory has been superseded by a newer one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub superseded_by: Option<String>,

@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 58;
+pub const CURRENT_MIGRATION_VERSION: u32 = 59;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -617,6 +617,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v57_to_v58(app)?;
         version = 58;
+    }
+
+    if version < 59 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v58 -> v59: Add companion turn effects",
+        );
+        migrate_v58_to_v59(app)?;
+        version = 59;
     }
 
     // Update the stored version
@@ -3258,6 +3268,43 @@ fn migrate_v57_to_v58(app: &AppHandle) -> Result<(), String> {
         conn.execute("ALTER TABLE sessions ADD COLUMN companion_state TEXT", [])
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     }
+
+    Ok(())
+}
+
+fn migrate_v58_to_v59(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS companion_turn_effects (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          user_message_id TEXT,
+          assistant_message_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          summary TEXT,
+          relationship_delta TEXT NOT NULL DEFAULT '{}',
+          emotion_delta TEXT NOT NULL DEFAULT '{}',
+          signal_changes TEXT NOT NULL DEFAULT '{"added":[],"removed":[]}',
+          memory_changes TEXT NOT NULL DEFAULT '{"added":[],"updated":[],"superseded":[]}',
+          source_window TEXT NOT NULL DEFAULT '{}',
+          UNIQUE(session_id, assistant_message_id),
+          FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+          FOREIGN KEY(user_message_id) REFERENCES messages(id) ON DELETE SET NULL,
+          FOREIGN KEY(assistant_message_id) REFERENCES messages(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_companion_turn_effects_session_assistant
+          ON companion_turn_effects(session_id, assistant_message_id, updated_at DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_companion_turn_effects_session_created
+          ON companion_turn_effects(session_id, created_at DESC);
+        "#,
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     Ok(())
 }

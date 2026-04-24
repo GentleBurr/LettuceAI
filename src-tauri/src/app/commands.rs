@@ -155,6 +155,7 @@ macro_rules! invoke_handler {
             crate::chat_manager::retry_dynamic_memory,
             crate::chat_manager::trigger_dynamic_memory,
             crate::chat_manager::abort_dynamic_memory,
+            crate::storage_manager::companion_turn_effects::get_message_companion_effect,
             crate::chat_manager::list_prompt_templates,
             crate::chat_manager::export_prompt_template_as_usc,
             crate::chat_manager::chat_template_export_as_usc,

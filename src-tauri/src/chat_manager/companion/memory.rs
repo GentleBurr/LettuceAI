@@ -53,6 +53,7 @@ struct CompanionMemoryCandidate {
     fact_signature: Option<String>,
     fact_polarity: Option<i8>,
     source_role: String,
+    source_message_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -290,6 +291,16 @@ pub async fn process_turn(
     settings: &Settings,
     character: &Character,
 ) -> Result<(), String> {
+    process_turn_for_source_messages(app, session, settings, character, None).await
+}
+
+pub async fn process_turn_for_source_messages(
+    app: &AppHandle,
+    session: &mut Session,
+    settings: &Settings,
+    character: &Character,
+    source_message_ids: Option<&HashSet<String>>,
+) -> Result<(), String> {
     if !is_enabled(settings, session, character) {
         return Ok(());
     }
@@ -308,7 +319,7 @@ pub async fn process_turn(
     apply_companion_decay(&mut session.memory_embeddings);
 
     let state = current_state(session, &companion_config(character));
-    let candidates = build_candidates(app, session, &state, &cfg).await;
+    let candidates = build_candidates(app, session, &state, &cfg, source_message_ids).await;
 
     if candidates.is_empty() {
         demote_over_budget(session, settings, &cfg);
@@ -397,6 +408,7 @@ pub async fn process_turn(
             fact_signature: candidate.fact_signature,
             fact_polarity: candidate.fact_polarity,
             source_role: Some(candidate.source_role),
+            source_message_id: candidate.source_message_id,
             superseded_by: None,
             superseded_at: None,
             supersedes: supersedes.clone(),
@@ -602,8 +614,12 @@ async fn build_candidates(
     session: &Session,
     state: &super::CompanionSessionState,
     cfg: &super::CompanionMemoryConfig,
+    source_message_ids: Option<&HashSet<String>>,
 ) -> Vec<CompanionMemoryCandidate> {
-    let recent_messages = recent_conversation_messages(session, 6);
+    let recent_messages = match source_message_ids {
+        Some(ids) if !ids.is_empty() => conversation_messages_by_id(session, ids),
+        _ => recent_conversation_messages(session, 6),
+    };
     let mut candidates = Vec::new();
 
     for message in recent_messages {
@@ -627,6 +643,7 @@ async fn build_candidates(
                 &sentence.text,
                 &features,
                 &canonical_entities,
+                Some(message.id.clone()),
             )
             .await
             {
@@ -657,6 +674,21 @@ fn recent_conversation_messages(session: &Session, limit: usize) -> Vec<&StoredM
         .collect::<Vec<_>>()
         .into_iter()
         .rev()
+        .collect()
+}
+
+fn conversation_messages_by_id<'a>(
+    session: &'a Session,
+    ids: &HashSet<String>,
+) -> Vec<&'a StoredMessage> {
+    session
+        .messages
+        .iter()
+        .filter(|message| {
+            ids.contains(&message.id)
+                && (message.role.eq_ignore_ascii_case("user")
+                    || message.role.eq_ignore_ascii_case("assistant"))
+        })
         .collect()
 }
 
@@ -1102,6 +1134,7 @@ async fn route_sentence_candidate(
     sentence: &str,
     features: &SentenceFeatures,
     entities: &[MemoryEntityAnchor],
+    source_message_id: Option<String>,
 ) -> Option<CompanionMemoryCandidate> {
     let sentence_embedding =
         match embedding::compute_embedding(app.clone(), sentence.to_string()).await {
@@ -1246,6 +1279,7 @@ async fn route_sentence_candidate(
         derive_fact_signature(prototype.category, sentence, entities),
         derive_fact_polarity(prototype.category, sentence),
         speaker.as_role_name().to_string(),
+        source_message_id,
     ))
 }
 
@@ -1650,6 +1684,7 @@ fn emotional_snapshot_candidate(
         None,
         None,
         "system".to_string(),
+        None,
     ))
 }
 
@@ -1665,6 +1700,7 @@ fn candidate(
     fact_signature: Option<String>,
     fact_polarity: Option<i8>,
     source_role: String,
+    source_message_id: Option<String>,
 ) -> CompanionMemoryCandidate {
     CompanionMemoryCandidate {
         text: clamp_memory_text(&text),
@@ -1678,6 +1714,7 @@ fn candidate(
         fact_signature,
         fact_polarity,
         source_role,
+        source_message_id,
     }
 }
 
@@ -2134,6 +2171,7 @@ mod tests {
             fact_signature: Some("preference::like quiet cafes".to_string()),
             fact_polarity: Some(1),
             source_role: Some("user".to_string()),
+            source_message_id: None,
             superseded_by: None,
             superseded_at: None,
             supersedes: Vec::new(),
@@ -2151,6 +2189,7 @@ mod tests {
             fact_signature: Some("preference::like quiet cafes".to_string()),
             fact_polarity: Some(-1),
             source_role: "user".to_string(),
+            source_message_id: None,
         };
 
         let superseded = detect_superseded_memories(&candidate, Some(&[0.96, 0.04]), &[existing]);
@@ -2179,6 +2218,7 @@ mod tests {
             fact_signature: Some("preference::like quiet cafes".to_string()),
             fact_polarity: Some(1),
             source_role: Some("user".to_string()),
+            source_message_id: None,
             superseded_by: None,
             superseded_at: None,
             supersedes: Vec::new(),
@@ -2196,6 +2236,7 @@ mod tests {
             fact_signature: Some("preference::like quiet cafes".to_string()),
             fact_polarity: Some(-1),
             source_role: "assistant".to_string(),
+            source_message_id: None,
         };
 
         let superseded = detect_superseded_memories(&candidate, Some(&[0.96, 0.04]), &[existing]);

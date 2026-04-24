@@ -1,13 +1,19 @@
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 use rusqlite::{params, OptionalExtension};
 use tauri::{AppHandle, Emitter, Manager};
+use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::api::{api_request, ApiRequest, ApiResponse};
 use crate::dynamic_memory_run_manager::{DynamicMemoryCancellationToken, DynamicMemoryRunManager};
 use crate::embedding;
+use crate::post_turn_memory_scheduler::{PostTurnMemoryJob, PostTurnMemoryScheduler};
+use crate::storage_manager::companion_turn_effects::{
+    create_processing_effect, mark_effect_failed, mark_effect_ready, CompanionTurnEffectSeed,
+};
 use crate::storage_manager::db::open_db;
 use crate::storage_manager::sessions::session_conversation_count;
 use crate::usage::tracking::UsageOperationType;
@@ -123,6 +129,8 @@ fn dynamic_memory_run_key(session_id: &str) -> String {
 fn dynamic_memory_request_id(session_id: &str, phase: &str) -> String {
     format!("dynamic-memory:{}:{}", session_id, phase)
 }
+
+const POST_TURN_MEMORY_DEBOUNCE_MS: u64 = 1_200;
 
 fn uses_local_dynamic_memory_model(provider_cred: &ProviderCredential, model: &Model) -> bool {
     crate::llama_cpp::is_llama_cpp(Some(provider_cred.provider_id.as_str()))
@@ -1017,6 +1025,437 @@ pub fn abort_dynamic_memory(app: AppHandle, session_id: String) -> Result<(), St
     let run_manager = app.state::<DynamicMemoryRunManager>().inner().clone();
     let abort_registry = app.state::<crate::abort_manager::AbortRegistry>();
     run_manager.cancel_run(&abort_registry, &run_key)
+}
+
+pub fn enqueue_post_turn_dynamic_memory(
+    app: AppHandle,
+    session_id: String,
+    user_message_id: Option<String>,
+    assistant_message_id: String,
+    seed: Option<CompanionTurnEffectSeed>,
+) {
+    let scheduler = app.state::<PostTurnMemoryScheduler>().inner().clone();
+    let seed_for_job = seed.clone().unwrap_or_default();
+    let job = PostTurnMemoryJob {
+        session_id: session_id.clone(),
+        user_message_id,
+        assistant_message_id: assistant_message_id.clone(),
+        enqueued_at: now_millis().unwrap_or_default(),
+        track_effect: seed.is_some(),
+        relationship_delta: seed_for_job.relationship_delta.clone(),
+        emotion_delta: seed_for_job.emotion_delta.clone(),
+        signal_changes: seed_for_job.signal_changes.clone(),
+    };
+
+    if let Some(seed) = seed {
+        if let Err(err) = create_processing_effect(
+            &app,
+            &session_id,
+            job.user_message_id.as_deref(),
+            &assistant_message_id,
+            seed,
+        ) {
+            log_warn(
+                &app,
+                "dynamic_memory",
+                format!(
+                    "failed to create companion turn effect placeholder for session {} message {}: {}",
+                    session_id, assistant_message_id, err
+                ),
+            );
+        }
+    }
+
+    if !scheduler.enqueue(job) {
+        log_info(
+            &app,
+            "dynamic_memory",
+            format!("coalesced post-turn memory run for session {}", session_id),
+        );
+        return;
+    }
+
+    tauri::async_runtime::spawn(async move {
+        loop {
+            sleep(Duration::from_millis(POST_TURN_MEMORY_DEBOUNCE_MS)).await;
+            let jobs = scheduler.begin_iteration(&session_id);
+
+            let context = match ChatContext::initialize(app.clone()) {
+                Ok(context) => context,
+                Err(err) => {
+                    log_error(
+                        &app,
+                        "dynamic_memory",
+                        format!(
+                            "failed to initialize post-turn memory context for session {}: {}",
+                            session_id, err
+                        ),
+                    );
+                    mark_jobs_failed(&app, &jobs, &err);
+                    if !scheduler.finish_iteration(&session_id) {
+                        break;
+                    }
+                    continue;
+                }
+            };
+
+            let mut session = match context.load_session(&session_id) {
+                Ok(Some(session)) => session,
+                Ok(None) => {
+                    log_warn(
+                        &app,
+                        "dynamic_memory",
+                        format!(
+                            "skipping post-turn memory; session {} no longer exists",
+                            session_id
+                        ),
+                    );
+                    let _ = scheduler.finish_iteration(&session_id);
+                    break;
+                }
+                Err(err) => {
+                    log_error(
+                        &app,
+                        "dynamic_memory",
+                        format!(
+                            "failed to load latest session {} for post-turn memory: {}",
+                            session_id, err
+                        ),
+                    );
+                    mark_jobs_failed(&app, &jobs, &err);
+                    if !scheduler.finish_iteration(&session_id) {
+                        break;
+                    }
+                    continue;
+                }
+            };
+            let before_memories = session.memory_embeddings.clone();
+
+            let character = match context.find_character(&session.character_id) {
+                Ok(character) => character,
+                Err(err) => {
+                    log_error(
+                        &app,
+                        "dynamic_memory",
+                        format!(
+                            "failed to load character {} for post-turn memory session {}: {}",
+                            session.character_id, session_id, err
+                        ),
+                    );
+                    mark_jobs_failed(&app, &jobs, &err);
+                    if !scheduler.finish_iteration(&session_id) {
+                        break;
+                    }
+                    continue;
+                }
+            };
+
+            log_info(
+                &app,
+                "dynamic_memory",
+                format!(
+                    "running post-turn memory in background for session {}",
+                    session_id
+                ),
+            );
+
+            let source_message_ids = jobs
+                .iter()
+                .filter(|job| job.track_effect)
+                .flat_map(|job| {
+                    [
+                        job.user_message_id.clone(),
+                        Some(job.assistant_message_id.clone()),
+                    ]
+                })
+                .flatten()
+                .collect::<HashSet<_>>();
+
+            let memory_result =
+                if companion::memory::is_enabled(&context.settings, &session, &character)
+                    && !source_message_ids.is_empty()
+                {
+                    companion::memory::process_turn_for_source_messages(
+                        &app,
+                        &mut session,
+                        &context.settings,
+                        &character,
+                        Some(&source_message_ids),
+                    )
+                    .await
+                } else {
+                    process_dynamic_memory_cycle(&app, &mut session, &context.settings, &character)
+                        .await
+                };
+
+            if let Err(err) = memory_result {
+                log_error(
+                    &app,
+                    "dynamic_memory",
+                    format!(
+                        "post-turn memory cycle failed for session {}: {}",
+                        session_id, err
+                    ),
+                );
+                mark_jobs_failed(&app, &jobs, &err);
+            } else {
+                finalize_companion_turn_effects(&app, &jobs, &before_memories, &session);
+            }
+
+            if !scheduler.finish_iteration(&session_id) {
+                break;
+            }
+        }
+    });
+}
+
+fn mark_jobs_failed(app: &AppHandle, jobs: &[PostTurnMemoryJob], err: &str) {
+    for job in jobs.iter().filter(|job| job.track_effect) {
+        let _ = mark_effect_failed(app, &job.session_id, &job.assistant_message_id, err);
+    }
+}
+
+fn finalize_companion_turn_effects(
+    app: &AppHandle,
+    jobs: &[PostTurnMemoryJob],
+    before_memories: &[MemoryEmbedding],
+    session: &Session,
+) {
+    let jobs = jobs
+        .iter()
+        .filter(|job| job.track_effect)
+        .collect::<Vec<_>>();
+    if jobs.is_empty() {
+        return;
+    }
+
+    let before_by_id = before_memories
+        .iter()
+        .map(|memory| (memory.id.as_str(), memory))
+        .collect::<HashMap<_, _>>();
+
+    for job in jobs {
+        let message_ids = [
+            job.user_message_id.as_deref(),
+            Some(job.assistant_message_id.as_str()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<HashSet<_>>();
+        let memory_changes = memory_changes_for_turn(&message_ids, &before_by_id, session);
+        let summary = summarize_turn_effect(
+            &job.relationship_delta,
+            &job.emotion_delta,
+            &job.signal_changes,
+            &memory_changes,
+        );
+        let source_window = json!({
+            "messageIds": message_ids.iter().copied().collect::<Vec<_>>(),
+            "enqueuedAt": job.enqueued_at,
+        });
+
+        if let Err(err) = mark_effect_ready(
+            app,
+            &job.session_id,
+            &job.assistant_message_id,
+            summary,
+            memory_changes,
+            source_window,
+        ) {
+            log_warn(
+                app,
+                "dynamic_memory",
+                format!(
+                    "failed to finalize companion turn effect session={} assistantMessage={}: {}",
+                    job.session_id, job.assistant_message_id, err
+                ),
+            );
+        }
+    }
+}
+
+fn memory_changes_for_turn(
+    message_ids: &HashSet<&str>,
+    before_by_id: &HashMap<&str, &MemoryEmbedding>,
+    session: &Session,
+) -> Value {
+    let mut added = Vec::new();
+    let mut updated = Vec::new();
+    let mut superseded = Vec::new();
+
+    for memory in &session.memory_embeddings {
+        let existed = before_by_id.get(memory.id.as_str()).copied();
+        let source_matches = memory
+            .source_message_id
+            .as_deref()
+            .map(|message_id| message_ids.contains(message_id))
+            .unwrap_or(false);
+
+        if existed.is_none() && source_matches {
+            added.push(memory_change_item(memory));
+        }
+
+        if let Some(previous) = existed {
+            let changed = previous.text != memory.text
+                || previous.category != memory.category
+                || previous.importance_score != memory.importance_score
+                || previous.prompt_importance != memory.prompt_importance
+                || previous.persistence_importance != memory.persistence_importance;
+            if changed && source_matches {
+                updated.push(memory_change_item(memory));
+            }
+
+            if previous.superseded_at.is_none() && memory.superseded_at.is_some() {
+                let replacement_matches = memory
+                    .superseded_by
+                    .as_deref()
+                    .and_then(|id| session.memory_embeddings.iter().find(|item| item.id == id))
+                    .and_then(|replacement| replacement.source_message_id.as_deref())
+                    .map(|message_id| message_ids.contains(message_id))
+                    .unwrap_or(false);
+                if replacement_matches {
+                    let mut item = memory_change_item(memory);
+                    if let Some(map) = item.as_object_mut() {
+                        map.insert(
+                            "supersededBy".to_string(),
+                            memory
+                                .superseded_by
+                                .as_ref()
+                                .map(|id| Value::String(id.clone()))
+                                .unwrap_or(Value::Null),
+                        );
+                    }
+                    superseded.push(item);
+                }
+            }
+        }
+    }
+
+    json!({
+        "added": added,
+        "updated": updated,
+        "superseded": superseded,
+    })
+}
+
+fn memory_change_item(memory: &MemoryEmbedding) -> Value {
+    json!({
+        "memoryId": memory.id,
+        "text": memory.text,
+        "category": memory.category,
+        "sourceRole": memory.source_role,
+        "sourceMessageId": memory.source_message_id,
+    })
+}
+
+fn summarize_turn_effect(
+    relationship_delta: &Value,
+    emotion_delta: &Value,
+    signal_changes: &Value,
+    memory_changes: &Value,
+) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some((key, value)) = largest_numeric_delta(relationship_delta) {
+        parts.push(format!("{} {}", humanize_key(&key), format_delta(value)));
+    }
+    if let Some((key, value)) = largest_nested_numeric_delta(emotion_delta) {
+        parts.push(format!("{} {}", humanize_key(&key), format_delta(value)));
+    }
+    let added_signals = signal_changes
+        .get("added")
+        .and_then(|value| value.as_array())
+        .map(|items| items.len())
+        .unwrap_or(0);
+    if added_signals > 0 {
+        parts.push(format!(
+            "{} signal{}",
+            added_signals,
+            plural_suffix(added_signals)
+        ));
+    }
+    let added_memories = memory_changes
+        .get("added")
+        .and_then(|value| value.as_array())
+        .map(|items| items.len())
+        .unwrap_or(0);
+    let superseded_memories = memory_changes
+        .get("superseded")
+        .and_then(|value| value.as_array())
+        .map(|items| items.len())
+        .unwrap_or(0);
+    if added_memories > 0 {
+        parts.push(format!(
+            "{} memory{} added",
+            added_memories,
+            plural_suffix(added_memories)
+        ));
+    }
+    if superseded_memories > 0 {
+        parts.push(format!(
+            "{} memory{} superseded",
+            superseded_memories,
+            plural_suffix(superseded_memories)
+        ));
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.into_iter().take(3).collect::<Vec<_>>().join(", "))
+    }
+}
+
+fn largest_numeric_delta(value: &Value) -> Option<(String, f64)> {
+    value
+        .as_object()?
+        .iter()
+        .filter_map(|(key, value)| value.as_f64().map(|number| (key.clone(), number)))
+        .max_by(|(_, left), (_, right)| {
+            left.abs()
+                .partial_cmp(&right.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+fn largest_nested_numeric_delta(value: &Value) -> Option<(String, f64)> {
+    value
+        .as_object()?
+        .iter()
+        .flat_map(|(group, nested)| {
+            nested.as_object().into_iter().flat_map(move |items| {
+                items.iter().filter_map(move |(key, value)| {
+                    value
+                        .as_f64()
+                        .map(|number| (format!("{}.{}", group, key), number))
+                })
+            })
+        })
+        .max_by(|(_, left), (_, right)| {
+            left.abs()
+                .partial_cmp(&right.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+fn format_delta(value: f64) -> String {
+    let percent = (value * 100.0).round() as i64;
+    if percent >= 0 {
+        format!("+{}%", percent)
+    } else {
+        format!("{}%", percent)
+    }
+}
+
+fn humanize_key(key: &str) -> String {
+    key.replace('_', " ").replace('.', " ")
+}
+
+fn plural_suffix(count: usize) -> &'static str {
+    if count == 1 {
+        ""
+    } else {
+        "s"
+    }
 }
 
 pub(crate) async fn process_dynamic_memory_cycle(
@@ -2572,6 +3011,7 @@ async fn run_memory_tool_update(
                             fact_signature: None,
                             fact_polarity: None,
                             source_role: None,
+                            source_message_id: None,
                             superseded_by: None,
                             superseded_at: None,
                             supersedes: Vec::new(),
@@ -3021,6 +3461,7 @@ async fn run_memory_tool_update(
                         fact_signature: None,
                         fact_polarity: None,
                         source_role: None,
+                        source_message_id: None,
                         superseded_by: None,
                         superseded_at: None,
                         supersedes: Vec::new(),

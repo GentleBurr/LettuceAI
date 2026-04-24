@@ -543,6 +543,32 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS companion_turn_effects (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          user_message_id TEXT,
+          assistant_message_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          summary TEXT,
+          relationship_delta TEXT NOT NULL DEFAULT '{}',
+          emotion_delta TEXT NOT NULL DEFAULT '{}',
+          signal_changes TEXT NOT NULL DEFAULT '{"added":[],"removed":[]}',
+          memory_changes TEXT NOT NULL DEFAULT '{"added":[],"updated":[],"superseded":[]}',
+          source_window TEXT NOT NULL DEFAULT '{}',
+          UNIQUE(session_id, assistant_message_id),
+          FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+          FOREIGN KEY(user_message_id) REFERENCES messages(id) ON DELETE SET NULL,
+          FOREIGN KEY(assistant_message_id) REFERENCES messages(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_companion_turn_effects_session_assistant
+          ON companion_turn_effects(session_id, assistant_message_id, updated_at DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_companion_turn_effects_session_created
+          ON companion_turn_effects(session_id, created_at DESC);
+
         CREATE TABLE IF NOT EXISTS message_variants (
           id TEXT PRIMARY KEY,
           message_id TEXT NOT NULL,

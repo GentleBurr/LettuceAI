@@ -1,6 +1,7 @@
 pub mod backup;
 pub mod characters;
 pub mod chatpkg;
+pub mod companion_turn_effects;
 pub mod db;
 pub mod entity_transfer;
 pub mod group_characters;
