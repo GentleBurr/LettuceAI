@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Volume2, Play, Smartphone, Palette, MessageSquare, ChevronRight } from "lucide-react";
+import {
+  Volume2,
+  Play,
+  Smartphone,
+  Palette,
+  MessageSquare,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 import { type as getPlatform } from "@tauri-apps/plugin-os";
 import { impactFeedback } from "@tauri-apps/plugin-haptics";
 import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
@@ -44,6 +52,7 @@ export function AccessibilityPage() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [platform, setPlatform] = useState<string>("");
+  const [isBeetrootEnabled, setIsBeetrootEnabled] = useState(true);
 
   useEffect(() => {
     setPlatform(getPlatform());
@@ -61,7 +70,27 @@ export function AccessibilityPage() {
     };
 
     void loadSettings();
+    try {
+      const stored = localStorage.getItem("lettuce.easterEggs.beetroot");
+      if (stored !== null) {
+        setIsBeetrootEnabled(stored === "true");
+      }
+    } catch (err) {
+      console.error("Failed to read beetroot setting:", err);
+    }
   }, []);
+
+  const handleBeetrootToggle = () => {
+    const newValue = !isBeetrootEnabled;
+    setIsBeetrootEnabled(newValue);
+    try {
+      localStorage.setItem("lettuce.easterEggs.beetroot", String(newValue));
+      window.dispatchEvent(new CustomEvent("lettuce:easterEggs:beetroot", { detail: newValue }));
+    } catch (err) {
+      console.error("Failed to save beetroot setting:", err);
+      setIsBeetrootEnabled(!newValue);
+    }
+  };
 
   const isMobile = platform === "android" || platform === "ios";
 
@@ -297,6 +326,45 @@ export function AccessibilityPage() {
             </div>
           </div>
         )}
+
+        <div>
+          <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
+            Easter Eggs
+          </h2>
+          <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fg/10 bg-fg/10">
+                <Sparkles className="h-4 w-4 text-fg/70" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-fg">Beetroot Rain</span>
+                      <span
+                        className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none uppercase tracking-[0.25em] ${
+                          isBeetrootEnabled
+                            ? "border-info/40 bg-info/15 text-info"
+                            : "border-fg/10 bg-fg/10 text-fg/60"
+                        }`}
+                      >
+                        {isBeetrootEnabled ? "On" : "Off"}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-fg/50">
+                      Beetroots fall when chats mention them
+                    </div>
+                  </div>
+                  <Switch
+                    id="beetroot-rain"
+                    checked={isBeetrootEnabled}
+                    onChange={() => handleBeetrootToggle()}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">

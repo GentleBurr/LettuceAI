@@ -72,6 +72,8 @@ import { radius, cn } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
 import { PersonaSelector } from "../group-chats/components/settings";
 import { sanitizeAssistantSceneDirective } from "./hooks/sceneImageProtocol";
+import { useBeetrootRain } from "./components/BeetrootRain";
+import { useBeetrootEasterEgg } from "./hooks/useBeetrootEasterEgg";
 import { processBackgroundImage } from "../../../core/utils/image";
 import { convertToImageRef } from "../../../core/storage/images";
 import { useImageData } from "../../hooks/useImageData";
@@ -410,6 +412,9 @@ export function ChatConversationPage() {
     generateAiScenePrompt,
     applySceneImagePrompt,
   } = chatController;
+
+  const beetrootRain = useBeetrootRain();
+  useBeetrootEasterEgg({ messages, fire: beetrootRain.fire });
 
   const resolveSceneAttachment = useCallback((message: StoredMessage | null | undefined) => {
     if (!message) return null;
@@ -1691,6 +1696,7 @@ export function ChatConversationPage() {
     <div
       className={cn("flex h-screen flex-col overflow-hidden", !backgroundImageData && "bg-surface")}
     >
+      {beetrootRain.overlay}
       <AnimatePresence>
         {swapPlaces && (
           <motion.div
