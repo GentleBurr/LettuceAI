@@ -13,3 +13,4 @@ export * from "./LogsPage";
 export * from "./AboutPage";
 export * from "./LorebookEntryGeneratorPage";
 export * from "./CompanionSoulWriterPage";
+export * from "./CompanionDownloadQueuePage";

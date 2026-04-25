@@ -40,6 +40,7 @@ import { CreationHelperPage as AICreationHelperPage } from "./ui/pages/settings/
 import { HelpMeReplyPage } from "./ui/pages/settings/HelpMeReplyPage";
 import { LorebookEntryGeneratorPage } from "./ui/pages/settings/LorebookEntryGeneratorPage";
 import { CompanionSoulWriterPage } from "./ui/pages/settings/CompanionSoulWriterPage";
+import { CompanionDownloadQueuePage } from "./ui/pages/settings/CompanionDownloadQueuePage";
 import { HostApiPage } from "./ui/pages/settings/HostApiPage";
 import { VoicesPage } from "./ui/pages/settings/VoicesPage";
 import { DynamicMemoryPage } from "./ui/pages/settings/DynamicMemoryPage";
@@ -1205,6 +1206,10 @@ function AppContent() {
               <Route path="/settings/advanced/host-api" element={<HostApiPage />} />
               <Route path="/settings/embedding-download" element={<EmbeddingDownloadPage />} />
               <Route path="/settings/companion-download" element={<CompanionDownloadPage />} />
+              <Route
+                path="/settings/companion-download-queue"
+                element={<CompanionDownloadQueuePage />}
+              />
               <Route path="/settings/embedding-test" element={<EmbeddingTestPage />} />
               <Route path="/settings/changelog" element={<ChangelogPage />} />
               <Route path="/settings/developer" element={<DeveloperPage />} />

@@ -1,6 +1,10 @@
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { BookOpen, MessageCircleHeart } from "lucide-react";
 import type { CharacterMode } from "../../../../core/storage/schemas";
 import { cn, interactive, radius, typography } from "../../../design-tokens";
+import { MissingCompanionModelsSheet } from "../../../components/MissingCompanionModelsSheet";
+import { useCompanionRequirements } from "../hooks/useCompanionRequirements";
 
 interface InteractionModeSelectorProps {
   mode: CharacterMode;
@@ -33,6 +37,30 @@ export function InteractionModeSelector({
   onChange,
   disabled = false,
 }: InteractionModeSelectorProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { missing, refresh } = useCompanionRequirements();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handleSelect = (next: CharacterMode) => {
+    onChange(next);
+    if (next === "companion") {
+      void (async () => {
+        const result = await refresh();
+        if (result.length > 0) setSheetOpen(true);
+      })();
+    }
+  };
+
+  const handleDownload = () => {
+    setSheetOpen(false);
+    const queue = missing.map((m) => m.kind).join(",");
+    const returnTo = `${location.pathname}${location.search}`;
+    navigate(
+      `/settings/companion-download-queue?queue=${queue}&returnTo=${encodeURIComponent(returnTo)}`,
+    );
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -62,7 +90,7 @@ export function InteractionModeSelector({
               key={option.id}
               type="button"
               disabled={disabled}
-              onClick={() => onChange(option.id)}
+              onClick={() => handleSelect(option.id)}
               aria-pressed={selected}
               className={cn(
                 "group relative overflow-hidden rounded-xl border px-4 py-3.5 text-left",
@@ -126,6 +154,16 @@ export function InteractionModeSelector({
           );
         })}
       </div>
+
+      <MissingCompanionModelsSheet
+        isOpen={sheetOpen && missing.length > 0}
+        missing={missing}
+        onClose={() => {
+          setSheetOpen(false);
+          if (mode === "companion") onChange("roleplay");
+        }}
+        onDownload={handleDownload}
+      />
     </div>
   );
 }
