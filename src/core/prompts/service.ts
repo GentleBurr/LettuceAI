@@ -27,6 +27,7 @@ export {
   resetSceneGenerationTemplate,
   resetScenePromptWriterTemplate,
   resetDesignReferenceTemplate,
+  resetCompanionSoulWriterTemplate,
   getPromptParameterEngine,
   getRequiredTemplateVariables,
   validateTemplateVariables,

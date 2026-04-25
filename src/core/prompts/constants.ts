@@ -15,6 +15,7 @@ export const APP_AVATAR_EDIT_TEMPLATE_ID = "prompt_app_avatar_edit";
 export const APP_SCENE_GENERATION_TEMPLATE_ID = "prompt_app_scene_generation";
 export const APP_SCENE_PROMPT_WRITER_TEMPLATE_ID = "prompt_app_scene_prompt_writer";
 export const APP_DESIGN_REFERENCE_TEMPLATE_ID = "prompt_app_design_reference";
+export const APP_COMPANION_SOUL_WRITER_TEMPLATE_ID = "prompt_app_companion_soul_writer";
 
 const PROTECTED_TEMPLATE_IDS = new Set([
   APP_DEFAULT_TEMPLATE_ID,
@@ -33,6 +34,7 @@ const PROTECTED_TEMPLATE_IDS = new Set([
   APP_SCENE_GENERATION_TEMPLATE_ID,
   APP_SCENE_PROMPT_WRITER_TEMPLATE_ID,
   APP_DESIGN_REFERENCE_TEMPLATE_ID,
+  APP_COMPANION_SOUL_WRITER_TEMPLATE_ID,
 ]);
 
 const NON_SYSTEM_TEMPLATE_IDS = new Set([
@@ -49,6 +51,7 @@ const NON_SYSTEM_TEMPLATE_IDS = new Set([
   APP_SCENE_GENERATION_TEMPLATE_ID,
   APP_SCENE_PROMPT_WRITER_TEMPLATE_ID,
   APP_DESIGN_REFERENCE_TEMPLATE_ID,
+  APP_COMPANION_SOUL_WRITER_TEMPLATE_ID,
 ]);
 
 export function isProtectedPromptTemplate(id: string): boolean {
@@ -91,6 +94,8 @@ export function getPromptTypeLabel(id: string): string {
       return "Scene Prompt Writer";
     case APP_DESIGN_REFERENCE_TEMPLATE_ID:
       return "Design Reference Writer";
+    case APP_COMPANION_SOUL_WRITER_TEMPLATE_ID:
+      return "Companion Soul Writer";
     default:
       return "System";
   }

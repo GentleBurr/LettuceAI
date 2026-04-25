@@ -225,9 +225,6 @@ export function DynamicMemoryPage() {
   const [modelVersion, setModelVersion] = useState<string | null>(null);
   const [modelSourceVersion, setModelSourceVersion] = useState<string | null>(null);
   const [availableEmbeddingVersions, setAvailableEmbeddingVersions] = useState<string[]>([]);
-  const [companionEmotionInstalled, setCompanionEmotionInstalled] = useState(false);
-  const [companionNerInstalled, setCompanionNerInstalled] = useState(false);
-  const [companionRouterInstalled, setCompanionRouterInstalled] = useState(false);
   const [installBundleComplete, setInstallBundleComplete] = useState(false);
   const [selectedEmbeddingVersion, setSelectedEmbeddingVersion] = useState<string | null>(null);
   const [showDownloadModelMenu, setShowDownloadModelMenu] = useState(false);
@@ -277,9 +274,6 @@ export function DynamicMemoryPage() {
         setEmbeddingMaxTokens(settings.advancedSettings?.embeddingMaxTokens ?? 2048);
         setEmbeddingKeepModelLoaded(settings.advancedSettings?.embeddingKeepModelLoaded ?? false);
         setModels(settings.models);
-        setCompanionEmotionInstalled(modelInfo.companionEmotionInstalled ?? false);
-        setCompanionNerInstalled(modelInfo.companionNerInstalled ?? false);
-        setCompanionRouterInstalled(modelInfo.companionRouterInstalled ?? false);
         setInstallBundleComplete(modelInfo.installBundleComplete ?? modelInfo.installed);
 
         if (modelInfo.installed) {
@@ -468,9 +462,6 @@ export function DynamicMemoryPage() {
       setModelSourceVersion(sourceVersion);
       setAvailableEmbeddingVersions(available);
       setSelectedEmbeddingVersion(sourceVersion);
-      setCompanionEmotionInstalled(modelInfo.companionEmotionInstalled ?? false);
-      setCompanionNerInstalled(modelInfo.companionNerInstalled ?? false);
-      setCompanionRouterInstalled(modelInfo.companionRouterInstalled ?? false);
       setInstallBundleComplete(modelInfo.installBundleComplete ?? modelInfo.installed);
     } catch (err) {
       console.error("Failed to delete model version:", err);
@@ -1299,106 +1290,6 @@ export function DynamicMemoryPage() {
                     </div>
                   )}
 
-                  <div
-                    className={cn(
-                      "rounded-xl border px-4 py-3",
-                      installBundleComplete
-                        ? "border-accent/20 bg-accent/5"
-                        : "border-warning/20 bg-warning/5",
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          "rounded-lg border p-1.5",
-                          installBundleComplete
-                            ? "border-accent/30 bg-accent/10"
-                            : "border-warning/30 bg-warning/10",
-                        )}
-                      >
-                        <Brain
-                          className={cn(
-                            "h-4 w-4",
-                            installBundleComplete ? "text-accent" : "text-warning",
-                          )}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-fg">Companion analysis bundle</p>
-                          <span
-                            className={cn(
-                              "rounded-md border px-2 py-0.5 text-[10px] font-medium",
-                              installBundleComplete
-                                ? "border-accent/25 bg-accent/10 text-accent"
-                                : "border-warning/25 bg-warning/10 text-warning",
-                            )}
-                          >
-                            {installBundleComplete ? "Installed" : "Incomplete"}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-fg/50">
-                          Local ONNX analysis models used for companion emotion regulation, entity
-                          extraction, and memory routing. They are downloaded with the Dynamic
-                          Memory model bundle.
-                        </p>
-                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-medium text-fg/75">
-                                Emotion classifier
-                              </span>
-                              <span
-                                className={cn(
-                                  "text-[10px] font-medium",
-                                  companionEmotionInstalled ? "text-accent" : "text-warning",
-                                )}
-                              >
-                                {companionEmotionInstalled ? "Installed" : "Missing"}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-medium text-fg/75">NER model</span>
-                              <span
-                                className={cn(
-                                  "text-[10px] font-medium",
-                                  companionNerInstalled ? "text-accent" : "text-warning",
-                                )}
-                              >
-                                {companionNerInstalled ? "Installed" : "Missing"}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-medium text-fg/75">
-                                Memory router
-                              </span>
-                              <span
-                                className={cn(
-                                  "text-[10px] font-medium",
-                                  companionRouterInstalled ? "text-accent" : "text-warning",
-                                )}
-                              >
-                                {companionRouterInstalled ? "Installed" : "Missing"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        {!installBundleComplete && (
-                          <button
-                            type="button"
-                            onClick={() => navigateToBundleDownload()}
-                            className="mt-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-medium text-warning transition hover:bg-warning/15"
-                          >
-                            Download complete bundle
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

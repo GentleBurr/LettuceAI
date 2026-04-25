@@ -24,11 +24,15 @@ import {
   MessageSquare,
   ChevronRight,
   FolderOpen,
+  Heart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEditCharacterForm } from "./hooks/useEditCharacterForm";
 import { AvatarPicker } from "../../components/AvatarPicker";
 import { DesignReferenceEditor } from "../../components/DesignReferenceEditor";
+import { CompanionSoulEditor } from "./components/CompanionSoulEditor";
+import { SoulGenerationReviewOverlay } from "./components/SoulGenerationReviewOverlay";
+import { normalizeCompanionConfig } from "./utils/companionDefaults";
 import { BottomMenu, MenuButton, MenuButtonGroup, MenuSection } from "../../components/BottomMenu";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { BackgroundPositionModal } from "../../components/BackgroundPositionModal";
@@ -36,7 +40,6 @@ import { CharacterExportMenu } from "../../components/CharacterExportMenu";
 import { Switch } from "../../components/Switch";
 import { ActiveLorebooksSelector } from "./components/ActiveLorebooksSelector";
 import { InteractionModeSelector } from "./components/InteractionModeSelector";
-import { CompanionSoulEditor } from "./components/CompanionSoulEditor";
 import { cn, radius, colors, interactive, spacing, typography } from "../../design-tokens";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { useI18n } from "../../../core/i18n/context";
@@ -60,12 +63,30 @@ import {
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
 } from "../../../core/prompts/constants";
+import { generateCompanionSoulDraft } from "../../../core/companion/soul";
 
 const wordCount = (text: string) => {
   const trimmed = text.trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).length;
 };
+
+type EditCharacterTab = "character" | "soul" | "settings";
+
+const buildOpeningContext = (
+  scenes: Array<{ title?: string | null; content: string; direction?: string | null }>,
+) =>
+  scenes
+    .filter((scene) => scene.content.trim())
+    .slice(0, 3)
+    .map((scene, index) => {
+      const title = scene.title?.trim() || `Scene ${index + 1}`;
+      const direction = scene.direction?.trim();
+      return direction
+        ? `${title}\n${scene.content.trim()}\nDirection: ${direction}`
+        : `${title}\n${scene.content.trim()}`;
+    })
+    .join("\n\n");
 
 export function EditCharacterPage() {
   const { t } = useI18n();
@@ -82,7 +103,11 @@ export function EditCharacterPage() {
   const [showBackgroundPositionModal, setShowBackgroundPositionModal] = React.useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = React.useState<"character" | "settings">("character");
+  const [activeTab, setActiveTab] = React.useState<EditCharacterTab>("character");
+  const [generatingSoul, setGeneratingSoul] = React.useState(false);
+  const [soulError, setSoulError] = React.useState<string | null>(null);
+  const [soulDraft, setSoulDraft] = React.useState<Partial<import("../../../core/storage/schemas").CompanionConfig> | null>(null);
+  const [soulDirection, setSoulDirection] = React.useState("");
   const [showModelMenu, setShowModelMenu] = React.useState(false);
   const [showFallbackModelMenu, setShowFallbackModelMenu] = React.useState(false);
   const [showVoiceMenu, setShowVoiceMenu] = React.useState(false);
@@ -91,6 +116,7 @@ export function EditCharacterPage() {
   const tabsId = React.useId();
   const tabPanelId = `${tabsId}-panel`;
   const characterTabId = `${tabsId}-tab-character`;
+  const soulTabId = `${tabsId}-tab-soul`;
   const settingsTabId = `${tabsId}-tab-settings`;
   const returnPath = `${location.pathname}${location.search}`;
 
@@ -138,9 +164,9 @@ export function EditCharacterPage() {
     systemPromptTemplateId,
     companionPromptTemplateId,
     mode,
-    companion,
     voiceConfig,
     voiceAutoplay,
+    companion,
 
     editingSceneId,
     editingSceneContent,
@@ -177,6 +203,25 @@ export function EditCharacterPage() {
     (template) =>
       template.promptType === "companionChat" && template.id !== APP_COMPANION_TEMPLATE_ID,
   );
+  const tabItems = React.useMemo(
+    () => [
+      { id: "character" as const, icon: User, label: "Character", disabled: false, hint: undefined as string | undefined },
+      {
+        id: "soul" as const,
+        icon: Heart,
+        label: "Soul",
+        disabled: mode !== "companion",
+        hint:
+          mode !== "companion"
+            ? "Switch to Companion mode in Settings to enable the Soul tab."
+            : undefined,
+      },
+      { id: "settings" as const, icon: Settings, label: "Settings", disabled: false, hint: undefined },
+    ],
+    [mode],
+  );
+  const activeTabId =
+    activeTab === "character" ? characterTabId : activeTab === "soul" ? soulTabId : settingsTabId;
 
   const closeNewSceneEditor = React.useCallback(() => {
     setFields({ newSceneContent: "", newSceneDirection: "" });
@@ -195,6 +240,61 @@ export function EditCharacterPage() {
       setExportMenuOpen(false);
     },
     [handleExport],
+  );
+
+  const soulGenerationDisabledReason = React.useMemo<string | null>(() => {
+    if (!name.trim()) return "Add a name first.";
+    if (!definition.trim()) return "Add a definition first.";
+    return null;
+  }, [name, definition]);
+
+  const soulModelLabel = React.useMemo(() => {
+    if (!selectedModelId) return null;
+    return models.find((m) => m.id === selectedModelId)?.displayName ?? null;
+  }, [selectedModelId, models]);
+
+  const handleGenerateSoul = React.useCallback(async () => {
+    if (soulGenerationDisabledReason || generatingSoul) {
+      if (soulGenerationDisabledReason) setSoulError(soulGenerationDisabledReason);
+      return;
+    }
+    setGeneratingSoul(true);
+    setSoulError(null);
+    try {
+      const draft = await generateCompanionSoulDraft({
+        characterName: name.trim(),
+        characterDefinition: definition,
+        characterDescription: description,
+        openingContext: buildOpeningContext(scenes),
+        currentSoul: companion,
+        userNotes: soulDirection.trim() || null,
+        modelId: selectedModelId,
+      });
+      setSoulDraft(draft);
+    } catch (err) {
+      console.error("Failed to generate companion soul:", err);
+      setSoulError(err instanceof Error ? err.message : "Failed to generate companion soul");
+    } finally {
+      setGeneratingSoul(false);
+    }
+  }, [
+    companion,
+    definition,
+    description,
+    generatingSoul,
+    name,
+    scenes,
+    selectedModelId,
+    soulDirection,
+    soulGenerationDisabledReason,
+  ]);
+
+  const handleApplySoulDraft = React.useCallback(
+    (next: import("../../../core/storage/schemas").CompanionConfig) => {
+      setFields({ companion: next });
+      setSoulDraft(null);
+    },
+    [setFields],
   );
 
   const [audioProviders, setAudioProviders] = React.useState<AudioProvider[]>([]);
@@ -320,6 +420,12 @@ export function EditCharacterPage() {
     void loadVoices();
   }, [activeTab, hasLoadedVoices, loadVoices]);
 
+  React.useEffect(() => {
+    if (mode !== "companion" && activeTab === "soul") {
+      setActiveTab("settings");
+    }
+  }, [activeTab, mode]);
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -333,7 +439,7 @@ export function EditCharacterPage() {
       <main
         id={tabPanelId}
         role="tabpanel"
-        aria-labelledby={activeTab === "character" ? characterTabId : settingsTabId}
+        aria-labelledby={activeTabId}
         tabIndex={0}
         className="flex-1 overflow-y-auto px-4"
       >
@@ -371,14 +477,6 @@ export function EditCharacterPage() {
                 onChange={(nextMode) => setFields({ mode: nextMode })}
                 disabled={saving}
               />
-
-              {mode === "companion" && (
-                <CompanionSoulEditor
-                  companion={companion}
-                  onChange={(nextCompanion) => setFields({ companion: nextCompanion })}
-                  disabled={saving}
-                />
-              )}
 
               {/* Background Image Section */}
               <div className="space-y-3">
@@ -673,6 +771,75 @@ export function EditCharacterPage() {
                 </div>
               )}
             </>
+          )}
+
+          {activeTab === "soul" && mode === "companion" && (
+            <div className="mx-auto w-full max-w-5xl space-y-4">
+              <div className={spacing.tight}>
+                <div className="flex items-center gap-2">
+                  <div className={cn("border border-rose-400/30 bg-rose-500/10 p-1.5", radius.md)}>
+                    <Heart className="h-4 w-4 text-rose-300" />
+                  </div>
+                  <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
+                    Companion Soul
+                  </h2>
+                </div>
+                <p className={cn(typography.body.size, "text-fg/50")}>
+                  Persistent identity, emotional baseline, and how this companion regulates
+                  feelings.
+                </p>
+              </div>
+
+              {soulError && (
+                <div
+                  className={cn(
+                    "flex items-start gap-2 border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger",
+                    radius.lg,
+                  )}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="flex-1">{soulError}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSoulError(null);
+                      void handleGenerateSoul();
+                    }}
+                    className={cn(
+                      "border border-danger/30 bg-danger/15 px-2 py-1 text-xs font-medium text-danger hover:bg-danger/25",
+                      radius.md,
+                      interactive.transition.fast,
+                    )}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              <CompanionSoulEditor
+                companion={companion}
+                onChange={(next) => setFields({ companion: next })}
+                disabled={saving || generatingSoul}
+                onGenerate={handleGenerateSoul}
+                generating={generatingSoul}
+                generationDisabledReason={soulGenerationDisabledReason}
+                modelLabel={soulModelLabel}
+                direction={soulDirection}
+                onDirectionChange={setSoulDirection}
+              />
+
+              <SoulGenerationReviewOverlay
+                isOpen={soulDraft !== null}
+                baseline={normalizeCompanionConfig(companion)}
+                draft={soulDraft}
+                direction={soulDirection}
+                onDirectionChange={setSoulDirection}
+                onApply={handleApplySoulDraft}
+                onCancel={() => setSoulDraft(null)}
+                onRegenerate={handleGenerateSoul}
+                regenerating={generatingSoul}
+              />
+            </div>
           )}
 
           {/* Character Tab: Personality & Scenes */}
@@ -1668,25 +1835,34 @@ export function EditCharacterPage() {
         <div
           role="tablist"
           aria-label="Character editor tabs"
-          className={cn(radius.lg, "grid grid-cols-2 gap-2 p-1", colors.surface.elevated)}
+          className={cn(
+            radius.lg,
+            "grid gap-2 p-1",
+            "grid-cols-3",
+            colors.surface.elevated,
+          )}
         >
-          {[
-            { id: "character" as const, icon: User, label: "Character" },
-            { id: "settings" as const, icon: Settings, label: "Settings" },
-          ].map(({ id, icon: Icon, label }) => (
+          {tabItems.map(({ id, icon: Icon, label, disabled: tabDisabled, hint }) => (
             <button
               key={id}
               type="button"
-              onClick={() => setActiveTab(id)}
+              onClick={() => !tabDisabled && setActiveTab(id)}
+              disabled={tabDisabled}
+              title={hint}
               role="tab"
-              id={id === "character" ? characterTabId : settingsTabId}
+              id={id === "character" ? characterTabId : id === "soul" ? soulTabId : settingsTabId}
               aria-selected={activeTab === id}
               aria-controls={tabPanelId}
+              aria-disabled={tabDisabled}
               className={cn(
                 radius.md,
                 "px-3 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2",
                 interactive.active.scale,
-                activeTab === id ? "bg-fg/10 text-fg" : cn(colors.text.tertiary, "hover:text-fg"),
+                tabDisabled
+                  ? "cursor-not-allowed text-fg/30"
+                  : activeTab === id
+                    ? "bg-fg/10 text-fg"
+                    : cn(colors.text.tertiary, "hover:text-fg"),
               )}
             >
               <Icon size={16} className="block" />

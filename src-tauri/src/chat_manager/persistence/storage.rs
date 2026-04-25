@@ -36,6 +36,7 @@ pub enum PromptType {
     SceneGenerationPrompt,
     ScenePromptWriterPrompt,
     DesignReferencePrompt,
+    CompanionSoulWriterPrompt,
 }
 
 pub fn get_base_prompt(prompt_type: PromptType) -> String {
@@ -64,6 +65,9 @@ pub fn get_base_prompt(prompt_type: PromptType) -> String {
         PromptType::SceneGenerationPrompt => prompt_engine::default_scene_generation_prompt(),
         PromptType::ScenePromptWriterPrompt => prompt_engine::default_scene_prompt_writer_prompt(),
         PromptType::DesignReferencePrompt => prompt_engine::default_design_reference_prompt(),
+        PromptType::CompanionSoulWriterPrompt => {
+            prompt_engine::default_companion_soul_writer_prompt()
+        }
     }
 }
 
@@ -91,6 +95,9 @@ pub fn get_base_prompt_entries(prompt_type: PromptType) -> Vec<SystemPromptEntry
         PromptType::SceneGenerationPrompt => prompt_engine::default_scene_generation_entries(),
         PromptType::ScenePromptWriterPrompt => prompt_engine::default_scene_prompt_writer_entries(),
         PromptType::DesignReferencePrompt => prompt_engine::default_design_reference_entries(),
+        PromptType::CompanionSoulWriterPrompt => {
+            prompt_engine::default_companion_soul_writer_entries()
+        }
     }
 }
 
@@ -196,6 +203,12 @@ fn default_settings() -> Settings {
                 DynamicMemoryStructuredFallbackFormat::Json,
             ),
             lorebook_entry_generator_prompt_template_id: None,
+            companion_soul_writer_model_id: None,
+            companion_soul_writer_fallback_model_id: None,
+            companion_soul_writer_prompt_template_id: None,
+            companion_soul_writer_structured_fallback_format: Some(
+                DynamicMemoryStructuredFallbackFormat::Json,
+            ),
             dynamic_memory: None,
             group_dynamic_memory: None,
             manual_mode_context_window: None,

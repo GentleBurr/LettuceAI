@@ -39,10 +39,13 @@ import { AdvancedPage } from "./ui/pages/settings/AdvancedPage";
 import { CreationHelperPage as AICreationHelperPage } from "./ui/pages/settings/CreationHelperPage";
 import { HelpMeReplyPage } from "./ui/pages/settings/HelpMeReplyPage";
 import { LorebookEntryGeneratorPage } from "./ui/pages/settings/LorebookEntryGeneratorPage";
+import { CompanionSoulWriterPage } from "./ui/pages/settings/CompanionSoulWriterPage";
 import { HostApiPage } from "./ui/pages/settings/HostApiPage";
 import { VoicesPage } from "./ui/pages/settings/VoicesPage";
 import { DynamicMemoryPage } from "./ui/pages/settings/DynamicMemoryPage";
+import { CompanionsPage } from "./ui/pages/settings/CompanionsPage";
 import { EmbeddingDownloadPage } from "./ui/pages/settings/EmbeddingDownloadPage";
+import { CompanionDownloadPage } from "./ui/pages/settings/CompanionDownloadPage";
 import { EmbeddingTestPage } from "./ui/pages/settings/EmbeddingTestPage";
 import {
   ChatPage,
@@ -50,6 +53,9 @@ import {
   ChatSettingsPage,
   ChatHistoryPage,
   ChatMemoriesPage,
+  CompanionMemoryPage,
+  CompanionRelationshipPage,
+  CompanionSoulPage,
   MessageDebugPage,
   SearchMessagesPage,
   ChatLayout,
@@ -1185,14 +1191,20 @@ function AppContent() {
               <Route path="/settings/about" element={<AboutPage />} />
               <Route path="/settings/advanced" element={<AdvancedPage />} />
               <Route path="/settings/advanced/memory" element={<DynamicMemoryPage />} />
+              <Route path="/settings/advanced/companions" element={<CompanionsPage />} />
               <Route path="/settings/advanced/creation-helper" element={<AICreationHelperPage />} />
               <Route path="/settings/advanced/help-me-reply" element={<HelpMeReplyPage />} />
               <Route
                 path="/settings/advanced/lorebook-entry-generator"
                 element={<LorebookEntryGeneratorPage />}
               />
+              <Route
+                path="/settings/advanced/companion-soul-writer"
+                element={<CompanionSoulWriterPage />}
+              />
               <Route path="/settings/advanced/host-api" element={<HostApiPage />} />
               <Route path="/settings/embedding-download" element={<EmbeddingDownloadPage />} />
+              <Route path="/settings/companion-download" element={<CompanionDownloadPage />} />
               <Route path="/settings/embedding-test" element={<EmbeddingTestPage />} />
               <Route path="/settings/changelog" element={<ChangelogPage />} />
               <Route path="/settings/developer" element={<DeveloperPage />} />
@@ -1219,10 +1231,19 @@ function AppContent() {
               <Route path="/chat/:characterId" element={<ChatLayout />}>
                 <Route index element={<ChatConversationPage />} />
                 <Route path="settings" element={<ChatSettingsPage />} />
+                <Route path="companion/soul" element={<CompanionSoulPage />} />
               </Route>
               <Route path="/chat/:characterId/search" element={<SearchMessagesPage />} />
               <Route path="/chat/:characterId/history" element={<ChatHistoryPage />} />
               <Route path="/chat/:characterId/memories" element={<ChatMemoriesPage />} />
+              <Route
+                path="/chat/:characterId/companion/memories"
+                element={<CompanionMemoryPage />}
+              />
+              <Route
+                path="/chat/:characterId/companion/relationship"
+                element={<CompanionRelationshipPage />}
+              />
               <Route
                 path="/chat/:characterId/debug/:sessionId/:messageId"
                 element={<MessageDebugPage />}

@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, X, CheckCircle, XCircle, Loader2, Zap } from "lucide-react";
+import { Download, X, Zap } from "lucide-react";
 import { storageBridge } from "../../../core/storage/files";
 import { updateAdvancedSetting } from "../../../core/storage/advanced";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../../core/i18n/context";
+import {
+  ModelDownloadProgress,
+  type ModelDownloadPhase,
+} from "./components/ModelDownloadProgress";
+import { useModelDownload } from "./hooks/useModelDownload";
 
 type Capacity = 1024 | 2048 | 4096;
 
@@ -26,27 +31,8 @@ export function EmbeddingDownloadPage() {
   const downloadVersionLabel = downloadVersion.toUpperCase();
   const downloadApproxSize = downloadVersion === "v2" ? "~132 MB" : "~86 MB";
 
-  // Capacity selection state
   const [showCapacitySelection, setShowCapacitySelection] = useState(true);
   const [selectedCapacity, setSelectedCapacity] = useState<Capacity>(2048);
-
-  const [progress, setProgress] = useState<{
-    downloaded: number;
-    total: number;
-    status: string;
-    currentFileIndex: number;
-    totalFiles: number;
-    currentFileName: string;
-  }>({
-    downloaded: 0,
-    total: 0,
-    status: "idle",
-    currentFileIndex: 0,
-    totalFiles: 0,
-    currentFileName: "",
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [preStepStatus, setPreStepStatus] = useState<"idle" | "preparing" | "ready">("idle");
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "passed" | "failed">("idle");
   const [testResults, setTestResults] = useState<{
@@ -63,97 +49,9 @@ export function EmbeddingDownloadPage() {
   const [countdown, setCountdown] = useState<number>(5);
   const [testProgress, setTestProgress] = useState<{ current: number; total: number } | null>(null);
 
-  // Setup progress listener on mount
-  useEffect(() => {
-    let mounted = true;
-    let unsubscribe: (() => void) | null = null;
-
-    const setupListener = async () => {
-      try {
-        const currentProgress = await storageBridge.getEmbeddingDownloadProgress();
-
-        // Setup listener for progress updates
-        unsubscribe = await storageBridge.listenToEmbeddingDownloadProgress((progressData) => {
-          console.log("Progress update:", progressData);
-          if (mounted) {
-            setProgress(progressData);
-
-            if (progressData.status === "completed") {
-              setPreStepStatus("ready");
-              setIsDownloading(false);
-              void (async () => {
-                try {
-                  await storageBridge.initializeEmbeddingModel();
-                  runTest();
-                } catch (err) {
-                  setTestStatus("failed");
-                  setError(err instanceof Error ? err.message : String(err));
-                }
-              })();
-            } else if (progressData.status === "failed" || progressData.status === "cancelled") {
-              setIsDownloading(false);
-              setPreStepStatus("idle");
-            } else if (progressData.status === "downloading") {
-              setPreStepStatus("ready");
-            }
-          }
-        });
-
-        // If already downloading, attach to it and skip capacity selection
-        if (currentProgress.status === "downloading") {
-          console.log("Download already in progress, attaching...");
-          setShowCapacitySelection(false);
-          setIsDownloading(true);
-          setPreStepStatus("ready");
-          setProgress(currentProgress);
-        }
-      } catch (err) {
-        console.error("Failed to setup listener:", err);
-      }
-    };
-
-    setupListener();
-
-    return () => {
-      mounted = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [navigate, returnTo]);
-
-  // Start download with selected capacity
-  const startDownload = async () => {
-    setShowCapacitySelection(false);
-    setIsDownloading(true);
-    setError(null);
-    setPreStepStatus("preparing");
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      await storageBridge.startEmbeddingDownload(downloadVersion);
-
-      // Save the selected capacity to settings
-      await updateAdvancedSetting("embeddingMaxTokens", selectedCapacity);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setPreStepStatus("idle");
-
-      if (errorMessage.includes("Download already in progress")) {
-        console.log("Race condition caught, attaching to existing download...");
-        setIsDownloading(true);
-        setPreStepStatus("ready");
-      } else {
-        setError(errorMessage);
-        setIsDownloading(false);
-      }
-    }
-  };
-
-  // Run embedding test
   const runTest = async () => {
     setTestStatus("testing");
-    setError(null);
+    download.setError(null);
     setTestProgress({ current: 0, total: 0 });
 
     try {
@@ -178,29 +76,61 @@ export function EmbeddingDownloadPage() {
       }
     } catch (err) {
       setTestStatus("failed");
-      setError(err instanceof Error ? err.message : String(err));
+      download.setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const download = useModelDownload({
+    onComplete: async () => {
+      setPreStepStatus("ready");
+      try {
+        await storageBridge.initializeEmbeddingModel();
+        runTest();
+      } catch (err) {
+        setTestStatus("failed");
+        download.setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    onFailure: () => {
+      setPreStepStatus("idle");
+    },
+  });
+
+  // If a download is already in progress when we mount, skip capacity selection.
+  useEffect(() => {
+    if (download.attached) {
+      setShowCapacitySelection(false);
+      setPreStepStatus("ready");
+    }
+  }, [download.attached]);
+
+  const startDownload = async () => {
+    setShowCapacitySelection(false);
+    setPreStepStatus("preparing");
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await download.start(() => storageBridge.startEmbeddingDownload(downloadVersion));
+      await updateAdvancedSetting("embeddingMaxTokens", selectedCapacity);
+    } catch {
+      setPreStepStatus("idle");
     }
   };
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
-    const setupListener = async () => {
+    (async () => {
       unlisten = await listen<{ current: number; total: number; stage?: string }>(
         "embedding_test_progress",
         (event) => {
           setTestProgress({ current: event.payload.current, total: event.payload.total });
         },
       );
-    };
-    setupListener();
+    })();
     return () => {
-      if (unlisten) {
-        unlisten();
-      }
+      if (unlisten) unlisten();
     };
   }, []);
 
-  // Countdown and redirect after successful test
   useEffect(() => {
     if (testStatus === "passed") {
       setCountdown(5);
@@ -208,24 +138,19 @@ export function EmbeddingDownloadPage() {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            if (returnTo) {
-              navigate(returnTo, { replace: true });
-            } else {
-              navigate("/settings/advanced", { replace: true });
-            }
+            navigate(returnTo ?? "/settings/advanced", { replace: true });
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-
       return () => clearInterval(timer);
     }
-  }, [testStatus, navigate]);
+  }, [testStatus, navigate, returnTo]);
 
   const handleCancel = async () => {
     try {
-      await storageBridge.cancelEmbeddingDownload();
+      await download.cancel();
       await updateAdvancedSetting("dynamicMemory", {
         enabled: false,
         summaryMessageInterval: 20,
@@ -237,44 +162,67 @@ export function EmbeddingDownloadPage() {
         decayRate: 0.08,
         coldThreshold: 0.3,
       });
-      if (returnTo) {
-        navigate(returnTo);
-      } else {
-        navigate("/settings/advanced");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      navigate(returnTo ?? "/settings/advanced");
+    } catch {
+      // error surfaced via download.error
     }
   };
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-  };
+  const phase: ModelDownloadPhase =
+    testStatus === "testing"
+      ? "verifying"
+      : testStatus === "passed"
+        ? "passed"
+        : testStatus === "failed" || download.progress.status === "failed"
+          ? "failed"
+          : download.isDownloading || download.progress.status === "downloading"
+            ? "downloading"
+            : "idle";
 
-  const progressPercent =
-    testStatus !== "idle"
-      ? 100
-      : progress.total > 0
-        ? (progress.downloaded / progress.total) * 100
-        : 0;
+  const headerTitle = showCapacitySelection
+    ? isUpgrade
+      ? `Upgrade to ${downloadVersionLabel} Embedding Model`
+      : `Setup ${downloadVersionLabel} Embedding Model`
+    : testStatus === "testing"
+      ? "Testing Model"
+      : testStatus === "passed"
+        ? "Test Passed!"
+        : testStatus === "failed"
+          ? "Test Failed"
+          : preStepStatus === "preparing"
+            ? "Preparing Download"
+            : `Downloading ${downloadVersionLabel} Embedding Model`;
 
   const headerDescription = showCapacitySelection
     ? "Choose your preferred memory context capacity"
     : testStatus === "idle"
       ? preStepStatus === "preparing"
         ? "Preparing download..."
-        : "Dynamic Memory now installs local memory and companion-analysis models"
+        : "Dynamic Memory installs the local embedding model"
       : testStatus === "testing"
         ? "Verifying model functionality..."
         : testStatus === "passed"
           ? `Redirecting in ${countdown} seconds...`
-          : testStatus === "failed"
-            ? "Model verification failed. Please try again."
-            : "";
+          : "Model verification failed. Please try again.";
+
+  const statusText =
+    testStatus === "idle" && preStepStatus === "preparing"
+      ? "Preparing download..."
+      : testStatus === "idle" && download.progress.status === "downloading"
+        ? `Downloading ${downloadVersionLabel} files...`
+        : testStatus === "idle" && download.progress.status === "completed"
+          ? "Download completed!"
+          : testStatus === "idle" && download.progress.status === "failed"
+            ? "Download failed"
+            : testStatus === "idle" && download.progress.status === "cancelled"
+              ? "Download cancelled"
+              : testStatus === "testing"
+                ? "Running verification tests..."
+                : testStatus === "passed"
+                  ? "All tests passed successfully"
+                  : testStatus === "failed"
+                    ? "Verification failed"
+                    : "";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -284,22 +232,8 @@ export function EmbeddingDownloadPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mx-auto w-full max-w-2xl space-y-6"
         >
-          {/* Header */}
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-fg">
-              {showCapacitySelection &&
-                (isUpgrade
-                  ? `Upgrade to ${downloadVersionLabel} Embedding Model`
-                  : `Setup ${downloadVersionLabel} Embedding Model`)}
-              {!showCapacitySelection &&
-                testStatus === "idle" &&
-                (preStepStatus === "preparing"
-                  ? "Preparing Download"
-                  : `Downloading ${downloadVersionLabel} Embedding Model`)}
-              {!showCapacitySelection && testStatus === "testing" && "Testing Model"}
-              {!showCapacitySelection && testStatus === "passed" && "Test Passed!"}
-              {!showCapacitySelection && testStatus === "failed" && "Test Failed"}
-            </h1>
+            <h1 className="text-2xl font-bold text-fg">{headerTitle}</h1>
             <p className="mt-2 text-sm text-fg/60">{headerDescription}</p>
             {!showCapacitySelection &&
               testStatus === "testing" &&
@@ -311,7 +245,6 @@ export function EmbeddingDownloadPage() {
               )}
           </div>
 
-          {/* Capacity Selection */}
           {showCapacitySelection && (
             <div className="rounded-xl border border-fg/10 bg-fg/5 p-6">
               <div className="space-y-4">
@@ -330,25 +263,19 @@ export function EmbeddingDownloadPage() {
                     <button
                       key={option.value}
                       onClick={() => setSelectedCapacity(option.value)}
-                      className={`
-                                                flex items-center justify-between p-4 rounded-xl border transition-all
-                                                ${
-                                                  selectedCapacity === option.value
-                                                    ? "border-info bg-info/20"
-                                                    : "border-fg/10 bg-fg/5 hover:border-fg/20"
-                                                }
-                                            `}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                        selectedCapacity === option.value
+                          ? "border-info bg-info/20"
+                          : "border-fg/10 bg-fg/5 hover:border-fg/20"
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`
-                                                    w-5 h-5 rounded-full border-2 flex items-center justify-center
-                                                    ${
-                                                      selectedCapacity === option.value
-                                                        ? "border-info bg-info"
-                                                        : "border-fg/30"
-                                                    }
-                                                `}
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            selectedCapacity === option.value
+                              ? "border-info bg-info"
+                              : "border-fg/30"
+                          }`}
                         >
                           {selectedCapacity === option.value && (
                             <div className="w-2 h-2 rounded-full bg-fg" />
@@ -377,13 +304,7 @@ export function EmbeddingDownloadPage() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    if (returnTo) {
-                      navigate(returnTo);
-                    } else {
-                      navigate("/settings/advanced");
-                    }
-                  }}
+                  onClick={() => navigate(returnTo ?? "/settings/advanced")}
                   className="w-full py-2 text-sm text-fg/50 hover:text-fg/70 transition-colors"
                 >
                   {t("common.buttons.cancel")}
@@ -392,140 +313,54 @@ export function EmbeddingDownloadPage() {
             </div>
           )}
 
-          {/* Download/Test Progress Card */}
           {!showCapacitySelection && (
-            <div className="rounded-xl border border-fg/10 bg-fg/5 p-6">
-              {/* Icon */}
-              <div className="mb-4 flex justify-center">
-                {testStatus === "idle" && (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-info/20 bg-info/10">
-                    <Download className="h-8 w-8 text-info" />
-                  </div>
-                )}
-                {testStatus === "testing" && (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-warning/20 bg-warning/10">
-                    <Loader2 className="h-8 w-8 text-warning animate-spin" />
-                  </div>
-                )}
-                {testStatus === "passed" && (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-accent/20 bg-accent/10">
-                    <CheckCircle className="h-8 w-8 text-accent" />
-                  </div>
-                )}
-                {testStatus === "failed" && (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-danger/20 bg-danger/10">
-                    <XCircle className="h-8 w-8 text-danger/80" />
-                  </div>
-                )}
-              </div>
+            <>
+              <ModelDownloadProgress
+                progress={download.progress}
+                phase={phase}
+                statusText={statusText}
+              />
 
-              <div className="space-y-6">
-                {/* File Info - Above Progress Bar */}
-                {progress.status.toLowerCase().includes("downloading") && (
-                  <div className="space-y-2">
-                    <div className="text-center">
-                      <div className="text-sm font-medium text-fg/80">
-                        File {progress.currentFileIndex} of {progress.totalFiles}
-                      </div>
-                      {progress.currentFileName && (
-                        <div className="mt-1 text-xs text-fg/50 font-mono">
-                          {progress.currentFileName}
+              {testResults && (testStatus === "passed" || testStatus === "failed") && (
+                <div className="rounded-xl border border-fg/10 bg-fg/5 p-4 space-y-3">
+                  <div className="text-center">
+                    <div
+                      className={`text-sm font-medium ${
+                        testResults.success ? "text-accent" : "text-danger/80"
+                      }`}
+                    >
+                      {testResults.message}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {testResults.scores.map((score, idx) => (
+                      <div key={idx} className="rounded-lg border border-fg/10 bg-fg/5 p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-fg/70">{score.pairName}</span>
+                          <span
+                            className={`text-sm font-bold ${
+                              score.similarityScore > 0.6 ? "text-accent" : "text-warning"
+                            }`}
+                          >
+                            {score.similarityScore.toFixed(4)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-fg/70">Progress</span>
-                    <span className="font-medium text-fg">{Math.round(progressPercent)}%</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-fg/10">
-                    <motion.div
-                      className="h-full bg-accent"
-                      initial={{ width: 0 }}
-                      animate={{
-                        width:
-                          progress.total > 0
-                            ? `${(progress.downloaded / progress.total) * 100}%`
-                            : "0%",
-                      }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-fg/50">
-                    <span>{formatBytes(progress.downloaded)}</span>
-                    <span>{formatBytes(progress.total)}</span>
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="text-center text-sm text-fg/60">
-                  {testStatus === "idle" &&
-                    preStepStatus === "preparing" &&
-                    "Preparing download..."}
-                  {testStatus === "idle" &&
-                    preStepStatus !== "preparing" &&
-                    progress.status === "downloading" &&
-                    `Downloading ${downloadVersionLabel} files...`}
-                  {testStatus === "idle" &&
-                    progress.status === "completed" &&
-                    "Download completed!"}
-                  {testStatus === "idle" && progress.status === "failed" && "Download failed"}
-                  {testStatus === "idle" && progress.status === "cancelled" && "Download cancelled"}
-                  {testStatus === "testing" && "Running verification tests..."}
-                  {testStatus === "passed" && "All tests passed successfully"}
-                  {testStatus === "failed" && "Verification failed"}
-                </div>
-
-                {/* Test Results */}
-                {testResults && (testStatus === "passed" || testStatus === "failed") && (
-                  <div className="mt-6 space-y-4">
-                    <div className="text-center">
-                      <div
-                        className={`text-sm font-medium ${
-                          testResults.success ? "text-accent" : "text-danger/80"
-                        }`}
-                      >
-                        {testResults.message}
+                        <div className="mt-1 text-xs text-fg/50">Expected: {score.expected}</div>
                       </div>
-                    </div>
-
-                    {/* Similarity Scores */}
-                    <div className="space-y-3">
-                      {testResults.scores.map((score, idx) => (
-                        <div key={idx} className="rounded-lg border border-fg/10 bg-fg/5 p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-fg/70">{score.pairName}</span>
-                            <span
-                              className={`text-sm font-bold ${
-                                score.similarityScore > 0.6 ? "text-accent" : "text-warning"
-                              }`}
-                            >
-                              {score.similarityScore.toFixed(4)}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-xs text-fg/50">Expected: {score.expected}</div>
-                        </div>
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                )}
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="mt-4 rounded-lg border border-danger/20 bg-danger/10 p-3">
-                  <p className="text-sm text-danger/80">{error}</p>
                 </div>
               )}
-            </div>
+
+              {download.error && (
+                <div className="rounded-lg border border-danger/20 bg-danger/10 p-3">
+                  <p className="text-sm text-danger/80">{download.error}</p>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Cancel Button */}
-          {isDownloading && (
+          {download.isDownloading && (
             <button
               onClick={handleCancel}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger/20 bg-danger/10 px-6 py-3 text-sm font-medium text-danger/80 transition hover:border-danger/30 hover:bg-danger/15"
@@ -535,12 +370,11 @@ export function EmbeddingDownloadPage() {
             </button>
           )}
 
-          {/* Retry Button */}
-          {!isDownloading && progress.status === "failed" && (
+          {!download.isDownloading && download.progress.status === "failed" && (
             <div className="space-y-3">
               <button
                 onClick={() => {
-                  setError(null);
+                  download.setError(null);
                   startDownload();
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-info px-6 py-3 text-sm font-medium text-fg transition hover:bg-info/80"
@@ -549,13 +383,7 @@ export function EmbeddingDownloadPage() {
                 Retry Download
               </button>
               <button
-                onClick={() => {
-                  if (returnTo) {
-                    navigate(returnTo);
-                  } else {
-                    navigate("/settings/advanced");
-                  }
-                }}
+                onClick={() => navigate(returnTo ?? "/settings/advanced")}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-fg/10 bg-fg/5 px-6 py-3 text-sm font-medium text-fg/60 transition hover:bg-fg/10"
               >
                 Go Back

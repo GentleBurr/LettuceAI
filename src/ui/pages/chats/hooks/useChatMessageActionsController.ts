@@ -300,12 +300,24 @@ export function useChatMessageActionsController({ context }: UseChatMessageActio
         const updatedMessages = messagesRef.current.filter(
           (candidate) => candidate.id !== message.id,
         );
+        const isDeletedSceneMessage = isStartingSceneMessage(message);
+        const updatedSession: Session = {
+          ...state.session,
+          selectedSceneId: isDeletedSceneMessage ? undefined : state.session.selectedSceneId,
+          messages: updatedMessages,
+          updatedAt: Date.now(),
+        };
         messagesRef.current = updatedMessages;
-        dispatch({
-          type: "SET_SESSION",
-          payload: { ...state.session, messages: updatedMessages, updatedAt: Date.now() },
-        });
+        await persistSession(updatedSession);
+        dispatch({ type: "SET_SESSION", payload: updatedSession });
         dispatch({ type: "SET_MESSAGES", payload: updatedMessages });
+        applyLiveChatAction(state.session.id, state, {
+          type: "BATCH",
+          actions: [
+            { type: "SET_SESSION", payload: updatedSession },
+            { type: "SET_MESSAGES", payload: updatedMessages },
+          ],
+        });
         resetMessageActions();
       } catch (err) {
         dispatch({
@@ -316,7 +328,7 @@ export function useChatMessageActionsController({ context }: UseChatMessageActio
         dispatch({ type: "SET_ACTION_BUSY", payload: false });
       }
     },
-    [dispatch, messagesRef, resetMessageActions, state.session],
+    [dispatch, messagesRef, persistSession, resetMessageActions, state, state.session],
   );
 
   const handleRewindToMessage = useCallback(

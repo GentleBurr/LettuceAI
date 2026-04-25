@@ -23,6 +23,7 @@ pub enum PromptTemplateType {
     SceneGeneration,
     ScenePromptWriter,
     DesignReferenceWriter,
+    CompanionSoulWriter,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -330,6 +331,15 @@ pub struct AdvancedSettings {
         Option<DynamicMemoryStructuredFallbackFormat>,
     #[serde(default)]
     pub lorebook_entry_generator_prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub companion_soul_writer_model_id: Option<String>,
+    #[serde(default)]
+    pub companion_soul_writer_fallback_model_id: Option<String>,
+    #[serde(default)]
+    pub companion_soul_writer_prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub companion_soul_writer_structured_fallback_format:
+        Option<DynamicMemoryStructuredFallbackFormat>,
     #[serde(default)]
     pub dynamic_memory: Option<DynamicMemorySettings>,
     #[serde(default)]
@@ -1091,6 +1101,29 @@ pub struct ChatGenerateDesignReferenceDescriptionArgs {
     pub avatar_image: Option<String>,
     #[serde(default, alias = "referenceImages")]
     pub reference_images: Vec<String>,
+    #[serde(alias = "requestId")]
+    pub request_id: Option<String>,
+    #[serde(default)]
+    pub stream: Option<bool>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatGenerateCompanionSoulArgs {
+    #[serde(alias = "characterName")]
+    pub character_name: String,
+    #[serde(alias = "characterDefinition")]
+    pub character_definition: Option<String>,
+    #[serde(alias = "characterDescription")]
+    pub character_description: Option<String>,
+    #[serde(alias = "openingContext")]
+    pub opening_context: Option<String>,
+    #[serde(alias = "currentSoul")]
+    pub current_soul: Option<Value>,
+    #[serde(alias = "userNotes")]
+    pub user_notes: Option<String>,
+    #[serde(alias = "modelId")]
+    pub model_id: Option<String>,
     #[serde(alias = "requestId")]
     pub request_id: Option<String>,
     #[serde(default)]

@@ -185,6 +185,12 @@ export const storageBridge = {
   deleteEmbeddingModelVersion: (version: "v1" | "v2" | "v3") =>
     invoke("delete_embedding_model_version", { version }) as Promise<void>,
 
+  // Companion analysis models (emotion / NER / router) — installed individually
+  startCompanionDownload: (kind: "emotion" | "ner" | "router") =>
+    invoke("start_companion_download", { kind }) as Promise<void>,
+  deleteCompanionModel: (kind: "emotion" | "ner" | "router") =>
+    invoke("delete_companion_model", { kind }) as Promise<void>,
+
   providerUpsert: (cred: unknown) =>
     invoke<string>("provider_upsert", { credentialJson: JSON.stringify(cred) }).then((s) =>
       JSON.parse(s),
@@ -302,6 +308,11 @@ export const storageBridge = {
     ),
   sessionMessageCount: (sessionId: string) =>
     invoke<number>("session_message_count", { sessionId }),
+  messageCompanionEffect: (sessionId: string, assistantMessageId: string) =>
+    invoke<string | null>("get_message_companion_effect", {
+      sessionId,
+      assistantMessageId,
+    }).then((s) => (typeof s === "string" ? JSON.parse(s) : null)),
   sessionUpsert: (session: unknown) =>
     invoke("session_upsert", { sessionJson: JSON.stringify(session) }) as Promise<void>,
   sessionUpsertMeta: (session: unknown) =>

@@ -56,6 +56,7 @@ import {
   resetSceneGenerationTemplate,
   resetScenePromptWriterTemplate,
   resetDesignReferenceTemplate,
+  resetCompanionSoulWriterTemplate,
   renderPromptPreview,
   getPromptParameterEngine,
 } from "../../../core/prompts/service";
@@ -87,6 +88,7 @@ import {
   APP_SCENE_GENERATION_TEMPLATE_ID,
   APP_SCENE_PROMPT_WRITER_TEMPLATE_ID,
   APP_DESIGN_REFERENCE_TEMPLATE_ID,
+  APP_COMPANION_SOUL_WRITER_TEMPLATE_ID,
   isProtectedPromptTemplate,
 } from "../../../core/prompts/constants";
 
@@ -2192,6 +2194,8 @@ function getPromptTypeName(type: PromptType): string {
       return "Scene Prompt Writer";
     case "designReferenceWriter":
       return "Design Reference Writer";
+    case "companionSoulWriter":
+      return "Companion Soul Writer";
     default:
       return "Undefined";
   }
@@ -2764,6 +2768,8 @@ export function EditPromptTemplate() {
         updated = await resetScenePromptWriterTemplate();
       } else if (id === APP_DESIGN_REFERENCE_TEMPLATE_ID) {
         updated = await resetDesignReferenceTemplate();
+      } else if (id === APP_COMPANION_SOUL_WRITER_TEMPLATE_ID) {
+        updated = await resetCompanionSoulWriterTemplate();
       } else {
         return;
       }

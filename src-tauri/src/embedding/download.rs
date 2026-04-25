@@ -23,45 +23,7 @@ pub async fn reset_download_state() {
     };
 }
 
-fn cleanup_partial_files(
-    model_dir: &Path,
-    version: Option<&EmbeddingModelVersion>,
-) -> Result<(), String> {
-    let files = match version {
-        Some(EmbeddingModelVersion::V1) => {
-            let mut v = MODEL_FILES_V1.to_vec();
-            v.extend(COMPANION_EMOTION_MODEL_FILES_LOCAL.iter().copied());
-            v.extend(COMPANION_NER_MODEL_FILES_LOCAL.iter().copied());
-            v.extend(COMPANION_ROUTER_MODEL_FILES_LOCAL.iter().copied());
-            v
-        }
-        Some(EmbeddingModelVersion::V2) => {
-            let mut v = MODEL_FILES_V2_LOCAL.to_vec();
-            v.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
-            v.extend(COMPANION_EMOTION_MODEL_FILES_LOCAL.iter().copied());
-            v.extend(COMPANION_NER_MODEL_FILES_LOCAL.iter().copied());
-            v.extend(COMPANION_ROUTER_MODEL_FILES_LOCAL.iter().copied());
-            v
-        }
-        Some(EmbeddingModelVersion::V3) => {
-            let mut v = MODEL_FILES_V3_LOCAL.to_vec();
-            v.extend(COMPANION_EMOTION_MODEL_FILES_LOCAL.iter().copied());
-            v.extend(COMPANION_NER_MODEL_FILES_LOCAL.iter().copied());
-            v.extend(COMPANION_ROUTER_MODEL_FILES_LOCAL.iter().copied());
-            v
-        }
-        None => {
-            let mut all_files = MODEL_FILES_V1.to_vec();
-            all_files.extend(MODEL_FILES_V2_LOCAL.iter().copied());
-            all_files.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
-            all_files.extend(MODEL_FILES_V3_LOCAL.iter().copied());
-            all_files.extend(COMPANION_EMOTION_MODEL_FILES_LOCAL.iter().copied());
-            all_files.extend(COMPANION_NER_MODEL_FILES_LOCAL.iter().copied());
-            all_files.extend(COMPANION_ROUTER_MODEL_FILES_LOCAL.iter().copied());
-            all_files
-        }
-    };
-
+fn delete_files(model_dir: &Path, files: &[&str]) -> Result<(), String> {
     for filename in files.iter() {
         let file_path = model_dir.join(filename);
         if file_path.exists() {
@@ -69,12 +31,29 @@ fn cleanup_partial_files(
                 crate::utils::err_msg(
                     module_path!(),
                     line!(),
-                    format!("Failed to delete partial file {}: {}", filename, e),
+                    format!("Failed to delete file {}: {}", filename, e),
                 )
             })?;
         }
+        let temp_path = file_path.with_extension("tmp");
+        if temp_path.exists() {
+            let _ = fs::remove_file(&temp_path);
+        }
     }
     Ok(())
+}
+
+/// All known files across embedding + companion. Used by the cancel command (which doesn't know
+/// which download was active) and by the legacy "delete embedding model" command.
+fn all_known_files() -> Vec<&'static str> {
+    let mut all_files = MODEL_FILES_V1.to_vec();
+    all_files.extend(MODEL_FILES_V2_LOCAL.iter().copied());
+    all_files.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
+    all_files.extend(MODEL_FILES_V3_LOCAL.iter().copied());
+    all_files.extend(COMPANION_EMOTION_MODEL_FILES_LOCAL.iter().copied());
+    all_files.extend(COMPANION_NER_MODEL_FILES_LOCAL.iter().copied());
+    all_files.extend(COMPANION_ROUTER_MODEL_FILES_LOCAL.iter().copied());
+    all_files
 }
 
 fn describe_path(path: &Path) -> String {
@@ -304,32 +283,15 @@ async fn download_file(
     Ok(())
 }
 
-pub async fn start_embedding_download(
-    app: AppHandle,
-    version: Option<String>,
+/// Generic download orchestration. Runs `plan` sequentially against `model_dir`, emitting progress
+/// events. On failure or cancel, removes only `owned_files` from disk (so a failed companion
+/// download doesn't wipe the embedding model).
+async fn run_download_plan(
+    app: &AppHandle,
+    component: &str,
+    plan: Vec<DownloadFileSpec>,
+    owned_files: Vec<&'static str>,
 ) -> Result<(), String> {
-    super::inference::clear_loaded_runtime_cache().await;
-    super::emotion::clear_loaded_runtime_cache().await;
-    super::ner::clear_loaded_runtime_cache().await;
-    super::router::clear_loaded_runtime_cache().await;
-
-    let source_spec = download_source_spec(version.as_deref());
-    let target_version = source_spec.target_version;
-    let source_label = source_spec.source_label;
-    let base_url = source_spec.base_url;
-    let remote_files = source_spec.remote_files.to_vec();
-    let local_files = source_spec.local_files.to_vec();
-    let install_plan = install_download_plan(version.as_deref());
-
-    log_info(
-        &app,
-        "embedding_download",
-        format!(
-            "download init requested={:?} source={} base_url={} remote_files={:?} local_files={:?} install_plan={:?}",
-            target_version, source_label, base_url, remote_files, local_files, install_plan.iter().map(|item| item.local_path).collect::<Vec<_>>()
-        ),
-    );
-
     {
         let mut state = DOWNLOAD_STATE.lock().await;
         if state.is_downloading {
@@ -346,8 +308,8 @@ pub async fn start_embedding_download(
             total: 0,
             status: "downloading".to_string(),
             current_file_index: 1,
-            total_files: install_plan.len(),
-            current_file_name: install_plan
+            total_files: plan.len(),
+            current_file_name: plan
                 .first()
                 .map(|item| item.progress_name.to_string())
                 .unwrap_or_default(),
@@ -355,10 +317,10 @@ pub async fn start_embedding_download(
         let _ = app.emit("embedding_download_progress", &state.progress);
     }
 
-    let model_dir = embedding_model_dir(&app)?;
+    let model_dir = embedding_model_dir(app)?;
     log_info(
-        &app,
-        "embedding_download",
+        app,
+        component,
         format!(
             "model_dir={} {}",
             model_dir.display(),
@@ -372,15 +334,10 @@ pub async fn start_embedding_download(
             format!("Failed to create model directory: {}", e),
         )
     })?;
-    log_info(
-        &app,
-        "embedding_download",
-        format!("model_dir ready {}", model_dir.display()),
-    );
 
     let state = DOWNLOAD_STATE.clone();
 
-    for (file_index, file_spec) in install_plan.iter().enumerate() {
+    for (file_index, file_spec) in plan.iter().enumerate() {
         let url = format!("{}/{}", file_spec.base_url, file_spec.remote_path);
         let dest_path = model_dir.join(file_spec.local_path);
         let display_file_name = file_spec.progress_name.to_string();
@@ -394,30 +351,27 @@ pub async fn start_embedding_download(
         }
 
         log_info(
-            &app,
-            "embedding_download",
+            app,
+            component,
             format!(
                 "download file {} of {}: {}",
                 file_index + 1,
-                install_plan.len(),
+                plan.len(),
                 file_spec.local_path
             ),
         );
-        match download_file(&app, &url, &dest_path, state.clone()).await {
-            Ok(_) => {}
-            Err(e) => {
-                log_error(
-                    &app,
-                    "embedding_download",
-                    format!("download failed file={} error={}", file_spec.local_path, e),
-                );
-                let _ = cleanup_partial_files(&model_dir, Some(&target_version));
-                let mut state_lock = state.lock().await;
-                state_lock.is_downloading = false;
-                state_lock.progress.status = "failed".to_string();
-                let _ = app.emit("embedding_download_progress", &state_lock.progress);
-                return Err(e);
-            }
+        if let Err(e) = download_file(app, &url, &dest_path, state.clone()).await {
+            log_error(
+                app,
+                component,
+                format!("download failed file={} error={}", file_spec.local_path, e),
+            );
+            let _ = delete_files(&model_dir, &owned_files);
+            let mut state_lock = state.lock().await;
+            state_lock.is_downloading = false;
+            state_lock.progress.status = "failed".to_string();
+            let _ = app.emit("embedding_download_progress", &state_lock.progress);
+            return Err(e);
         }
     }
 
@@ -428,6 +382,34 @@ pub async fn start_embedding_download(
         let _ = app.emit("embedding_download_progress", &state_lock.progress);
     }
 
+    Ok(())
+}
+
+pub async fn start_embedding_download(
+    app: AppHandle,
+    version: Option<String>,
+) -> Result<(), String> {
+    super::inference::clear_loaded_runtime_cache().await;
+
+    let source_spec = download_source_spec(version.as_deref());
+    let target_version = source_spec.target_version.clone();
+    let plan = embedding_download_plan(version.as_deref());
+    let owned_files = embedding_owned_files(&target_version);
+
+    log_info(
+        &app,
+        "embedding_download",
+        format!(
+            "embedding download init requested={:?} source={} files={:?}",
+            target_version,
+            source_spec.source_label,
+            plan.iter().map(|f| f.local_path).collect::<Vec<_>>()
+        ),
+    );
+
+    run_download_plan(&app, "embedding_download", plan, owned_files).await?;
+
+    let model_dir = embedding_model_dir(&app)?;
     log_model_file_status(&app, "embedding_download", &model_dir);
 
     if let Err(err) = prompts::ensure_dynamic_memory_templates(&app) {
@@ -437,6 +419,42 @@ pub async fn start_embedding_download(
             format!("Failed to ensure dynamic memory prompts: {}", err),
         );
     }
+
+    Ok(())
+}
+
+pub async fn start_companion_download(app: AppHandle, kind: String) -> Result<(), String> {
+    let kind = CompanionKind::from_str(&kind).ok_or_else(|| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Unknown companion model kind: {}", kind),
+        )
+    })?;
+
+    match kind {
+        CompanionKind::Emotion => super::emotion::clear_loaded_runtime_cache().await,
+        CompanionKind::Ner => super::ner::clear_loaded_runtime_cache().await,
+        CompanionKind::Router => super::router::clear_loaded_runtime_cache().await,
+    }
+
+    let plan = companion_download_plan(kind);
+    let owned_files: Vec<&'static str> = kind.local_files().iter().copied().collect();
+
+    log_info(
+        &app,
+        "companion_download",
+        format!(
+            "companion download init kind={} files={:?}",
+            kind.label(),
+            plan.iter().map(|f| f.local_path).collect::<Vec<_>>()
+        ),
+    );
+
+    run_download_plan(&app, "companion_download", plan, owned_files).await?;
+
+    let model_dir = embedding_model_dir(&app)?;
+    log_model_file_status(&app, "companion_download", &model_dir);
 
     Ok(())
 }
@@ -465,7 +483,8 @@ pub async fn cancel_embedding_download(app: AppHandle) -> Result<(), String> {
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
     let model_dir = embedding_model_dir(&app)?;
-    cleanup_partial_files(&model_dir, None)?;
+    let all_files = all_known_files();
+    delete_files(&model_dir, &all_files)?;
 
     {
         let mut state = DOWNLOAD_STATE.lock().await;
@@ -486,9 +505,6 @@ pub async fn cancel_embedding_download(app: AppHandle) -> Result<(), String> {
 
 pub async fn delete_embedding_model(app: AppHandle) -> Result<(), String> {
     super::inference::clear_loaded_runtime_cache().await;
-    super::emotion::clear_loaded_runtime_cache().await;
-    super::ner::clear_loaded_runtime_cache().await;
-    super::router::clear_loaded_runtime_cache().await;
     reset_download_state().await;
 
     let model_dir = embedding_model_dir(&app)?;
@@ -497,16 +513,17 @@ pub async fn delete_embedding_model(app: AppHandle) -> Result<(), String> {
         "embedding_download",
         format!("delete embedding model files in {}", model_dir.display()),
     );
-    cleanup_partial_files(&model_dir, None)?;
+    let mut files = MODEL_FILES_V1.to_vec();
+    files.extend(MODEL_FILES_V2_LOCAL.iter().copied());
+    files.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
+    files.extend(MODEL_FILES_V3_LOCAL.iter().copied());
+    delete_files(&model_dir, &files)?;
 
     Ok(())
 }
 
 pub async fn delete_embedding_model_version(app: AppHandle, version: String) -> Result<(), String> {
     super::inference::clear_loaded_runtime_cache().await;
-    super::emotion::clear_loaded_runtime_cache().await;
-    super::ner::clear_loaded_runtime_cache().await;
-    super::router::clear_loaded_runtime_cache().await;
     reset_download_state().await;
 
     let model_dir = embedding_model_dir(&app)?;
@@ -522,70 +539,14 @@ pub async fn delete_embedding_model_version(app: AppHandle, version: String) -> 
         ),
     );
 
-    match version_lower.as_str() {
-        "v1" => {
-            for filename in MODEL_FILES_V1.iter() {
-                let path = model_dir.join(filename);
-                if path.exists() {
-                    fs::remove_file(&path).map_err(|e| {
-                        crate::utils::err_msg(
-                            module_path!(),
-                            line!(),
-                            format!("Failed to delete {}: {}", path.display(), e),
-                        )
-                    })?;
-                }
-            }
-        }
+    let files: Vec<&'static str> = match version_lower.as_str() {
+        "v1" => MODEL_FILES_V1.to_vec(),
         "v2" => {
-            let v2_data_path = model_dir.join("v2-model.onnx.data");
-            if v2_data_path.exists() {
-                let v2_model_path = model_dir.join("v2-model.onnx");
-                if v2_model_path.exists() {
-                    fs::remove_file(&v2_model_path).map_err(|e| {
-                        crate::utils::err_msg(
-                            module_path!(),
-                            line!(),
-                            format!("Failed to delete {}: {}", v2_model_path.display(), e),
-                        )
-                    })?;
-                }
-            }
-            if v2_data_path.exists() {
-                fs::remove_file(&v2_data_path).map_err(|e| {
-                    crate::utils::err_msg(
-                        module_path!(),
-                        line!(),
-                        format!("Failed to delete {}: {}", v2_data_path.display(), e),
-                    )
-                })?;
-            }
-
-            let v2_tokenizer = model_dir.join("v2-tokenizer.json");
-            if v2_tokenizer.exists() {
-                fs::remove_file(&v2_tokenizer).map_err(|e| {
-                    crate::utils::err_msg(
-                        module_path!(),
-                        line!(),
-                        format!("Failed to delete {}: {}", v2_tokenizer.display(), e),
-                    )
-                })?;
-            }
+            let mut v = MODEL_FILES_V2_LOCAL.to_vec();
+            v.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
+            v
         }
-        "v3" => {
-            for filename in MODEL_FILES_V3_LOCAL.iter() {
-                let path = model_dir.join(filename);
-                if path.exists() {
-                    fs::remove_file(&path).map_err(|e| {
-                        crate::utils::err_msg(
-                            module_path!(),
-                            line!(),
-                            format!("Failed to delete {}: {}", path.display(), e),
-                        )
-                    })?;
-                }
-            }
-        }
+        "v3" => MODEL_FILES_V3_LOCAL.to_vec(),
         _ => {
             return Err(crate::utils::err_msg(
                 module_path!(),
@@ -593,7 +554,39 @@ pub async fn delete_embedding_model_version(app: AppHandle, version: String) -> 
                 format!("Unsupported embedding model version: {}", version),
             ));
         }
+    };
+
+    delete_files(&model_dir, &files)?;
+    Ok(())
+}
+
+pub async fn delete_companion_model(app: AppHandle, kind: String) -> Result<(), String> {
+    let kind = CompanionKind::from_str(&kind).ok_or_else(|| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Unknown companion model kind: {}", kind),
+        )
+    })?;
+
+    match kind {
+        CompanionKind::Emotion => super::emotion::clear_loaded_runtime_cache().await,
+        CompanionKind::Ner => super::ner::clear_loaded_runtime_cache().await,
+        CompanionKind::Router => super::router::clear_loaded_runtime_cache().await,
     }
+
+    let model_dir = embedding_model_dir(&app)?;
+    log_info(
+        &app,
+        "companion_download",
+        format!(
+            "delete companion model {} in {}",
+            kind.label(),
+            model_dir.display()
+        ),
+    );
+    let files: Vec<&'static str> = kind.local_files().iter().copied().collect();
+    delete_files(&model_dir, &files)?;
 
     Ok(())
 }

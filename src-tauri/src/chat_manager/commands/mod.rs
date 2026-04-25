@@ -26,10 +26,11 @@ use super::service::ChatContext;
 use super::storage::default_character_rules;
 use super::types::{
     ChatAddMessageAttachmentArgs, ChatCompletionArgs, ChatContinueArgs,
-    ChatGenerateDesignReferenceDescriptionArgs, ChatGenerateLorebookEntryDraftArgs,
-    ChatGenerateSceneImageArgs, ChatGenerateScenePromptArgs, ChatRegenerateArgs, ChatTurnResult,
-    ContinueResult, ImageAttachment, LorebookEntryDraftResult, PromptTemplateType,
-    RegenerateResult, Session, Settings, StoredMessage, SystemPromptEntry, SystemPromptTemplate,
+    ChatGenerateCompanionSoulArgs, ChatGenerateDesignReferenceDescriptionArgs,
+    ChatGenerateLorebookEntryDraftArgs, ChatGenerateSceneImageArgs, ChatGenerateScenePromptArgs,
+    ChatRegenerateArgs, ChatTurnResult, ContinueResult, ImageAttachment, LorebookEntryDraftResult,
+    PromptTemplateType, RegenerateResult, Session, Settings, StoredMessage, SystemPromptEntry,
+    SystemPromptTemplate,
 };
 use crate::storage_manager::sessions::{messages_upsert_batch_typed, session_upsert_meta_typed};
 
@@ -869,6 +870,13 @@ pub fn reset_design_reference_template(app: AppHandle) -> Result<SystemPromptTem
 }
 
 #[tauri::command]
+pub fn reset_companion_soul_writer_template(
+    app: AppHandle,
+) -> Result<SystemPromptTemplate, String> {
+    prompts::reset_companion_soul_writer_template(&app)
+}
+
+#[tauri::command]
 pub fn get_required_template_variables(app: AppHandle, template_id: String) -> Vec<String> {
     prompts::get_template(&app, &template_id)
         .ok()
@@ -1097,6 +1105,14 @@ pub async fn chat_generate_design_reference_description(
     args: ChatGenerateDesignReferenceDescriptionArgs,
 ) -> Result<String, String> {
     super::scene::chat_generate_design_reference_description(app, args).await
+}
+
+#[tauri::command]
+pub async fn chat_generate_companion_soul(
+    app: AppHandle,
+    args: ChatGenerateCompanionSoulArgs,
+) -> Result<Value, String> {
+    super::companion_soul_writer::chat_generate_companion_soul(app, args).await
 }
 
 #[tauri::command]

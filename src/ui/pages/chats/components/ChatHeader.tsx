@@ -214,12 +214,20 @@ export function ChatHeader({
                     data-tour-id="chat-memory"
                     onClick={() => {
                       if (!characterId || !sessionId) return;
+                      const route =
+                        character?.mode === "companion"
+                          ? Routes.chatCompanionMemories(
+                              characterId,
+                              sessionId,
+                              effectiveError ? { error: effectiveError } : undefined,
+                            )
+                          : Routes.chatMemories(
+                              characterId,
+                              sessionId,
+                              effectiveError ? { error: effectiveError } : undefined,
+                            );
                       navigate(
-                        Routes.chatMemories(
-                          characterId,
-                          sessionId,
-                          effectiveError ? { error: effectiveError } : undefined,
-                        ),
+                        route,
                       );
                     }}
                     className="relative flex h-10 w-10 items-center justify-center px-[0.6em] py-[0.3em] text-fg/80 transition hover:text-fg"

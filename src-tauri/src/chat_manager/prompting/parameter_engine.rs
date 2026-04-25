@@ -388,6 +388,41 @@ fn design_reference_writer_variables() -> Vec<PromptVariableDefinition> {
     ]
 }
 
+fn companion_soul_writer_variables() -> Vec<PromptVariableDefinition> {
+    vec![
+        variable(
+            "{{char.name}}",
+            "Character Name",
+            "Name of the companion character.",
+        ),
+        variable(
+            "{{char.definition}}",
+            "Character Definition",
+            "Full character definition or card text.",
+        ),
+        variable(
+            "{{char.description}}",
+            "Character Description",
+            "Shorter public-facing character description.",
+        ),
+        variable(
+            "{{opening_context}}",
+            "Opening Context",
+            "Starting scene or context used to infer companion grounding.",
+        ),
+        variable(
+            "{{current_soul}}",
+            "Current Soul",
+            "Existing companion Soul draft as JSON.",
+        ),
+        variable(
+            "{{user_notes}}",
+            "User Notes",
+            "User direction for how the Soul should be drafted or revised.",
+        ),
+    ]
+}
+
 fn dedupe_variables(
     groups: impl IntoIterator<Item = Vec<PromptVariableDefinition>>,
 ) -> Vec<PromptVariableDefinition> {
@@ -420,6 +455,7 @@ pub fn prompt_type_label(prompt_type: PromptTemplateType) -> &'static str {
         PromptTemplateType::SceneGeneration => "Scene Generation",
         PromptTemplateType::ScenePromptWriter => "Scene Prompt Writer",
         PromptTemplateType::DesignReferenceWriter => "Design Reference Writer",
+        PromptTemplateType::CompanionSoulWriter => "Companion Soul Writer",
     }
 }
 
@@ -439,6 +475,7 @@ pub fn allowed_variables_for_prompt_type(
             scene_generation_variables(),
             scene_generation_variables(),
             design_reference_writer_variables(),
+            companion_soul_writer_variables(),
         ]),
         PromptTemplateType::DirectChat => direct_chat_variables(),
         PromptTemplateType::CompanionChat => direct_chat_variables(),
@@ -454,6 +491,7 @@ pub fn allowed_variables_for_prompt_type(
         PromptTemplateType::SceneGeneration => scene_generation_variables(),
         PromptTemplateType::ScenePromptWriter => scene_generation_variables(),
         PromptTemplateType::DesignReferenceWriter => design_reference_writer_variables(),
+        PromptTemplateType::CompanionSoulWriter => companion_soul_writer_variables(),
     }
 }
 
@@ -524,6 +562,7 @@ pub fn required_variables_for_prompt_type(prompt_type: PromptTemplateType) -> Ve
             "{{subject_name}}".to_string(),
             "{{image[avatar]}}".to_string(),
         ],
+        PromptTemplateType::CompanionSoulWriter => vec!["{{char.name}}".to_string()],
     }
 }
 
@@ -549,6 +588,7 @@ pub fn allowed_image_slots_for_prompt_type(
                 PromptEntryImageSlot::References,
             ]
         }
+        PromptTemplateType::CompanionSoulWriter => Vec::new(),
         _ => Vec::new(),
     }
 }
@@ -586,6 +626,7 @@ pub fn build_parameter_engine() -> PromptParameterEngine {
         PromptTemplateType::SceneGeneration,
         PromptTemplateType::ScenePromptWriter,
         PromptTemplateType::DesignReferenceWriter,
+        PromptTemplateType::CompanionSoulWriter,
     ]
     .into_iter()
     .map(|prompt_type| PromptTypeDefinition {

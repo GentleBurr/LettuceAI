@@ -12,3 +12,4 @@ export * from "./ConvertPage";
 export * from "./LogsPage";
 export * from "./AboutPage";
 export * from "./LorebookEntryGeneratorPage";
+export * from "./CompanionSoulWriterPage";

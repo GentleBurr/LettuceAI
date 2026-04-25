@@ -471,10 +471,8 @@ export function ChatConversationPage() {
         throw new Error("Selected message was not found in the session.");
       }
 
-      const selectedSceneId =
-        sourceSession.selectedSceneId || character.defaultSceneId || character.scenes[0]?.id;
-      const ownerScene =
-        character.scenes.find((scene) => scene.id === selectedSceneId) || character.scenes[0];
+      const selectedSceneId = sourceSession.selectedSceneId ?? character.defaultSceneId;
+      const ownerScene = character.scenes.find((scene) => scene.id === selectedSceneId);
       const ownerSceneContent = ownerScene ? resolveSceneContent(ownerScene).trim() : "";
       const startingScene = ownerSceneContent
         ? {
@@ -1971,6 +1969,7 @@ export function ChatConversationPage() {
         characterDefaultModelId={character?.defaultModelId ?? null}
         characterId={characterId}
         sessionId={session?.id ?? null}
+        isCompanionChat={(session?.mode ?? character?.mode) === "companion"}
       />
 
       {/* Character Selection for Branch */}

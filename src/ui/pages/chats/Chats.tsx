@@ -164,13 +164,10 @@ export function ChatPage() {
 
   const createNewChat = async (character: Character, templateId?: string | null) => {
     try {
-      const sceneId = templateId
-        ? undefined
-        : (character.defaultSceneId ?? character.scenes?.[0]?.id);
       const session = await createSession(
         character.id,
         "New Chat",
-        sceneId,
+        undefined,
         templateId ?? undefined,
       );
       navigate(`/chat/${character.id}?sessionId=${session.id}`);
@@ -182,7 +179,8 @@ export function ChatPage() {
 
   const startChat = async (character: Character) => {
     try {
-      const latestSessionId = latestSessionByCharacter[character.id]?.id;
+      const previews = await listSessionPreviews(character.id, 1).catch(() => []);
+      const latestSessionId = previews[0]?.id ?? latestSessionByCharacter[character.id]?.id;
       if (latestSessionId) {
         navigate(`/chat/${character.id}?sessionId=${latestSessionId}`);
         return;

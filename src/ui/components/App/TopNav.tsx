@@ -131,6 +131,10 @@ export function TopNav({
         match: (p) => p === "/settings/advanced/lorebook-entry-generator",
         titleKey: "common.nav.lorebookEntryGenerator",
       },
+      {
+        match: (p) => p === "/settings/advanced/companion-soul-writer",
+        titleKey: "common.nav.companionSoulWriter",
+      },
       { match: (p) => p.includes("/lorebook"), titleKey: "common.nav.lorebooks" },
       { match: (p) => p === "/settings/personas", titleKey: "common.nav.personas" },
       { match: (p) => p === "/settings/advanced/memory", titleKey: "common.nav.dynamicMemory" },
@@ -285,6 +289,7 @@ export function TopNav({
     if (basePath === "/settings/prompts") return true;
     if (/^\/settings\/characters\/[^/]+\/templates$/.test(basePath)) return true;
     if (basePath === "/settings/advanced/lorebook-entry-generator") return false;
+    if (basePath === "/settings/advanced/companion-soul-writer") return false;
     if (basePath.includes("/lorebook")) return true;
     return false;
   }, [basePath, hasAdvancedView]);
@@ -332,7 +337,8 @@ export function TopNav({
     return (
       (basePath.startsWith("/settings") &&
         (!basePath.includes("/lorebook") ||
-          basePath === "/settings/advanced/lorebook-entry-generator")) ||
+          basePath === "/settings/advanced/lorebook-entry-generator" ||
+          basePath === "/settings/advanced/companion-soul-writer")) ||
       (basePath.startsWith("/personas/") && basePath.endsWith("/edit"))
     );
   }, [basePath]);

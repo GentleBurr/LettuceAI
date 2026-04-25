@@ -8,6 +8,7 @@ import { useCharacterForm, Step } from "./hooks/useCharacterForm";
 import { IdentityStep } from "./components/IdentityStep";
 import { StartingSceneStep } from "./components/StartingSceneStep";
 import { DescriptionStep } from "./components/DescriptionStep";
+import { CompanionSoulStep } from "./components/CompanionSoulStep";
 import { ExtrasStep } from "./components/ExtrasStep";
 import { TopNav } from "../../components/App";
 import {
@@ -269,6 +270,8 @@ export function CreateCharacterPage() {
 
   const handleBack = () => {
     if (state.step === Step.Extras) {
+      actions.setStep(state.mode === "companion" ? Step.CompanionSoul : Step.StartingScene);
+    } else if (state.step === Step.CompanionSoul) {
       actions.setStep(Step.StartingScene);
     } else if (state.step === Step.StartingScene) {
       actions.setStep(Step.Description);
@@ -337,8 +340,6 @@ export function CreateCharacterPage() {
               onDescriptionChange={actions.setDescription}
               mode={state.mode}
               onModeChange={actions.setMode}
-              companion={state.companion}
-              onCompanionChange={actions.setCompanionConfig}
               models={state.models}
               loadingModels={state.loadingModels}
               selectedModelId={state.selectedModelId}
@@ -381,8 +382,24 @@ export function CreateCharacterPage() {
               defaultSceneId={state.defaultSceneId}
               onDefaultSceneIdChange={actions.setDefaultSceneId}
               mode={state.mode}
-              onContinue={() => actions.setStep(Step.Extras)}
+              onContinue={() =>
+                actions.setStep(state.mode === "companion" ? Step.CompanionSoul : Step.Extras)
+              }
               canContinue={computed.canContinueStartingScene}
+            />
+          ) : state.step === Step.CompanionSoul ? (
+            <CompanionSoulStep
+              key="companion-soul"
+              name={state.name}
+              definition={state.definition}
+              description={state.description}
+              scenes={state.scenes}
+              companion={state.companion}
+              selectedModelId={state.selectedModelId}
+              models={state.models}
+              onCompanionChange={actions.setCompanionConfig}
+              onBack={() => actions.setStep(Step.StartingScene)}
+              onContinue={() => actions.setStep(Step.Extras)}
             />
           ) : (
             <ExtrasStep

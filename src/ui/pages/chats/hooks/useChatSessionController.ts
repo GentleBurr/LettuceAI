@@ -221,11 +221,7 @@ export function useChatSessionController({
         }
 
         if (!targetSession) {
-          targetSession = await createSession(
-            match.id,
-            match.name ?? "New chat",
-            match.defaultSceneId ?? match.scenes?.[0]?.id,
-          );
+          targetSession = await createSession(match.id, match.name ?? "New chat");
         }
 
         let orderedMessages: StoredMessage[] = [];

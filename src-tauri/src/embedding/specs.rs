@@ -54,6 +54,56 @@ pub(crate) const HUGGINGFACE_BASE_COMPANION_NER: &str =
 pub(crate) const HUGGINGFACE_BASE_COMPANION_ROUTER: &str =
     "https://huggingface.co/onnx-community/distilbert-base-uncased-mnli-ONNX/resolve/main";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CompanionKind {
+    Emotion,
+    Ner,
+    Router,
+}
+
+impl CompanionKind {
+    pub(crate) fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "emotion" => Some(Self::Emotion),
+            "ner" => Some(Self::Ner),
+            "router" => Some(Self::Router),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Emotion => "companion-emotion",
+            Self::Ner => "companion-ner",
+            Self::Router => "companion-router",
+        }
+    }
+
+    pub(crate) fn base_url(self) -> &'static str {
+        match self {
+            Self::Emotion => HUGGINGFACE_BASE_COMPANION_EMOTION,
+            Self::Ner => HUGGINGFACE_BASE_COMPANION_NER,
+            Self::Router => HUGGINGFACE_BASE_COMPANION_ROUTER,
+        }
+    }
+
+    pub(crate) fn remote_files(self) -> &'static [&'static str] {
+        match self {
+            Self::Emotion => &COMPANION_EMOTION_MODEL_FILES_REMOTE,
+            Self::Ner => &COMPANION_NER_MODEL_FILES_REMOTE,
+            Self::Router => &COMPANION_ROUTER_MODEL_FILES_REMOTE,
+        }
+    }
+
+    pub(crate) fn local_files(self) -> &'static [&'static str] {
+        match self {
+            Self::Emotion => &COMPANION_EMOTION_MODEL_FILES_LOCAL,
+            Self::Ner => &COMPANION_NER_MODEL_FILES_LOCAL,
+            Self::Router => &COMPANION_ROUTER_MODEL_FILES_LOCAL,
+        }
+    }
+}
+
 pub(crate) struct DownloadFileSpec {
     pub(crate) base_url: &'static str,
     pub(crate) remote_path: &'static str,
@@ -95,7 +145,8 @@ pub(crate) fn download_source_spec(requested: Option<&str>) -> DownloadSourceSpe
     }
 }
 
-pub(crate) fn install_download_plan(requested: Option<&str>) -> Vec<DownloadFileSpec> {
+/// Build the file plan for the embedding model only (no companion files).
+pub(crate) fn embedding_download_plan(requested: Option<&str>) -> Vec<DownloadFileSpec> {
     let source = download_source_spec(requested);
     let mut plan = source
         .remote_files
@@ -118,41 +169,32 @@ pub(crate) fn install_download_plan(requested: Option<&str>) -> Vec<DownloadFile
         }
     }
 
-    plan.extend(
-        COMPANION_EMOTION_MODEL_FILES_REMOTE
-            .iter()
-            .zip(COMPANION_EMOTION_MODEL_FILES_LOCAL.iter())
-            .map(|(remote_path, local_path)| DownloadFileSpec {
-                base_url: HUGGINGFACE_BASE_COMPANION_EMOTION,
-                remote_path,
-                local_path,
-                progress_name: local_path,
-            }),
-    );
-
-    plan.extend(
-        COMPANION_NER_MODEL_FILES_REMOTE
-            .iter()
-            .zip(COMPANION_NER_MODEL_FILES_LOCAL.iter())
-            .map(|(remote_path, local_path)| DownloadFileSpec {
-                base_url: HUGGINGFACE_BASE_COMPANION_NER,
-                remote_path,
-                local_path,
-                progress_name: local_path,
-            }),
-    );
-
-    plan.extend(
-        COMPANION_ROUTER_MODEL_FILES_REMOTE
-            .iter()
-            .zip(COMPANION_ROUTER_MODEL_FILES_LOCAL.iter())
-            .map(|(remote_path, local_path)| DownloadFileSpec {
-                base_url: HUGGINGFACE_BASE_COMPANION_ROUTER,
-                remote_path,
-                local_path,
-                progress_name: local_path,
-            }),
-    );
-
     plan
+}
+
+/// Build the file plan for a single companion model.
+pub(crate) fn companion_download_plan(kind: CompanionKind) -> Vec<DownloadFileSpec> {
+    kind.remote_files()
+        .iter()
+        .zip(kind.local_files().iter())
+        .map(|(remote_path, local_path)| DownloadFileSpec {
+            base_url: kind.base_url(),
+            remote_path,
+            local_path,
+            progress_name: local_path,
+        })
+        .collect()
+}
+
+/// Files owned by a given embedding source — used for cleanup of a failed embedding download.
+pub(crate) fn embedding_owned_files(version: &EmbeddingModelVersion) -> Vec<&'static str> {
+    match version {
+        EmbeddingModelVersion::V1 => MODEL_FILES_V1.to_vec(),
+        EmbeddingModelVersion::V2 => {
+            let mut v = MODEL_FILES_V2_LOCAL.to_vec();
+            v.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
+            v
+        }
+        EmbeddingModelVersion::V3 => MODEL_FILES_V3_LOCAL.to_vec(),
+    }
 }

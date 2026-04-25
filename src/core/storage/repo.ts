@@ -3,6 +3,7 @@ import { storageBridge } from "./files";
 import { getDefaultCharacterRules } from "./defaults";
 import {
   CharacterSchema,
+  CompanionTurnEffectSchema,
   LorebookSchema,
   LorebookEntrySchema,
   SessionSchema,
@@ -16,6 +17,7 @@ import {
   GroupSchema,
   GroupSessionSchema,
   type Character,
+  type CompanionTurnEffect,
   type Session,
   type Settings,
   type Persona,
@@ -440,9 +442,21 @@ function buildMemoryFromCreateAction(
     tokenCount: 0,
     isCold: false,
     importanceScore: 1,
+    persistenceImportance: 1,
+    promptImportance: 1,
+    volatility: 0.4,
     lastAccessedAt: createdAt,
     isPinned: Boolean(args.important),
+    accessCount: 0,
+    matchScore: null,
     category: typeof args.category === "string" ? args.category : null,
+    canonicalEntities: [],
+    factSignature: null,
+    factPolarity: null,
+    sourceRole: null,
+    supersededBy: null,
+    supersededAt: null,
+    supersedes: [],
   };
 }
 
@@ -879,7 +893,7 @@ export async function saveCharacter(c: Partial<Character>): Promise<Character> {
   const timestamp = now();
 
   const scenes = c.scenes ?? [];
-  const defaultSceneId = c.defaultSceneId ?? (scenes.length === 1 ? scenes[0].id : null);
+  const defaultSceneId = c.defaultSceneId ?? null;
   const derivedScenario =
     scenes.find((scene) => scene.id === defaultSceneId)?.direction?.trim() || undefined;
   const entity: Character = {
@@ -1139,6 +1153,14 @@ export async function getSessionMessageCount(sessionId: string): Promise<number>
   return storageBridge.sessionMessageCount(sessionId);
 }
 
+export async function getMessageCompanionEffect(
+  sessionId: string,
+  assistantMessageId: string,
+): Promise<CompanionTurnEffect | null> {
+  const data = await storageBridge.messageCompanionEffect(sessionId, assistantMessageId);
+  return data ? CompanionTurnEffectSchema.parse(data) : null;
+}
+
 export async function listMessages(
   sessionId: string,
   options: { limit: number; before?: { createdAt: number; id: string } } = { limit: 120 },
@@ -1269,10 +1291,7 @@ export async function createSession(
   const character = characters.find((c) => c.id === characterId);
   const sessionMode = character?.mode ?? "roleplay";
 
-  const fallbackSceneId = character
-    ? (selectedSceneId ?? character.defaultSceneId ?? character.scenes[0]?.id)
-    : selectedSceneId;
-  let sessionSceneId = sessionMode === "companion" ? undefined : fallbackSceneId;
+  let sessionSceneId = selectedSceneId ?? character?.defaultSceneId ?? undefined;
 
   if (character && templateId) {
     const template = character.chatTemplates?.find((t) => t.id === templateId);
@@ -1302,7 +1321,7 @@ export async function createSession(
         : (character?.promptTemplateId ?? null);
   }
 
-  if (sessionMode !== "companion" && character && sessionSceneId) {
+  if (character && sessionSceneId) {
     const scene = character.scenes.find((s) => s.id === sessionSceneId);
     if (scene) {
       const variantContent = scene.selectedVariantId
@@ -1436,9 +1455,7 @@ export async function createBranchedSessionToCharacter(
     backgroundImagePath: undefined,
     mode: targetCharacter?.mode ?? "roleplay",
     selectedSceneId:
-      targetCharacter?.mode === "companion"
-        ? undefined
-        : (targetCharacter?.defaultSceneId ?? targetCharacter?.scenes?.[0]?.id),
+      targetCharacter?.defaultSceneId ?? undefined,
     promptTemplateId:
       targetCharacter?.mode === "companion"
         ? (targetCharacter?.companion?.prompting?.promptTemplateId ?? APP_COMPANION_TEMPLATE_ID)

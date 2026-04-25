@@ -32,6 +32,7 @@ export const enMessages = {
       creationHelper: "Creation Helper",
       helpMeReply: "Help Me Reply",
       lorebookEntryGenerator: "Lorebook Entry Generator",
+      companionSoulWriter: "Companion Soul Writer",
       editPersona: "Edit Persona",
       newTemplate: "New Template",
       editTemplate: "Edit Template",

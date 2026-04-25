@@ -6,8 +6,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::chat_manager::types::{
-    DynamicMemorySettings, DynamicMemoryStructuredFallbackFormat, MemoryRetrievalStrategy,
-    Settings,
+    DynamicMemorySettings, DynamicMemoryStructuredFallbackFormat, MemoryRetrievalStrategy, Settings,
 };
 
 // ============================================================================

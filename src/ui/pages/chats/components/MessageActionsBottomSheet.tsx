@@ -15,6 +15,7 @@ import {
   Paintbrush,
   Image,
   TriangleAlert,
+  HeartPulse,
   type LucideIcon,
 } from "lucide-react";
 import { BottomMenu } from "../../../components/BottomMenu";
@@ -23,9 +24,10 @@ import type {
   Settings,
   Model,
   ImageAttachment,
+  CompanionTurnEffect,
 } from "../../../../core/storage/schemas";
 import { cn, radius } from "../../../design-tokens";
-import { readSettings } from "../../../../core/storage/repo";
+import { getMessageCompanionEffect, readSettings } from "../../../../core/storage/repo";
 import { useI18n } from "../../../../core/i18n/context";
 import { isDevelopmentMode } from "../../../../core/utils/env";
 import { useSessionAttachments } from "../../../hooks/useSessionAttachment";
@@ -61,6 +63,68 @@ interface MessageActionsBottomSheetProps {
   characterDefaultModelId?: string | null;
   characterId?: string;
   sessionId?: string | null;
+  isCompanionChat?: boolean;
+}
+
+function formatEffectKey(key: string): string {
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+}
+
+function formatDelta(value: number): string {
+  const percent = value * 100;
+  const sign = percent > 0 ? "+" : "";
+  return `${sign}${percent.toFixed(Math.abs(percent) >= 10 ? 0 : 1)}%`;
+}
+
+function flattenEmotionDeltas(effect: CompanionTurnEffect): Array<{
+  key: string;
+  value: number;
+}> {
+  return Object.entries(effect.emotionDelta).flatMap(([target, deltas]) =>
+    Object.entries(deltas).map(([emotion, value]) => ({
+      key: target === "companion" ? emotion : `${target} ${emotion}`,
+      value,
+    })),
+  );
+}
+
+function getMemoryChangeCount(effect: CompanionTurnEffect): number {
+  return (
+    effect.memoryChanges.added.length +
+    effect.memoryChanges.updated.length +
+    effect.memoryChanges.superseded.length
+  );
+}
+
+function getMemoryPreview(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const candidates = [record.text, record.content, record.summary, record.canonicalText];
+  const text = candidates.find((candidate): candidate is string => typeof candidate === "string");
+  return text ? text.trim() : null;
+}
+
+function DeltaPill({ label, value }: { label: string; value: number }) {
+  const positive = value > 0;
+  const neutral = Math.abs(value) < 0.0001;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium",
+        neutral && "border-white/10 bg-white/5 text-white/55",
+        !neutral &&
+          positive &&
+          "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+        !neutral && !positive && "border-rose-400/20 bg-rose-400/10 text-rose-200",
+      )}
+    >
+      <span className="text-white/60">{label}</span>
+      <span className="tabular-nums">{formatDelta(value)}</span>
+    </span>
+  );
 }
 
 // Action row component
@@ -136,6 +200,7 @@ export function MessageActionsBottomSheet({
   characterDefaultModelId,
   characterId,
   sessionId,
+  isCompanionChat = false,
 }: MessageActionsBottomSheetProps) {
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -144,9 +209,17 @@ export function MessageActionsBottomSheet({
   const [modelProviderId, setModelProviderId] = useState<string | null>(null);
   const [editAttachments, setEditAttachments] = useState<ImageAttachment[]>([]);
   const [editingAttachmentId, setEditingAttachmentId] = useState<string | null>(null);
+  const [companionEffect, setCompanionEffect] = useState<CompanionTurnEffect | null>(null);
+  const [companionEffectLoading, setCompanionEffectLoading] = useState(false);
+  const [companionEffectError, setCompanionEffectError] = useState<string | null>(null);
   const isSceneMessage = messageAction?.message.role === "scene";
   const isAssistantLikeMessage =
     messageAction?.message.role === "assistant" || messageAction?.message.role === "scene";
+  const canDeleteMessage = !isSceneMessage || isCompanionChat;
+  const companionEffectMessageId =
+    isCompanionChat && sessionId && messageAction?.message.role === "assistant"
+      ? messageAction.message.id
+      : null;
 
   const canEdit =
     isAssistantLikeMessage ||
@@ -186,6 +259,55 @@ export function MessageActionsBottomSheet({
     }
   }, [messageAction, settings, characterDefaultModelId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    let retryTimer: number | null = null;
+
+    const clearRetry = () => {
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    };
+
+    if (!sessionId || !companionEffectMessageId) {
+      setCompanionEffect(null);
+      setCompanionEffectLoading(false);
+      setCompanionEffectError(null);
+      return clearRetry;
+    }
+
+    const loadEffect = async (showLoading: boolean) => {
+      clearRetry();
+      if (showLoading) {
+        setCompanionEffectLoading(true);
+      }
+      try {
+        const effect = await getMessageCompanionEffect(sessionId, companionEffectMessageId);
+        if (cancelled) return;
+        setCompanionEffect(effect);
+        setCompanionEffectError(null);
+        if (effect?.status === "processing") {
+          retryTimer = window.setTimeout(() => void loadEffect(false), 1500);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setCompanionEffectError(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (!cancelled) {
+          setCompanionEffectLoading(false);
+        }
+      }
+    };
+
+    void loadEffect(true);
+
+    return () => {
+      cancelled = true;
+      clearRetry();
+    };
+  }, [sessionId, companionEffectMessageId]);
+
   const modelLabel =
     modelName ?? (settings ? t("chats.actions.unknownModel") : t("chats.actions.loadingModel"));
   const usedFallback = Boolean(messageAction?.message.fallbackFromModelId);
@@ -200,6 +322,18 @@ export function MessageActionsBottomSheet({
     isDevelopmentMode() &&
     Boolean(characterId && sessionId) &&
     messageAction?.message.role === "assistant";
+  const relationshipDeltas = companionEffect
+    ? Object.entries(companionEffect.relationshipDelta).filter(([, value]) => Math.abs(value) > 0)
+    : [];
+  const emotionDeltas = companionEffect
+    ? flattenEmotionDeltas(companionEffect).filter(({ value }) => Math.abs(value) > 0)
+    : [];
+  const memoryChangeCount = companionEffect ? getMemoryChangeCount(companionEffect) : 0;
+  const showCompanionEffectCard =
+    isCompanionChat &&
+    messageAction?.mode === "view" &&
+    messageAction.message.role === "assistant" &&
+    (companionEffectLoading || Boolean(companionEffect) || Boolean(companionEffectError));
 
   const handleCopy = async () => {
     if (!messageAction) return;
@@ -290,6 +424,128 @@ export function MessageActionsBottomSheet({
 
           {messageAction.mode === "view" ? (
             <div className="space-y-1">
+              {showCompanionEffectCard && (
+                <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.08] p-3">
+                  <div className="mb-2 flex items-start gap-2">
+                    <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/15">
+                      <HeartPulse size={15} className="text-amber-200" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold text-amber-100">
+                          Companion changes
+                        </span>
+                        {companionEffect?.status === "processing" && (
+                          <span className="text-[10px] uppercase tracking-[0.18em] text-amber-200/55">
+                            Processing
+                          </span>
+                        )}
+                        {companionEffect?.status === "failed" && (
+                          <span className="text-[10px] uppercase tracking-[0.18em] text-rose-200/65">
+                            Failed
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-amber-50/70">
+                        {companionEffectError
+                          ? "Could not load this turn's companion analysis."
+                          : companionEffect?.status === "failed"
+                            ? "Companion analysis failed for this turn."
+                          : companionEffect?.summary ||
+                            (companionEffectLoading || companionEffect?.status === "processing"
+                              ? "Analyzing relationship, emotion, and memory changes for this turn."
+                              : "No companion changes were recorded for this turn.")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {companionEffect && companionEffect.status === "ready" && (
+                    <div className="space-y-2">
+                      {relationshipDeltas.length > 0 && (
+                        <div>
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                            Relationship
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {relationshipDeltas.map(([key, value]) => (
+                              <DeltaPill key={key} label={formatEffectKey(key)} value={value} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {emotionDeltas.length > 0 && (
+                        <div>
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                            Emotions
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {emotionDeltas.map(({ key, value }) => (
+                              <DeltaPill key={key} label={formatEffectKey(key)} value={value} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {(companionEffect.signalChanges.added.length > 0 ||
+                        companionEffect.signalChanges.removed.length > 0) && (
+                        <div className="grid gap-1.5 text-xs text-white/65">
+                          {companionEffect.signalChanges.added.length > 0 && (
+                            <div>
+                              <span className="text-emerald-200/80">Signals added: </span>
+                              {companionEffect.signalChanges.added
+                                .map(formatEffectKey)
+                                .join(", ")}
+                            </div>
+                          )}
+                          {companionEffect.signalChanges.removed.length > 0 && (
+                            <div>
+                              <span className="text-rose-200/80">Signals removed: </span>
+                              {companionEffect.signalChanges.removed
+                                .map(formatEffectKey)
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {memoryChangeCount > 0 && (
+                        <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                          <div className="mb-1 text-[11px] font-medium text-white/70">
+                            Memory changes: {memoryChangeCount}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 text-[11px] text-white/55">
+                            {companionEffect.memoryChanges.added.length > 0 && (
+                              <span>{companionEffect.memoryChanges.added.length} added</span>
+                            )}
+                            {companionEffect.memoryChanges.updated.length > 0 && (
+                              <span>{companionEffect.memoryChanges.updated.length} updated</span>
+                            )}
+                            {companionEffect.memoryChanges.superseded.length > 0 && (
+                              <span>
+                                {companionEffect.memoryChanges.superseded.length} superseded
+                              </span>
+                            )}
+                          </div>
+                          {companionEffect.memoryChanges.added
+                            .map(getMemoryPreview)
+                            .filter((text): text is string => Boolean(text))
+                            .slice(0, 2)
+                            .map((text, index) => (
+                              <p
+                                key={`${text}-${index}`}
+                                className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-white/70"
+                              >
+                                {text}
+                              </p>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Memories section */}
               {!isSceneMessage &&
                 characterMemoryType === "dynamic" &&
@@ -392,7 +648,7 @@ export function MessageActionsBottomSheet({
                 />
               )}
 
-              {!isSceneMessage && <div className="h-px bg-white/5 my-2" />}
+              <div className="h-px bg-white/5 my-2" />
 
               {/* Chat flow actions */}
               {(messageAction.message.role === "assistant" ||
@@ -456,19 +712,7 @@ export function MessageActionsBottomSheet({
 
               {!isSceneMessage && <div className="h-px bg-white/5 my-2" />}
 
-              {!isSceneMessage && characterId && (
-                <ActionRow
-                  icon={Paintbrush}
-                  label={t("chats.actions.chatAppearance")}
-                  iconBg="bg-purple-500/20"
-                  onClick={() => {
-                    closeMessageActions(true);
-                    navigate(`/settings/accessibility/chat?characterId=${characterId}`);
-                  }}
-                />
-              )}
-
-              {!isSceneMessage && (
+              {canDeleteMessage && (
                 <ActionRow
                   icon={Trash2}
                   label={
@@ -479,6 +723,18 @@ export function MessageActionsBottomSheet({
                   onClick={() => void handleDeleteMessage(messageAction.message)}
                   disabled={actionBusy || messageAction.message.isPinned}
                   variant="danger"
+                />
+              )}
+
+              {!isSceneMessage && characterId && (
+                <ActionRow
+                  icon={Paintbrush}
+                  label={t("chats.actions.chatAppearance")}
+                  iconBg="bg-purple-500/20"
+                  onClick={() => {
+                    closeMessageActions(true);
+                    navigate(`/settings/accessibility/chat?characterId=${characterId}`);
+                  }}
                 />
               )}
 

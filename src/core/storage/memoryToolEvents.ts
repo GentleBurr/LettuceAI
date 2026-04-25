@@ -38,9 +38,42 @@ function toMemorySnapshot(value: unknown): AnyMemory | null {
     tokenCount: typeof snapshot.tokenCount === "number" ? snapshot.tokenCount : 0,
     isCold: Boolean(snapshot.isCold),
     importanceScore: typeof snapshot.importanceScore === "number" ? snapshot.importanceScore : 1,
+    persistenceImportance:
+      typeof snapshot.persistenceImportance === "number" ? snapshot.persistenceImportance : 1,
+    promptImportance: typeof snapshot.promptImportance === "number" ? snapshot.promptImportance : 1,
+    volatility: typeof snapshot.volatility === "number" ? snapshot.volatility : 0.4,
     lastAccessedAt: typeof snapshot.lastAccessedAt === "number" ? snapshot.lastAccessedAt : 0,
     isPinned: Boolean(snapshot.isPinned),
+    accessCount: typeof snapshot.accessCount === "number" ? snapshot.accessCount : 0,
+    matchScore: typeof snapshot.matchScore === "number" ? snapshot.matchScore : null,
     category: typeof snapshot.category === "string" ? snapshot.category : null,
+    canonicalEntities: Array.isArray(snapshot.canonicalEntities)
+      ? snapshot.canonicalEntities.filter(
+          (
+            entity,
+          ): entity is {
+            label: string;
+            surface: string;
+            canonicalKey: string;
+            canonicalName: string;
+            confidence: number;
+          } =>
+            !!entity &&
+            typeof entity === "object" &&
+            typeof (entity as Record<string, unknown>).label === "string" &&
+            typeof (entity as Record<string, unknown>).surface === "string" &&
+            typeof (entity as Record<string, unknown>).canonicalKey === "string" &&
+            typeof (entity as Record<string, unknown>).canonicalName === "string",
+        )
+      : [],
+    factSignature: typeof snapshot.factSignature === "string" ? snapshot.factSignature : null,
+    factPolarity: typeof snapshot.factPolarity === "number" ? snapshot.factPolarity : null,
+    sourceRole: typeof snapshot.sourceRole === "string" ? snapshot.sourceRole : null,
+    supersededBy: typeof snapshot.supersededBy === "string" ? snapshot.supersededBy : null,
+    supersededAt: typeof snapshot.supersededAt === "number" ? snapshot.supersededAt : null,
+    supersedes: Array.isArray(snapshot.supersedes)
+      ? snapshot.supersedes.filter((item): item is string => typeof item === "string")
+      : [],
   };
 }
 

@@ -287,6 +287,14 @@ fn run_bootstrap_tasks(app: &tauri::AppHandle) {
             format!("Failed to ensure design reference template: {}", err),
         );
     }
+
+    if let Err(err) = chat_manager::prompts::ensure_companion_soul_writer_template(app) {
+        utils::log_error(
+            app,
+            "bootstrap",
+            format!("Failed to ensure companion soul writer template: {}", err),
+        );
+    }
 }
 
 #[tauri::command]

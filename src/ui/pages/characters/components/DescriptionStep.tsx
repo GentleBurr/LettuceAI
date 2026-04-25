@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import type {
   CharacterMode,
-  CompanionConfig,
   Model,
   SystemPromptTemplate,
 } from "../../../../core/storage/schemas";
@@ -30,7 +29,6 @@ import {
   APP_GROUP_CHAT_TEMPLATE_ID,
 } from "../../../../core/prompts/constants";
 import { InteractionModeSelector } from "./InteractionModeSelector";
-import { CompanionSoulEditor } from "./CompanionSoulEditor";
 
 interface DescriptionStepProps {
   definition: string;
@@ -39,8 +37,6 @@ interface DescriptionStepProps {
   onDescriptionChange: (value: string) => void;
   mode: CharacterMode;
   onModeChange: (value: CharacterMode) => void;
-  companion: CompanionConfig | null | undefined;
-  onCompanionChange: (value: CompanionConfig | null) => void;
   models: Model[];
   loadingModels: boolean;
   selectedModelId: string | null;
@@ -83,8 +79,6 @@ export function DescriptionStep({
   onDescriptionChange,
   mode,
   onModeChange,
-  companion,
-  onCompanionChange,
   models,
   loadingModels,
   selectedModelId,
@@ -176,10 +170,6 @@ export function DescriptionStep({
       </div>
 
       <InteractionModeSelector mode={mode} onChange={onModeChange} />
-
-      {mode === "companion" && (
-        <CompanionSoulEditor companion={companion} onChange={onCompanionChange} />
-      )}
 
       {/* Desktop: Two-column layout / Mobile: stacked */}
       <div className="flex flex-col lg:flex-row lg:gap-8">

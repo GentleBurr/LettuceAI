@@ -7,6 +7,7 @@ import {
   PenLine,
   Brain,
   Cpu,
+  Heart,
   Info,
   MessageSquare,
   Zap,
@@ -582,6 +583,7 @@ export function AdvancedPage() {
               </div>
             </div>
           </button>
+
         </SettingsSection>
 
         {/* Memory System Section */}
@@ -646,6 +648,87 @@ export function AdvancedPage() {
               </div>
             </div>
           </div>
+        </SettingsSection>
+
+        {/* Companions Section */}
+        <SettingsSection title="Companions" icon={<Heart size={12} />}>
+          <button
+            type="button"
+            onClick={() => navigate("/settings/advanced/companions")}
+            className={cn(
+              "group w-full text-left",
+              "relative overflow-hidden rounded-xl border border-fg/10 bg-fg/5 px-4 py-3.5",
+              "transition-all duration-300 hover:border-fg/20",
+              interactive.active.scale,
+              interactive.focus.ring,
+            )}
+          >
+            <div className="relative flex items-start gap-3">
+              <div
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+                  "border-rose-400/30 bg-rose-400/10 text-rose-300",
+                )}
+              >
+                <Heart className="h-4 w-4" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <span className={cn(typography.body.size, "font-medium text-fg")}>
+                      Companion mode
+                    </span>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-fg/50">
+                      Manage local analysis models for emotion, entity extraction, and memory
+                      routing used by companion characters.
+                    </p>
+                  </div>
+
+                  <ChevronRight className="h-4 w-4 shrink-0 text-fg/25 transition-colors group-hover:text-fg/50" />
+                </div>
+              </div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/settings/advanced/companion-soul-writer")}
+            className={cn(
+              "group w-full text-left",
+              "relative overflow-hidden rounded-xl border border-fg/10 bg-fg/5 px-4 py-3.5",
+              "transition-all duration-300 hover:border-fg/20",
+              interactive.active.scale,
+              interactive.focus.ring,
+            )}
+          >
+            <div className="relative flex items-start gap-3">
+              <div
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+                  "border-rose-400/30 bg-rose-500/10 text-rose-300",
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <span className={cn(typography.body.size, "font-medium text-fg")}>
+                      Companion Soul Writer
+                    </span>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-fg/50">
+                      Pick the model, fallback model, and prompt template used to draft
+                      Companion Souls. Tool-calling first, structured fallback if unsupported.
+                    </p>
+                  </div>
+
+                  <ChevronRight className="h-4 w-4 shrink-0 text-fg/25 transition-colors group-hover:text-fg/50" />
+                </div>
+              </div>
+            </div>
+          </button>
         </SettingsSection>
 
         {/* Usage Analytics Section */}

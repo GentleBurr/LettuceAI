@@ -129,6 +129,10 @@ export async function resetDesignReferenceTemplate(): Promise<SystemPromptTempla
   return await invoke<SystemPromptTemplate>("reset_design_reference_template");
 }
 
+export async function resetCompanionSoulWriterTemplate(): Promise<SystemPromptTemplate> {
+  return await invoke<SystemPromptTemplate>("reset_companion_soul_writer_template");
+}
+
 export async function getPromptParameterEngine(): Promise<PromptParameterEngine> {
   return await invoke<PromptParameterEngine>("get_prompt_parameter_engine");
 }

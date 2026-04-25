@@ -34,8 +34,9 @@ import {
 export enum Step {
   Identity = 1,
   Description = 2,
-  StartingScene = 3,
-  Extras = 4,
+  CompanionSoul = 3,
+  StartingScene = 4,
+  Extras = 5,
 }
 
 const FORMAT_LABELS: Record<CharacterFileFormat, string> = {
@@ -1103,12 +1104,14 @@ export function useCharacterForm(draftCharacter?: any) {
     state.definition.trim().length > 0 && state.selectedModelId !== null && !state.saving;
   const progress =
     state.step === Step.Identity
-      ? 0.25
+      ? 0.2
+      : state.step === Step.Description
+        ? 0.4
+        : state.step === Step.CompanionSoul
+          ? 0.6
       : state.step === Step.StartingScene
-        ? 0.5
-        : state.step === Step.Description
-          ? 0.75
-          : 1;
+        ? 0.8
+        : 1;
 
   return {
     state,

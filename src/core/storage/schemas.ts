@@ -95,6 +95,7 @@ export const PromptTemplateTypeSchema = z.enum([
   "sceneGeneration",
   "scenePromptWriter",
   "designReferenceWriter",
+  "companionSoulWriter",
 ]);
 export type PromptTemplateType = z.infer<typeof PromptTemplateTypeSchema>;
 
@@ -2569,6 +2570,11 @@ export const SettingsSchema = z.object({
       lorebookEntryGeneratorStructuredFallbackFormat:
         DynamicMemoryStructuredFallbackFormatSchema.optional(),
       lorebookEntryGeneratorPromptTemplateId: z.string().optional(),
+      companionSoulWriterModelId: z.string().optional(),
+      companionSoulWriterFallbackModelId: z.string().optional(),
+      companionSoulWriterPromptTemplateId: z.string().optional(),
+      companionSoulWriterStructuredFallbackFormat:
+        DynamicMemoryStructuredFallbackFormatSchema.optional(),
       manualModeContextWindow: z.number().optional(),
       embeddingMaxTokens: z.number().optional(), // 1024, 2048, or 4096
       embeddingModelVersion: z.enum(["v2", "v3"]).optional(),
@@ -2597,6 +2603,7 @@ export function createDefaultSettings(): Settings {
     advancedSettings: {
       dynamicMemoryStructuredFallbackFormat: "xml",
       lorebookEntryGeneratorStructuredFallbackFormat: "json",
+      companionSoulWriterStructuredFallbackFormat: "json",
       dynamicMemoryLlamaSamplerOverwriteEnabled: true,
       avatarGenerationEnabled: true,
       creationHelperEnabled: false,
@@ -2899,6 +2906,34 @@ export const CompanionSessionStateSchema = z.object({
 });
 export type CompanionSessionState = z.infer<typeof CompanionSessionStateSchema>;
 
+export const CompanionTurnEffectSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  userMessageId: z.string().nullable().optional(),
+  assistantMessageId: z.string(),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+  status: z.enum(["processing", "ready", "failed"]),
+  summary: z.string().nullable().optional(),
+  relationshipDelta: z.record(z.string(), z.number()).default({}),
+  emotionDelta: z.record(z.string(), z.record(z.string(), z.number())).default({}),
+  signalChanges: z
+    .object({
+      added: z.array(z.string()).default([]),
+      removed: z.array(z.string()).default([]),
+    })
+    .default({ added: [], removed: [] }),
+  memoryChanges: z
+    .object({
+      added: z.array(z.any()).default([]),
+      updated: z.array(z.any()).default([]),
+      superseded: z.array(z.any()).default([]),
+    })
+    .default({ added: [], updated: [], superseded: [] }),
+  sourceWindow: z.record(z.string(), z.any()).default({}),
+});
+export type CompanionTurnEffect = z.infer<typeof CompanionTurnEffectSchema>;
+
 export const MemoryEntityAnchorSchema = z.object({
   label: z.string(),
   surface: z.string(),
@@ -2990,6 +3025,7 @@ export const SessionSchema = z.object({
         factSignature: z.string().nullable().optional(),
         factPolarity: z.number().int().nullable().optional(),
         sourceRole: z.string().nullable().optional(),
+        sourceMessageId: z.string().nullable().optional(),
         supersededBy: z.string().nullable().optional(),
         supersededAt: z.number().int().nullable().optional(),
         supersedes: z.array(z.string()).default([]),

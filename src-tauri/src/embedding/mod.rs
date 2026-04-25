@@ -353,6 +353,16 @@ pub async fn delete_embedding_model_version(app: AppHandle, version: String) -> 
 }
 
 #[tauri::command]
+pub async fn start_companion_download(app: AppHandle, kind: String) -> Result<(), String> {
+    download::start_companion_download(app, kind).await
+}
+
+#[tauri::command]
+pub async fn delete_companion_model(app: AppHandle, kind: String) -> Result<(), String> {
+    download::delete_companion_model(app, kind).await
+}
+
+#[tauri::command]
 pub async fn compute_embedding(app: AppHandle, text: String) -> Result<Vec<f32>, String> {
     inference::compute_embedding(app, text).await
 }

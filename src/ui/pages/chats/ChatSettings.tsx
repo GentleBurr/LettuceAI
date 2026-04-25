@@ -10,6 +10,7 @@ import {
   Edit2,
   Trash2,
   Sparkles,
+  Heart,
   TriangleAlert,
   Upload,
   NotebookPen,
@@ -422,11 +423,7 @@ export function ChatSettingsContent({
     }
 
     try {
-      const session = await createSession(
-        characterId,
-        "New Chat",
-        currentCharacter.defaultSceneId ?? currentCharacter.scenes?.[0]?.id,
-      );
+      const session = await createSession(characterId, "New Chat");
       navigate(`/chat/${characterId}?sessionId=${session.id}`, { replace: true });
     } catch (error) {
       console.error("Failed to create new chat:", error);
@@ -437,15 +434,7 @@ export function ChatSettingsContent({
     if (!characterId || !currentCharacter) return;
     setShowTemplateSelector(false);
     try {
-      const sceneId = templateId
-        ? undefined
-        : (currentCharacter.defaultSceneId ?? currentCharacter.scenes?.[0]?.id);
-      const session = await createSession(
-        characterId,
-        "New Chat",
-        sceneId,
-        templateId ?? undefined,
-      );
+      const session = await createSession(characterId, "New Chat", undefined, templateId ?? undefined);
       navigate(`/chat/${characterId}?sessionId=${session.id}`, { replace: true });
     } catch (error) {
       console.error("Failed to create new chat:", error);
@@ -878,7 +867,11 @@ export function ChatSettingsContent({
               onClick={() => {
                 if (!characterId) return;
                 if (!currentSession) return;
-                navigate(Routes.chatMemories(characterId, currentSession.id));
+                navigate(
+                  currentCharacter?.mode === "companion"
+                    ? Routes.chatCompanionMemories(characterId, currentSession.id)
+                    : Routes.chatMemories(characterId, currentSession.id),
+                );
               }}
               disabled={!currentSession}
               className={cn(
@@ -960,6 +953,20 @@ export function ChatSettingsContent({
                 onClick={() => setShowPersonaSelector(true)}
                 disabled={!currentSession}
               />
+              {currentCharacter?.mode === "companion" && characterId ? (
+                <QuickChip
+                  icon={<Heart className="h-4 w-4" />}
+                  label="Soul"
+                  value={
+                    currentCharacter.companion?.soul?.essence?.trim()
+                      ? "Identity profile authored"
+                      : "Add companion identity profile"
+                  }
+                  onClick={() =>
+                    navigate(Routes.chatCompanionSoul(characterId, currentSession?.id))
+                  }
+                />
+              ) : null}
               <QuickChip
                 icon={<Cpu className="h-4 w-4" />}
                 label={t("chats.settings.model")}

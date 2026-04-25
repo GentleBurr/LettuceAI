@@ -75,10 +75,7 @@ export function normalizeStartingSceneMessage(
     return messages;
   }
 
-  const selectedScene =
-    character.scenes.find((scene) => scene.id === selectedSceneId) ??
-    character.scenes.find((scene) => scene.id === character.defaultSceneId) ??
-    character.scenes[0];
+  const selectedScene = character.scenes.find((scene) => scene.id === selectedSceneId);
   if (!selectedScene) {
     return messages;
   }

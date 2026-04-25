@@ -34,6 +34,39 @@ export const Routes = {
     const query = params.toString();
     return query ? `/chat/${characterId}/memories?${query}` : `/chat/${characterId}/memories`;
   },
+  chatCompanionMemories: (
+    characterId: string,
+    sessionId?: string | null,
+    extra?: Record<string, string | null>,
+  ) => {
+    const params = new URLSearchParams();
+    if (sessionId) params.set("sessionId", sessionId);
+    if (extra) {
+      Object.entries(extra).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) params.set(k, v);
+      });
+    }
+    const query = params.toString();
+    return query
+      ? `/chat/${characterId}/companion/memories?${query}`
+      : `/chat/${characterId}/companion/memories`;
+  },
+  chatCompanionRelationship: (characterId: string, sessionId?: string | null) => {
+    const params = new URLSearchParams();
+    if (sessionId) params.set("sessionId", sessionId);
+    const query = params.toString();
+    return query
+      ? `/chat/${characterId}/companion/relationship?${query}`
+      : `/chat/${characterId}/companion/relationship`;
+  },
+  chatCompanionSoul: (characterId: string, sessionId?: string | null) => {
+    const params = new URLSearchParams();
+    if (sessionId) params.set("sessionId", sessionId);
+    const query = params.toString();
+    return query
+      ? `/chat/${characterId}/companion/soul?${query}`
+      : `/chat/${characterId}/companion/soul`;
+  },
   chatSearch: (characterId: string, sessionId?: string | null) => {
     const params = new URLSearchParams();
     if (sessionId) params.set("sessionId", sessionId);
@@ -58,6 +91,7 @@ export const Routes = {
   settings: "/settings",
   settingsConvert: "/settings/convert",
   settingsAdvancedLorebookEntryGenerator: "/settings/advanced/lorebook-entry-generator",
+  settingsAdvancedCompanionSoulWriter: "/settings/advanced/companion-soul-writer",
   settingsUsage: "/settings/usage",
   settingsUsageActivity: "/settings/usage/activity",
   settingsModels: "/settings/models",
@@ -191,7 +225,15 @@ export const BACK_MAPPINGS: BackMapping[] = [
     match: (p) => p.startsWith("/settings/advanced/lorebook-entry-generator"),
     target: "/settings/advanced",
   },
+  {
+    match: (p) => p.startsWith("/settings/advanced/companion-soul-writer"),
+    target: "/settings/advanced",
+  },
   { match: (p) => p.startsWith("/settings/embedding-download"), target: "/settings/advanced" },
+  {
+    match: (p) => p.startsWith("/settings/companion-download"),
+    target: "/settings/advanced/companions",
+  },
   { match: (p) => p.startsWith("/settings/embedding-test"), target: "/settings/advanced" },
   { match: (p) => p.startsWith("/settings/security"), target: Routes.settings },
   { match: (p) => p.startsWith("/settings/backup"), target: Routes.settings },
@@ -215,6 +257,11 @@ export function resolveChatBackTarget(path: string): string | null {
   const params = new URLSearchParams(search);
   const sessionId = params.get("sessionId");
 
+  if (pathname.startsWith("/chat/") && pathname.includes("/companion/")) {
+    const parts = pathname.split("/").filter(Boolean);
+    const charId = parts[1];
+    if (charId) return Routes.chatSession(charId, sessionId);
+  }
   if (pathname.startsWith("/chat/") && pathname.includes("/settings")) {
     const parts = pathname.split("/").filter(Boolean);
     const charId = parts[1];
