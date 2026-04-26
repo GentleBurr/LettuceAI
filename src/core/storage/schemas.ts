@@ -90,6 +90,7 @@ export const PromptTemplateTypeSchema = z.enum([
   "replyHelperRoleplay",
   "replyHelperConversational",
   "lorebookEntryWriter",
+  "lorebookKeywordGenerator",
   "avatarGeneration",
   "avatarEditRequest",
   "sceneGeneration",
@@ -2571,6 +2572,7 @@ export const SettingsSchema = z.object({
       lorebookEntryGeneratorStructuredFallbackFormat:
         DynamicMemoryStructuredFallbackFormatSchema.optional(),
       lorebookEntryGeneratorPromptTemplateId: z.string().optional(),
+      lorebookKeywordGeneratorPromptTemplateId: z.string().optional(),
       companionSoulWriterModelId: z.string().optional(),
       companionSoulWriterFallbackModelId: z.string().optional(),
       companionSoulWriterPromptTemplateId: z.string().optional(),

@@ -9,7 +9,10 @@ import type {
 } from "../../../core/storage/schemas";
 import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
 import { listPromptTemplates } from "../../../core/prompts/service";
-import { APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID } from "../../../core/prompts/constants";
+import {
+  APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID,
+  APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID,
+} from "../../../core/prompts/constants";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
@@ -55,6 +58,9 @@ export function LorebookEntryGeneratorPage() {
     useState<DynamicMemoryStructuredFallbackFormat>("json");
   const [templates, setTemplates] = useState<SystemPromptTemplate[]>([]);
   const [selectedPromptTemplateId, setSelectedPromptTemplateId] = useState<string | null>(null);
+  const [selectedKeywordPromptTemplateId, setSelectedKeywordPromptTemplateId] = useState<
+    string | null
+  >(null);
   const [showModelMenu, setShowModelMenu] = useState(false);
 
   const loadData = async () => {
@@ -69,9 +75,10 @@ export function LorebookEntryGeneratorPage() {
       setSelectedModelId(advanced.lorebookEntryGeneratorModelId ?? null);
       setFallbackFormat(advanced.lorebookEntryGeneratorStructuredFallbackFormat ?? "json");
       setSelectedPromptTemplateId(advanced.lorebookEntryGeneratorPromptTemplateId ?? null);
-      setTemplates(
-        promptTemplates.filter((template) => template.promptType === "lorebookEntryWriter"),
+      setSelectedKeywordPromptTemplateId(
+        advanced.lorebookKeywordGeneratorPromptTemplateId ?? null,
       );
+      setTemplates(promptTemplates);
     } catch (error) {
       console.error("Failed to load lorebook entry generator settings:", error);
     } finally {
@@ -129,6 +136,13 @@ export function LorebookEntryGeneratorPage() {
     }, "Failed to save lorebook entry generator prompt:");
   };
 
+  const handleKeywordPromptSelection = async (templateId: string | null) => {
+    setSelectedKeywordPromptTemplateId(templateId);
+    await updateAdvancedSettings((advanced) => {
+      advanced.lorebookKeywordGeneratorPromptTemplateId = templateId ?? undefined;
+    }, "Failed to save lorebook keyword generator prompt:");
+  };
+
   if (isLoading) return null;
 
   return (
@@ -141,8 +155,9 @@ export function LorebookEntryGeneratorPage() {
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p className="text-xs leading-relaxed text-accent/80">
                 Configure the model and prompt that draft lorebook entries from selected chat
-                messages. Tool calling is attempted first; if unsupported, the generator falls back
-                to <span className="font-mono">{fallbackFormat.toUpperCase()}</span> structured
+                messages and generate lorebook keywords from entry content. Tool calling is
+                attempted first; if unsupported, both flows fall back to{" "}
+                <span className="font-mono">{fallbackFormat.toUpperCase()}</span> structured
                 output.
               </p>
             </div>
@@ -268,6 +283,7 @@ export function LorebookEntryGeneratorPage() {
                 >
                   <option value="">App Default Prompt</option>
                   {templates
+                    .filter((template) => template.promptType === "lorebookEntryWriter")
                     .filter((template) => template.id !== APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID)
                     .map((template) => (
                       <option key={template.id} value={template.id}>
@@ -281,6 +297,36 @@ export function LorebookEntryGeneratorPage() {
                   Prompts.
                 </p>
               </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
+                    <BookOpen className="h-4 w-4 text-warning" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-fg">Keyword Generator Prompt</h3>
+                </div>
+
+                <select
+                  value={selectedKeywordPromptTemplateId ?? ""}
+                  onChange={(e) => void handleKeywordPromptSelection(e.target.value || null)}
+                  className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
+                >
+                  <option value="">App Default Prompt</option>
+                  {templates
+                    .filter((template) => template.promptType === "lorebookKeywordGenerator")
+                    .filter((template) => template.id !== APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID)
+                    .map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                </select>
+
+                <p className="px-1 text-xs leading-relaxed text-fg/50">
+                  Uses the same model and structured fallback as the entry generator. Manage
+                  templates in Settings → Prompts.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -290,7 +336,7 @@ export function LorebookEntryGeneratorPage() {
             <div className="text-[11px] leading-relaxed text-fg/45">
               <p>
                 Open a character's lorebook or the library lorebook editor, then pick "Generate
-                entry" to launch the flow using these defaults.
+                entry" or "Generate Keywords" to use these defaults.
               </p>
             </div>
           </div>

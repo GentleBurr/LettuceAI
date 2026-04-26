@@ -18,6 +18,7 @@ pub enum PromptTemplateType {
     ReplyHelperRoleplay,
     ReplyHelperConversational,
     LorebookEntryWriter,
+    LorebookKeywordGenerator,
     AvatarGeneration,
     AvatarEditRequest,
     SceneGeneration,
@@ -331,6 +332,8 @@ pub struct AdvancedSettings {
         Option<DynamicMemoryStructuredFallbackFormat>,
     #[serde(default)]
     pub lorebook_entry_generator_prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub lorebook_keyword_generator_prompt_template_id: Option<String>,
     #[serde(default)]
     pub companion_soul_writer_model_id: Option<String>,
     #[serde(default)]
@@ -1165,6 +1168,24 @@ pub struct LorebookEntryDraftResult {
     pub draft: Option<LorebookEntryDraft>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatGenerateLorebookKeywordDraftArgs {
+    #[serde(default)]
+    pub title: Option<String>,
+    pub content: String,
+    #[serde(default, alias = "directionPrompt")]
+    pub direction_prompt: Option<String>,
+    #[serde(default, alias = "existingKeywords")]
+    pub existing_keywords: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LorebookKeywordDraftResult {
+    pub keywords: Vec<String>,
 }
 
 #[derive(Serialize)]

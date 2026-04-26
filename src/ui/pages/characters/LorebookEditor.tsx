@@ -50,6 +50,7 @@ import {
   LorebookMetadataMenu,
   MenuButton,
 } from "../../components";
+import { generateLorebookKeywordDraft } from "../../../core/chat/manager";
 import { LorebookAvatar } from "../../components/LorebookAvatar";
 import { Switch } from "../../components/Switch";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
@@ -66,11 +67,17 @@ function KeywordTagInput({
   onChange,
   caseSensitive,
   onCaseSensitiveChange,
+  onGenerate,
+  isGenerating,
+  canGenerate,
 }: {
   keywords: string[];
   onChange: (keywords: string[]) => void;
   caseSensitive: boolean;
   onCaseSensitiveChange: (caseSensitive: boolean) => void;
+  onGenerate?: () => void;
+  isGenerating?: boolean;
+  canGenerate?: boolean;
 }) {
   const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
@@ -93,7 +100,23 @@ function KeywordTagInput({
         <label className="text-[11px] font-medium text-fg/70">
           {t("characters.lorebook.keywords")}
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {onGenerate && (
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={isGenerating || !canGenerate}
+              title="Generate keywords from content"
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              Generate
+            </button>
+          )}
           <span className="text-xs text-fg/50">{t("characters.lorebook.caseSensitive")}</span>
           <label
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-200 ${
@@ -943,10 +966,18 @@ export function EntryEditorMenu({
 }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<LorebookEntry | null>(null);
+  const [isKeywordGenerating, setIsKeywordGenerating] = useState(false);
+  const [showKeywordReview, setShowKeywordReview] = useState(false);
+  const [keywordDirectionPrompt, setKeywordDirectionPrompt] = useState("");
+  const [keywordDraftKeywords, setKeywordDraftKeywords] = useState<string[]>([]);
 
   useEffect(() => {
     if (entry) {
       setDraft({ ...entry });
+      setIsKeywordGenerating(false);
+      setShowKeywordReview(false);
+      setKeywordDirectionPrompt("");
+      setKeywordDraftKeywords([]);
     }
   }, [entry]);
 
@@ -957,79 +988,219 @@ export function EntryEditorMenu({
     onClose();
   };
 
+  const handleGenerateKeywords = async () => {
+    const content = draft.content.trim();
+    if (!content) {
+      toast.error("Keyword generation needs entry content first");
+      return;
+    }
+
+    setIsKeywordGenerating(true);
+    try {
+      const result = await generateLorebookKeywordDraft({
+        title: draft.title?.trim() || null,
+        content,
+        directionPrompt: keywordDirectionPrompt.trim() || null,
+        existingKeywords: draft.keywords,
+      });
+      if (!result.keywords.length) {
+        toast.error("Keyword generation returned no usable keywords");
+        return;
+      }
+      setKeywordDraftKeywords(result.keywords);
+      setShowKeywordReview(true);
+    } catch (error) {
+      console.error("Failed to generate lorebook keywords:", error);
+      toast.error(
+        "Keyword generation failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setIsKeywordGenerating(false);
+    }
+  };
+
+  const handleAcceptKeywords = () => {
+    if (!keywordDraftKeywords.length) {
+      toast.error("No generated keywords to apply");
+      return;
+    }
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            keywords: keywordDraftKeywords,
+            alwaysActive: false,
+          }
+        : current,
+    );
+    setShowKeywordReview(false);
+  };
+
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("characters.lorebook.editEntry")}>
-      <div className="space-y-4">
-        {/* Title */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-medium text-fg/70">TITLE</label>
-          <input
-            value={draft.title || ""}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            placeholder="Name this entry..."
-            className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
-          />
-        </div>
-
-        {/* Toggles */}
-        <div className="flex gap-3">
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3 flex-1">
-            <div>
-              <label className="block text-sm font-semibold text-fg">Enabled</label>
-              <p className="mt-0.5 text-xs text-fg/50">Include in prompts</p>
-            </div>
-            <Switch
-              checked={draft.enabled}
-              onChange={(next) => setDraft({ ...draft, enabled: next })}
+    <>
+      <BottomMenu isOpen={isOpen} onClose={onClose} title={t("characters.lorebook.editEntry")}>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[11px] font-medium text-fg/70">TITLE</label>
+            <input
+              value={draft.title || ""}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              placeholder="Name this entry..."
+              className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
           </div>
 
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3 flex-1">
-            <div>
-              <label className="block text-sm font-semibold text-fg">Always On</label>
-              <p className="mt-0.5 text-xs text-fg/50">No keywords needed</p>
+          <div className="flex gap-3">
+            <div className="flex flex-1 items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3">
+              <div>
+                <label className="block text-sm font-semibold text-fg">Enabled</label>
+                <p className="mt-0.5 text-xs text-fg/50">Include in prompts</p>
+              </div>
+              <Switch
+                checked={draft.enabled}
+                onChange={(next) => setDraft({ ...draft, enabled: next })}
+              />
             </div>
-            <Switch
-              checked={draft.alwaysActive}
-              onChange={(next) => setDraft({ ...draft, alwaysActive: next })}
+
+            <div className="flex flex-1 items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3">
+              <div>
+                <label className="block text-sm font-semibold text-fg">Always On</label>
+                <p className="mt-0.5 text-xs text-fg/50">No keywords needed</p>
+              </div>
+              <Switch
+                checked={draft.alwaysActive}
+                onChange={(next) => setDraft({ ...draft, alwaysActive: next })}
+              />
+            </div>
+          </div>
+
+          {!draft.alwaysActive && (
+            <KeywordTagInput
+              keywords={draft.keywords}
+              onChange={(keywords) => setDraft({ ...draft, keywords })}
+              caseSensitive={draft.caseSensitive}
+              onCaseSensitiveChange={(caseSensitive) => setDraft({ ...draft, caseSensitive })}
+              onGenerate={() => {
+                setKeywordDraftKeywords([]);
+                setShowKeywordReview(true);
+              }}
+              isGenerating={isKeywordGenerating}
+              canGenerate={!!draft.content.trim()}
+            />
+          )}
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-medium text-fg/70">
+              {t("characters.lorebook.contentLabel")}
+            </label>
+            <textarea
+              value={draft.content}
+              onChange={(e) => setDraft({ ...draft, content: e.target.value })}
+              placeholder={t("characters.lorebook.contentPlaceholder")}
+              rows={8}
+              className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
           </div>
+
+          <button
+            onClick={handleSave}
+            disabled={!draft.title?.trim() && !draft.content?.trim()}
+            className="w-full rounded-xl border border-accent/40 bg-accent/20 px-4 py-3.5 text-sm font-semibold text-accent/70 transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("characters.lorebook.saveEntry")}
+          </button>
         </div>
+      </BottomMenu>
 
-        {/* Keywords */}
-        {!draft.alwaysActive && (
-          <KeywordTagInput
-            keywords={draft.keywords}
-            onChange={(keywords) => setDraft({ ...draft, keywords })}
-            caseSensitive={draft.caseSensitive}
-            onCaseSensitiveChange={(caseSensitive) => setDraft({ ...draft, caseSensitive })}
-          />
-        )}
+      <BottomMenu
+        isOpen={showKeywordReview}
+        onClose={() => setShowKeywordReview(false)}
+        title="Review Keywords"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[11px] font-medium text-fg/70">DIRECTION PROMPT</label>
+            <textarea
+              value={keywordDirectionPrompt}
+              onChange={(e) => setKeywordDirectionPrompt(e.target.value)}
+              placeholder="Optional guidance, like: focus on aliases, locations, and broad recall terms."
+              rows={3}
+              className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
+            />
+            <p className="text-[11px] leading-relaxed text-fg/45">
+              {keywordDraftKeywords.length > 0
+                ? "Edits here affect the next regenerate pass."
+                : "Optional. Leave blank to use defaults."}
+            </p>
+          </div>
 
-        {/* Content */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-medium text-fg/70">
-            {t("characters.lorebook.contentLabel")}
-          </label>
-          <textarea
-            value={draft.content}
-            onChange={(e) => setDraft({ ...draft, content: e.target.value })}
-            placeholder={t("characters.lorebook.contentPlaceholder")}
-            rows={8}
-            className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
-          />
+          {keywordDraftKeywords.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-[11px] font-medium text-fg/70">MODEL RESPONSE</label>
+              <div className="flex flex-wrap gap-2 rounded-xl border border-fg/10 bg-surface-el/20 p-3">
+                {keywordDraftKeywords.map((keyword) => (
+                  <span
+                    key={keyword}
+                    className="rounded-full border border-accent/25 bg-accent/10 px-2.5 py-1 text-xs text-accent"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {keywordDraftKeywords.length === 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowKeywordReview(false)}
+                className="rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-3 text-sm font-medium text-fg/70 transition hover:bg-surface-el/30"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleGenerateKeywords()}
+                disabled={isKeywordGenerating || !draft.content.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/20 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isKeywordGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
+                Generate
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowKeywordReview(false)}
+                className="rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-3 text-sm font-medium text-fg/70 transition hover:bg-surface-el/30"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleGenerateKeywords()}
+                disabled={isKeywordGenerating || !draft.content.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3 text-sm font-medium text-warning transition hover:bg-warning/15 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isKeywordGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
+                Regenerate
+              </button>
+              <button
+                type="button"
+                onClick={handleAcceptKeywords}
+                disabled={!keywordDraftKeywords.length}
+                className="rounded-xl border border-accent/40 bg-accent/20 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Accept
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          disabled={!draft.title?.trim() && !draft.content?.trim()}
-          className="w-full rounded-xl border border-accent/40 bg-accent/20 px-4 py-3.5 text-sm font-semibold text-accent/70 transition hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {t("characters.lorebook.saveEntry")}
-        </button>
-      </div>
-    </BottomMenu>
+      </BottomMenu>
+    </>
   );
 }
 

@@ -252,6 +252,31 @@ fn lorebook_entry_writer_variables() -> Vec<PromptVariableDefinition> {
     ]
 }
 
+fn lorebook_keyword_generator_variables() -> Vec<PromptVariableDefinition> {
+    vec![
+        variable(
+            "{{entry_title}}",
+            "Entry Title",
+            "Current lorebook entry title.",
+        ),
+        variable(
+            "{{entry_content}}",
+            "Entry Content",
+            "Current lorebook entry content.",
+        ),
+        variable(
+            "{{existing_keywords}}",
+            "Existing Keywords",
+            "Current keywords already attached to the entry.",
+        ),
+        variable(
+            "{{direction_prompt}}",
+            "Direction Prompt",
+            "Optional user guidance for keyword selection.",
+        ),
+    ]
+}
+
 fn avatar_generation_variables() -> Vec<PromptVariableDefinition> {
     vec![
         variable(
@@ -450,6 +475,7 @@ pub fn prompt_type_label(prompt_type: PromptTemplateType) -> &'static str {
         PromptTemplateType::ReplyHelperRoleplay => "Reply Helper (Roleplay)",
         PromptTemplateType::ReplyHelperConversational => "Reply Helper (Conversational)",
         PromptTemplateType::LorebookEntryWriter => "Lorebook Entry Writer",
+        PromptTemplateType::LorebookKeywordGenerator => "Lorebook Keyword Generator",
         PromptTemplateType::AvatarGeneration => "Avatar Generation",
         PromptTemplateType::AvatarEditRequest => "Avatar Edit Request",
         PromptTemplateType::SceneGeneration => "Scene Generation",
@@ -486,6 +512,7 @@ pub fn allowed_variables_for_prompt_type(
         PromptTemplateType::ReplyHelperRoleplay => reply_helper_variables(),
         PromptTemplateType::ReplyHelperConversational => reply_helper_variables(),
         PromptTemplateType::LorebookEntryWriter => lorebook_entry_writer_variables(),
+        PromptTemplateType::LorebookKeywordGenerator => lorebook_keyword_generator_variables(),
         PromptTemplateType::AvatarGeneration => avatar_generation_variables(),
         PromptTemplateType::AvatarEditRequest => avatar_edit_request_variables(),
         PromptTemplateType::SceneGeneration => scene_generation_variables(),
@@ -547,6 +574,10 @@ pub fn required_variables_for_prompt_type(prompt_type: PromptTemplateType) -> Ve
         }
         PromptTemplateType::LorebookEntryWriter => vec![
             "{{selected_messages}}".to_string(),
+            "{{direction_prompt}}".to_string(),
+        ],
+        PromptTemplateType::LorebookKeywordGenerator => vec![
+            "{{entry_content}}".to_string(),
             "{{direction_prompt}}".to_string(),
         ],
         PromptTemplateType::AvatarGeneration => vec!["{{avatar_request}}".to_string()],
@@ -621,6 +652,7 @@ pub fn build_parameter_engine() -> PromptParameterEngine {
         PromptTemplateType::ReplyHelperRoleplay,
         PromptTemplateType::ReplyHelperConversational,
         PromptTemplateType::LorebookEntryWriter,
+        PromptTemplateType::LorebookKeywordGenerator,
         PromptTemplateType::AvatarGeneration,
         PromptTemplateType::AvatarEditRequest,
         PromptTemplateType::SceneGeneration,

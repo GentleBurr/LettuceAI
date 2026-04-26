@@ -213,6 +213,7 @@ function normalizeImportedPromptTemplatePayload(input: {
     input.promptType === "replyHelperRoleplay" ||
     input.promptType === "replyHelperConversational" ||
     input.promptType === "lorebookEntryWriter" ||
+    input.promptType === "lorebookKeywordGenerator" ||
     input.promptType === "avatarGeneration" ||
     input.promptType === "avatarEditRequest" ||
     input.promptType === "sceneGeneration" ||

@@ -573,8 +573,8 @@ export function AdvancedPage() {
                       Lorebook Entry Generator
                     </span>
                     <p className="mt-0.5 text-[11px] leading-relaxed text-fg/50">
-                      Turn selected chat messages into durable lorebook entries. Pick the writer
-                      model and the prompt template used for drafting.
+                      Turn selected chat messages into durable lorebook entries and configure the
+                      draft prompts for entry writing and keyword generation.
                     </p>
                   </div>
 

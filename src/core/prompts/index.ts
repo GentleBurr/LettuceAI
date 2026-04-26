@@ -109,6 +109,10 @@ export async function resetLorebookEntryWriterTemplate(): Promise<SystemPromptTe
   return await invoke<SystemPromptTemplate>("reset_lorebook_entry_writer_template");
 }
 
+export async function resetLorebookKeywordGeneratorTemplate(): Promise<SystemPromptTemplate> {
+  return await invoke<SystemPromptTemplate>("reset_lorebook_keyword_generator_template");
+}
+
 export async function resetAvatarGenerationTemplate(): Promise<SystemPromptTemplate> {
   return await invoke<SystemPromptTemplate>("reset_avatar_generation_template");
 }

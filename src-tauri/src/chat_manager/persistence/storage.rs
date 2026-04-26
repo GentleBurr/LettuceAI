@@ -29,6 +29,7 @@ pub enum PromptType {
     HelpMeReplyPrompt,
     HelpMeReplyConversationalPrompt,
     LorebookEntryWriterPrompt,
+    LorebookKeywordGeneratorPrompt,
     GroupChatPrompt,
     GroupChatRoleplayPrompt,
     AvatarGenerationPrompt,
@@ -55,6 +56,9 @@ pub fn get_base_prompt(prompt_type: PromptType) -> String {
         }
         PromptType::LorebookEntryWriterPrompt => {
             prompt_engine::default_lorebook_entry_writer_prompt()
+        }
+        PromptType::LorebookKeywordGeneratorPrompt => {
+            prompt_engine::default_lorebook_keyword_generator_prompt()
         }
         PromptType::GroupChatPrompt => prompt_engine::default_group_chat_system_prompt_template(),
         PromptType::GroupChatRoleplayPrompt => {
@@ -87,6 +91,9 @@ pub fn get_base_prompt_entries(prompt_type: PromptType) -> Vec<SystemPromptEntry
         }
         PromptType::LorebookEntryWriterPrompt => {
             prompt_engine::default_lorebook_entry_writer_entries()
+        }
+        PromptType::LorebookKeywordGeneratorPrompt => {
+            prompt_engine::default_lorebook_keyword_generator_entries()
         }
         PromptType::GroupChatPrompt => prompt_engine::default_group_chat_entries(),
         PromptType::GroupChatRoleplayPrompt => prompt_engine::default_group_chat_roleplay_entries(),
@@ -203,6 +210,7 @@ fn default_settings() -> Settings {
                 DynamicMemoryStructuredFallbackFormat::Json,
             ),
             lorebook_entry_generator_prompt_template_id: None,
+            lorebook_keyword_generator_prompt_template_id: None,
             companion_soul_writer_model_id: None,
             companion_soul_writer_fallback_model_id: None,
             companion_soul_writer_prompt_template_id: None,

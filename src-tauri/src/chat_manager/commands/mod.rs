@@ -27,8 +27,9 @@ use super::storage::default_character_rules;
 use super::types::{
     ChatAddMessageAttachmentArgs, ChatCompletionArgs, ChatContinueArgs,
     ChatGenerateCompanionSoulArgs, ChatGenerateDesignReferenceDescriptionArgs,
-    ChatGenerateLorebookEntryDraftArgs, ChatGenerateSceneImageArgs, ChatGenerateScenePromptArgs,
-    ChatRegenerateArgs, ChatTurnResult, ContinueResult, ImageAttachment, LorebookEntryDraftResult,
+    ChatGenerateLorebookEntryDraftArgs, ChatGenerateLorebookKeywordDraftArgs,
+    ChatGenerateSceneImageArgs, ChatGenerateScenePromptArgs, ChatRegenerateArgs, ChatTurnResult,
+    ContinueResult, ImageAttachment, LorebookEntryDraftResult, LorebookKeywordDraftResult,
     PromptTemplateType, RegenerateResult, Session, Settings, StoredMessage, SystemPromptEntry,
     SystemPromptTemplate,
 };
@@ -845,6 +846,13 @@ pub fn reset_lorebook_entry_writer_template(
 }
 
 #[tauri::command]
+pub fn reset_lorebook_keyword_generator_template(
+    app: AppHandle,
+) -> Result<SystemPromptTemplate, String> {
+    prompts::reset_lorebook_keyword_generator_template(&app)
+}
+
+#[tauri::command]
 pub fn reset_avatar_generation_template(app: AppHandle) -> Result<SystemPromptTemplate, String> {
     prompts::reset_avatar_generation_template(&app)
 }
@@ -1121,6 +1129,14 @@ pub async fn chat_generate_lorebook_entry_draft(
     args: ChatGenerateLorebookEntryDraftArgs,
 ) -> Result<LorebookEntryDraftResult, String> {
     super::lorebook_entry_generator::chat_generate_lorebook_entry_draft(app, args).await
+}
+
+#[tauri::command]
+pub async fn chat_generate_lorebook_keyword_draft(
+    app: AppHandle,
+    args: ChatGenerateLorebookKeywordDraftArgs,
+) -> Result<LorebookKeywordDraftResult, String> {
+    super::lorebook_entry_generator::chat_generate_lorebook_keyword_draft(app, args).await
 }
 
 #[tauri::command]

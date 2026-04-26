@@ -54,6 +54,10 @@ pub fn default_lorebook_entry_writer_prompt() -> String {
     join_entries(&default_lorebook_entry_writer_entries())
 }
 
+pub fn default_lorebook_keyword_generator_prompt() -> String {
+    join_entries(&default_lorebook_keyword_generator_entries())
+}
+
 pub fn default_group_chat_system_prompt_template() -> String {
     join_entries(&default_group_chat_entries())
 }
@@ -779,6 +783,67 @@ pub fn default_lorebook_entry_writer_entries() -> Vec<SystemPromptEntry> {
             name: "Output".to_string(),
             role: PromptEntryRole::System,
             content: "Use the write_lorebook_entry tool when an entry should be created. Use the no_entry tool when the selected messages do not justify a durable lorebook entry. Do not output commentary outside the tool result.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: None,
+            prompt_entry_payload: None,
+        },
+    ]
+}
+
+pub fn default_lorebook_keyword_generator_entries() -> Vec<SystemPromptEntry> {
+    vec![
+        SystemPromptEntry {
+            id: "lorebook_keyword_task".to_string(),
+            name: "Task".to_string(),
+            role: PromptEntryRole::System,
+            content: "You generate trigger keywords for a single lorebook entry draft. Produce keywords that help future prompt injection match the right moments quickly and reliably.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: None,
+            prompt_entry_payload: None,
+        },
+        SystemPromptEntry {
+            id: "lorebook_keyword_inputs".to_string(),
+            name: "Inputs".to_string(),
+            role: PromptEntryRole::System,
+            content: "# Entry Title\n{{entry_title}}\n\n# Entry Content\n{{entry_content}}\n\n# Existing Keywords\n{{existing_keywords}}\n\n# Optional Direction\n{{direction_prompt}}".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: None,
+            prompt_entry_payload: None,
+        },
+        SystemPromptEntry {
+            id: "lorebook_keyword_rules".to_string(),
+            name: "Rules".to_string(),
+            role: PromptEntryRole::System,
+            content: "Rules:\n- Return only concise keywords or short keyword phrases.\n- Prefer names, aliases, locations, organizations, items, titles, and distinctive recurring concepts.\n- Avoid generic filler terms, full sentences, and redundant variants.\n- Keep the set tight and useful for trigger matching.\n- Deduplicate obvious overlaps.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: None,
+            prompt_entry_payload: None,
+        },
+        SystemPromptEntry {
+            id: "lorebook_keyword_output".to_string(),
+            name: "Output".to_string(),
+            role: PromptEntryRole::System,
+            content: "Use the write_lorebook_keywords tool and return no extra commentary.".to_string(),
             enabled: true,
             injection_position: PromptEntryPosition::Relative,
             injection_depth: 0,

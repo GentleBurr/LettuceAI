@@ -22,6 +22,7 @@ export {
   resetHelpMeReplyTemplate,
   resetHelpMeReplyConversationalTemplate,
   resetLorebookEntryWriterTemplate,
+  resetLorebookKeywordGeneratorTemplate,
   resetAvatarGenerationTemplate,
   resetAvatarEditTemplate,
   resetSceneGenerationTemplate,

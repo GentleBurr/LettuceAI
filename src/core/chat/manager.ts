@@ -63,6 +63,10 @@ export interface LorebookEntryDraftResult {
   reason?: string | null;
 }
 
+export interface LorebookKeywordDraftResult {
+  keywords: string[];
+}
+
 export async function sendChatTurn(params: {
   sessionId: string;
   characterId: string;
@@ -243,6 +247,22 @@ export async function generateLorebookEntryDraft(params: {
       messageIds: params.messageIds,
       directionPrompt: params.directionPrompt ?? null,
       force: params.force ?? false,
+    },
+  });
+}
+
+export async function generateLorebookKeywordDraft(params: {
+  title?: string | null;
+  content: string;
+  directionPrompt?: string | null;
+  existingKeywords?: string[];
+}): Promise<LorebookKeywordDraftResult> {
+  return invoke<LorebookKeywordDraftResult>("chat_generate_lorebook_keyword_draft", {
+    args: {
+      title: params.title ?? null,
+      content: params.content,
+      directionPrompt: params.directionPrompt ?? null,
+      existingKeywords: params.existingKeywords ?? [],
     },
   });
 }

@@ -8,6 +8,8 @@ export const APP_HELP_ME_REPLY_TEMPLATE_ID = "prompt_app_help_me_reply";
 export const APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID =
   "prompt_app_help_me_reply_conversational";
 export const APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID = "prompt_app_lorebook_entry_writer";
+export const APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID =
+  "prompt_app_lorebook_keyword_generator";
 export const APP_GROUP_CHAT_TEMPLATE_ID = "prompt_app_group_chat";
 export const APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID = "prompt_app_group_chat_roleplay";
 export const APP_AVATAR_GENERATION_TEMPLATE_ID = "prompt_app_avatar_generation";
@@ -27,6 +29,7 @@ const PROTECTED_TEMPLATE_IDS = new Set([
   APP_HELP_ME_REPLY_TEMPLATE_ID,
   APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID,
   APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID,
+  APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
   APP_AVATAR_GENERATION_TEMPLATE_ID,
@@ -44,6 +47,7 @@ const NON_SYSTEM_TEMPLATE_IDS = new Set([
   APP_HELP_ME_REPLY_TEMPLATE_ID,
   APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID,
   APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID,
+  APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
   APP_AVATAR_GENERATION_TEMPLATE_ID,
@@ -80,6 +84,8 @@ export function getPromptTypeLabel(id: string): string {
       return "Reply Helper (Conversational)";
     case APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID:
       return "Lorebook Entry Writer";
+    case APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID:
+      return "Lorebook Keyword Generator";
     case APP_GROUP_CHAT_TEMPLATE_ID:
       return "Group Chat (Conversation)";
     case APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID:

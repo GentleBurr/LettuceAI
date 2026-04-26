@@ -22,9 +22,10 @@ use crate::chat_manager::tooling::{
 };
 use crate::chat_manager::turn_builder::should_insert_in_chat_prompt_entry;
 use crate::chat_manager::types::{
-    Character, ChatGenerateLorebookEntryDraftArgs, LorebookEntryDraft, LorebookEntryDraftResult,
-    Model, Persona, PromptEntryChatMode, PromptEntryPosition, PromptEntryRole, ProviderCredential,
-    Session, Settings, StoredMessage, SystemPromptEntry,
+    Character, ChatGenerateLorebookEntryDraftArgs, ChatGenerateLorebookKeywordDraftArgs,
+    LorebookEntryDraft, LorebookEntryDraftResult, LorebookKeywordDraftResult, Model, Persona,
+    PromptEntryChatMode, PromptEntryPosition, PromptEntryRole, ProviderCredential, Session,
+    Settings, StoredMessage, SystemPromptEntry,
 };
 use crate::storage_manager::db::open_db;
 use crate::storage_manager::lorebook::{get_lorebook, get_lorebook_entries};
@@ -37,6 +38,9 @@ const LOREBOOK_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"resul
 const LOREBOOK_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <lorebook_result><write_lorebook_entry alwaysActive="false"><title>...</title><keywords><keyword>...</keyword></keywords><content>...</content></write_lorebook_entry></lorebook_result>. If no durable entry should be created, return <lorebook_result><no_entry><reason>...</reason></no_entry></lorebook_result>. Do not use markdown."#;
 const LOREBOOK_JSON_FALLBACK_PROMPT_FORCE: &str = r#"Return only JSON. Format: {"result":{"name":"write_lorebook_entry","arguments":{"title":"...","keywords":["..."],"content":"...","alwaysActive":false}}}. You MUST return write_lorebook_entry. The no_entry option is disabled. Do not use markdown."#;
 const LOREBOOK_XML_FALLBACK_PROMPT_FORCE: &str = r#"Return only XML. Format: <lorebook_result><write_lorebook_entry alwaysActive="false"><title>...</title><keywords><keyword>...</keyword></keywords><content>...</content></write_lorebook_entry></lorebook_result>. You MUST return write_lorebook_entry. The no_entry option is disabled. Do not use markdown."#;
+const LOREBOOK_KEYWORDS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"result":{"name":"write_lorebook_keywords","arguments":{"keywords":["..."]}}}. You MUST return write_lorebook_keywords. Do not use markdown."#;
+const LOREBOOK_KEYWORDS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <lorebook_result><write_lorebook_keywords><keywords><keyword>...</keyword></keywords></write_lorebook_keywords></lorebook_result>. You MUST return write_lorebook_keywords. Do not use markdown."#;
+const MAX_GENERATED_KEYWORDS: usize = 24;
 
 fn supports_lorebook_entry_writer_model(model: &Model) -> bool {
     model
@@ -132,6 +136,19 @@ fn selected_prompt_template_id(settings: &Settings) -> &str {
         .unwrap_or(crate::chat_manager::prompts::APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID)
 }
 
+fn selected_keyword_prompt_template_id(settings: &Settings) -> &str {
+    settings
+        .advanced_settings
+        .as_ref()
+        .and_then(|advanced| {
+            advanced
+                .lorebook_keyword_generator_prompt_template_id
+                .as_deref()
+        })
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(crate::chat_manager::prompts::APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID)
+}
+
 fn load_lorebook_entry_prompt_entries(
     app: &AppHandle,
     template_id: &str,
@@ -172,6 +189,46 @@ fn load_lorebook_entry_prompt_entries(
     }
 }
 
+fn load_lorebook_keyword_prompt_entries(
+    app: &AppHandle,
+    template_id: &str,
+) -> (Vec<SystemPromptEntry>, bool) {
+    match crate::chat_manager::prompts::get_template(app, template_id) {
+        Ok(Some(template)) => {
+            if !template.entries.is_empty() {
+                (template.entries, template.condense_prompt_entries)
+            } else if !template.content.trim().is_empty() {
+                (
+                    vec![SystemPromptEntry {
+                        id: "lorebook_keyword_single_entry".to_string(),
+                        name: "Lorebook Keyword Generator".to_string(),
+                        role: PromptEntryRole::System,
+                        content: template.content,
+                        enabled: true,
+                        injection_position: PromptEntryPosition::Relative,
+                        injection_depth: 0,
+                        conditional_min_messages: None,
+                        interval_turns: None,
+                        system_prompt: true,
+                        conditions: None,
+                        prompt_entry_payload: None,
+                    }],
+                    template.condense_prompt_entries,
+                )
+            } else {
+                (
+                    get_base_prompt_entries(PromptType::LorebookKeywordGeneratorPrompt),
+                    false,
+                )
+            }
+        }
+        _ => (
+            get_base_prompt_entries(PromptType::LorebookKeywordGeneratorPrompt),
+            false,
+        ),
+    }
+}
+
 fn condense_prompt_entries(entries: Vec<SystemPromptEntry>) -> Vec<SystemPromptEntry> {
     let mut condensed: Vec<SystemPromptEntry> = Vec::new();
 
@@ -207,6 +264,14 @@ fn condense_prompt_entries(entries: Vec<SystemPromptEntry>) -> Vec<SystemPromptE
 
 fn replace_custom_placeholder(content: &str, key: &str, value: &str) -> String {
     content.replace(key, value)
+}
+
+fn render_simple_prompt_content(content: &str, replacements: &[(&str, &str)]) -> String {
+    replacements
+        .iter()
+        .fold(content.to_string(), |next, (key, value)| {
+            replace_custom_placeholder(&next, key, value)
+        })
 }
 
 fn render_lorebook_entry_prompt_content(
@@ -321,10 +386,89 @@ fn render_lorebook_entry_prompt_entries(
     }
 }
 
-fn prompt_entries_to_messages(
+fn render_lorebook_keyword_prompt_entries(
+    app: &AppHandle,
+    settings: &Settings,
+    model: &Model,
+    entry_title: &str,
+    entry_content: &str,
+    existing_keywords: &str,
+    direction_prompt: &str,
+) -> Vec<SystemPromptEntry> {
+    let (template_entries, should_condense) =
+        load_lorebook_keyword_prompt_entries(app, selected_keyword_prompt_template_id(settings));
+    let recent_text = [
+        entry_title,
+        entry_content,
+        existing_keywords,
+        direction_prompt,
+    ]
+    .join("\n");
+    let condition_context = PromptEntryConditionContext {
+        chat_mode: PromptEntryChatMode::Direct,
+        scene_generation_enabled: false,
+        avatar_generation_enabled: false,
+        has_scene: false,
+        has_scene_direction: false,
+        has_persona: false,
+        message_count: 0,
+        participant_count: 1,
+        recent_text: &recent_text,
+        dynamic_memory_enabled: false,
+        has_memory_summary: false,
+        has_key_memories: false,
+        has_lorebook_content: !entry_content.trim().is_empty(),
+        does_author_note_exists: false,
+        has_subject_description: false,
+        has_current_description: false,
+        has_character_reference_images: false,
+        has_chat_background: false,
+        has_persona_reference_images: false,
+        has_character_reference_text: false,
+        has_persona_reference_text: false,
+        input_scopes: &model.input_scopes,
+        output_scopes: &model.output_scopes,
+        provider_id: Some(model.provider_id.as_str()),
+        reasoning_enabled: model
+            .advanced_model_settings
+            .as_ref()
+            .and_then(|cfg| cfg.reasoning_enabled)
+            .unwrap_or(false),
+        vision_enabled: false,
+    };
+    let replacements = [
+        ("{{entry_title}}", entry_title),
+        ("{{entry_content}}", entry_content),
+        ("{{existing_keywords}}", existing_keywords),
+        ("{{direction_prompt}}", direction_prompt),
+    ];
+
+    let mut rendered_entries = Vec::new();
+    for entry in template_entries {
+        if !entry_is_active(&entry, &condition_context) {
+            continue;
+        }
+
+        let rendered = render_simple_prompt_content(&entry.content, &replacements);
+        if rendered.trim().is_empty() && entry.prompt_entry_payload.is_none() {
+            continue;
+        }
+        let mut next_entry = entry.clone();
+        next_entry.content = rendered;
+        rendered_entries.push(next_entry);
+    }
+
+    if should_condense {
+        condense_prompt_entries(rendered_entries)
+    } else {
+        rendered_entries
+    }
+}
+
+fn prompt_entries_to_messages_with_instruction(
     provider_cred: &ProviderCredential,
     entries: &[SystemPromptEntry],
-    force: bool,
+    final_instruction: &str,
 ) -> Vec<Value> {
     let system_role = crate::chat_manager::request_builder::system_role_for(provider_cred);
     let mut messages = Vec::new();
@@ -389,17 +533,25 @@ fn prompt_entries_to_messages(
         }
     }
 
-    let final_instruction = if force {
-        "Analyze the selected transcript and return exactly one result now. You MUST call write_lorebook_entry. The no_entry option is disabled — produce the best possible durable lorebook entry even if facts seem weak or already covered."
-    } else {
-        "Analyze the selected transcript and return exactly one result now. Use the write_lorebook_entry tool when there is a durable lorebook entry to create. Use no_entry when there is not."
-    };
     messages.push(json!({
         "role": "user",
         "content": final_instruction,
     }));
 
     messages
+}
+
+fn prompt_entries_to_messages(
+    provider_cred: &ProviderCredential,
+    entries: &[SystemPromptEntry],
+    force: bool,
+) -> Vec<Value> {
+    let final_instruction = if force {
+        "Analyze the selected transcript and return exactly one result now. You MUST call write_lorebook_entry. The no_entry option is disabled — produce the best possible durable lorebook entry even if facts seem weak or already covered."
+    } else {
+        "Analyze the selected transcript and return exactly one result now. Use the write_lorebook_entry tool when there is a durable lorebook entry to create. Use no_entry when there is not."
+    };
+    prompt_entries_to_messages_with_instruction(provider_cred, entries, final_instruction)
 }
 
 fn format_existing_entries(entries: &[crate::storage_manager::lorebook::LorebookEntry]) -> String {
@@ -498,9 +650,32 @@ fn build_lorebook_entry_tool_config(force: bool) -> ToolConfig {
     }
 }
 
+fn build_lorebook_keyword_tool_config() -> ToolConfig {
+    ToolConfig {
+        tools: vec![ToolDefinition {
+            name: "write_lorebook_keywords".to_string(),
+            description: Some(
+                "Generate one deduplicated keyword list for the lorebook entry draft.".to_string(),
+            ),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "keywords": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Trigger keywords, aliases, names, locations, and other durable lookup terms"
+                    }
+                },
+                "required": ["keywords"]
+            }),
+        }],
+        choice: Some(ToolChoice::Required),
+    }
+}
+
 fn normalize_keywords(value: Option<&Value>) -> Vec<String> {
     let mut seen = HashSet::new();
-    match value {
+    let mut result = match value {
         Some(Value::Array(items)) => items
             .iter()
             .filter_map(Value::as_str)
@@ -515,7 +690,7 @@ fn normalize_keywords(value: Option<&Value>) -> Vec<String> {
                     None
                 }
             })
-            .collect(),
+            .collect::<Vec<_>>(),
         Some(Value::String(value)) => {
             let trimmed = value.trim();
             if trimmed.is_empty() {
@@ -525,7 +700,9 @@ fn normalize_keywords(value: Option<&Value>) -> Vec<String> {
             }
         }
         _ => Vec::new(),
-    }
+    };
+    result.truncate(MAX_GENERATED_KEYWORDS);
+    result
 }
 
 fn normalize_entry_draft(arguments: &Value) -> Result<LorebookEntryDraft, String> {
@@ -719,6 +896,45 @@ fn parse_fallback_json_result(raw: &str) -> Result<LorebookEntryDraftResult, Str
     }
 }
 
+fn parse_keyword_fallback_json_result(raw: &str) -> Result<LorebookKeywordDraftResult, String> {
+    let normalized = normalize_structured_fallback_text(raw);
+    let snippet = extract_json_snippet(&normalized).unwrap_or(normalized.as_str());
+    let value: Value = serde_json::from_str(snippet)
+        .map_err(|err| format!("fallback JSON parse error: {}", err))?;
+
+    let node = value
+        .get("result")
+        .or_else(|| value.get("response"))
+        .unwrap_or(&value);
+    let Some(obj) = node.as_object() else {
+        return Err("fallback JSON result must be an object".to_string());
+    };
+
+    let name = obj
+        .get("name")
+        .or_else(|| obj.get("tool"))
+        .or_else(|| obj.get("action"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "fallback JSON result is missing a name".to_string())?;
+
+    if name != "write_lorebook_keywords" {
+        return Err(format!(
+            "fallback JSON returned unsupported result '{}'",
+            name
+        ));
+    }
+
+    let arguments = obj
+        .get("arguments")
+        .cloned()
+        .unwrap_or_else(|| Value::Object(Map::new()));
+    Ok(LorebookKeywordDraftResult {
+        keywords: normalize_keywords(arguments.get("keywords")),
+    })
+}
+
 fn attr_value(element: &BytesStart<'_>, key: &[u8]) -> Option<String> {
     for attr in element.attributes().flatten() {
         if attr.key.as_ref() == key {
@@ -884,6 +1100,73 @@ fn parse_fallback_xml_result(raw: &str) -> Result<LorebookEntryDraftResult, Stri
     }
 }
 
+fn parse_keyword_fallback_xml_result(raw: &str) -> Result<LorebookKeywordDraftResult, String> {
+    let normalized = normalize_structured_fallback_text(raw);
+    let mut reader = Reader::from_str(&normalized);
+    reader.config_mut().trim_text(true);
+
+    let mut buf = Vec::new();
+    let mut current_operation: Option<String> = None;
+    let mut current_field: Option<String> = None;
+    let mut current_keyword = String::new();
+    let mut keywords: Vec<String> = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(event)) => {
+                let tag = String::from_utf8_lossy(event.name().as_ref()).to_string();
+                if current_operation.is_none() && tag == "write_lorebook_keywords" {
+                    current_operation = Some(tag);
+                } else if current_operation.is_some() {
+                    current_field = Some(tag);
+                }
+            }
+            Ok(Event::Text(event)) => {
+                let text = decode_xml_text(event.as_ref())?;
+                if current_field.as_deref() == Some("keyword") {
+                    current_keyword.push_str(&text);
+                }
+            }
+            Ok(Event::GeneralRef(reference)) => {
+                let text = decode_xml_general_ref(reference)?;
+                if current_field.as_deref() == Some("keyword") {
+                    current_keyword.push_str(&text);
+                }
+            }
+            Ok(Event::End(event)) => {
+                let tag = String::from_utf8_lossy(event.name().as_ref()).to_string();
+                if tag == "keyword" {
+                    let trimmed = current_keyword.trim();
+                    if !trimmed.is_empty() {
+                        keywords.push(trimmed.to_string());
+                    }
+                    current_keyword.clear();
+                    current_field = None;
+                } else if matches!(tag.as_str(), "keywords" | "write_lorebook_keywords") {
+                    current_field = None;
+                    if tag == "write_lorebook_keywords" {
+                        break;
+                    }
+                } else if LOREBOOK_RESULT_XML_ROOT_TAGS.contains(&tag.as_str()) {
+                    current_field = None;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(err) => return Err(format!("fallback XML parse error: {}", err)),
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    if current_operation.as_deref() != Some("write_lorebook_keywords") {
+        return Err("fallback XML response did not contain lorebook keywords".to_string());
+    }
+
+    Ok(LorebookKeywordDraftResult {
+        keywords: normalize_keywords(Some(&json!(keywords))),
+    })
+}
+
 fn parse_fallback_result(
     raw: &str,
     format: crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat,
@@ -894,6 +1177,33 @@ fn parse_fallback_result(
         }
         crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat::Xml => {
             parse_fallback_xml_result(raw)
+        }
+    }
+}
+
+fn parse_keyword_fallback_result(
+    raw: &str,
+    format: crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat,
+) -> Result<LorebookKeywordDraftResult, String> {
+    match format {
+        crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat::Json => {
+            parse_keyword_fallback_json_result(raw)
+        }
+        crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat::Xml => {
+            parse_keyword_fallback_xml_result(raw)
+        }
+    }
+}
+
+fn lorebook_keyword_fallback_prompt(
+    format: crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat,
+) -> &'static str {
+    match format {
+        crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat::Json => {
+            LOREBOOK_KEYWORDS_JSON_FALLBACK_PROMPT
+        }
+        crate::chat_manager::types::DynamicMemoryStructuredFallbackFormat::Xml => {
+            LOREBOOK_KEYWORDS_XML_FALLBACK_PROMPT
         }
     }
 }
@@ -1148,6 +1458,32 @@ fn load_selected_messages(
     Ok(result)
 }
 
+fn format_existing_keywords(existing_keywords: &[String]) -> String {
+    let keywords = existing_keywords
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if keywords.is_empty() {
+        "(none)".to_string()
+    } else {
+        keywords.join(", ")
+    }
+}
+
+fn result_keywords_from_tool_calls(
+    calls: &[ToolCall],
+) -> Result<Option<LorebookKeywordDraftResult>, String> {
+    for call in calls {
+        if call.name == "write_lorebook_keywords" {
+            return Ok(Some(LorebookKeywordDraftResult {
+                keywords: normalize_keywords(call.arguments.get("keywords")),
+            }));
+        }
+    }
+    Ok(None)
+}
+
 pub async fn chat_generate_lorebook_entry_draft(
     app: AppHandle,
     args: ChatGenerateLorebookEntryDraftArgs,
@@ -1374,6 +1710,214 @@ pub async fn chat_generate_lorebook_entry_draft(
     parse_fallback_result(&fallback_text, fallback_format).map_err(|err| {
         format!(
             "lorebook entry {} fallback parse failed after tool attempt '{}': {}",
+            fallback_label, tool_failure_reason, err
+        )
+    })
+}
+
+pub async fn chat_generate_lorebook_keyword_draft(
+    app: AppHandle,
+    args: ChatGenerateLorebookKeywordDraftArgs,
+) -> Result<LorebookKeywordDraftResult, String> {
+    let ChatGenerateLorebookKeywordDraftArgs {
+        title,
+        content,
+        direction_prompt,
+        existing_keywords,
+    } = args;
+
+    let entry_content = content.trim();
+    if entry_content.is_empty() {
+        return Err("content cannot be empty".to_string());
+    }
+
+    let context = ChatContext::initialize(app.clone())?;
+    let settings = &context.settings;
+    let (model, credential) = resolve_lorebook_entry_writer_target(
+        settings,
+        settings
+            .advanced_settings
+            .as_ref()
+            .and_then(|advanced| advanced.lorebook_entry_generator_model_id.as_deref()),
+    )?;
+    let api_key = require_api_key(&app, credential, "lorebook_keyword_generator")?;
+
+    let entry_title = title
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("(untitled)");
+    let direction_prompt_text = direction_prompt
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("(none)");
+    let existing_keywords_text = format_existing_keywords(&existing_keywords);
+
+    let prompt_entries = render_lorebook_keyword_prompt_entries(
+        &app,
+        settings,
+        model,
+        entry_title,
+        entry_content,
+        &existing_keywords_text,
+        direction_prompt_text,
+    );
+    if prompt_entries.is_empty() {
+        return Err(
+            "Lorebook keyword generator prompt template rendered no usable entries".to_string(),
+        );
+    }
+
+    let messages_for_api = prompt_entries_to_messages_with_instruction(
+        credential,
+        &prompt_entries,
+        "Analyze the lorebook entry content and return exactly one result now. You MUST call write_lorebook_keywords with a concise, deduplicated keyword list.",
+    );
+    let tool_config = build_lorebook_keyword_tool_config();
+    let fallback_format = lorebook_entry_structured_fallback_format(settings);
+    let fallback_label = fallback_format_label(fallback_format);
+    let temp_session = Session {
+        id: "__lorebook_keyword_generator__".to_string(),
+        character_id: String::new(),
+        title: "Lorebook Keyword Generator".to_string(),
+        background_image_path: None,
+        system_prompt: None,
+        persona_id: None,
+        persona_disabled: true,
+        mode: "roleplay".to_string(),
+        author_note: None,
+        selected_scene_id: None,
+        prompt_template_id: None,
+        lorebook_ids_override: None,
+        voice_autoplay: None,
+        advanced_model_settings: None,
+        companion_state: None,
+        memory_summary: None,
+        memories: Vec::new(),
+        memory_embeddings: Vec::new(),
+        memory_summary_token_count: 0,
+        memory_tool_events: Vec::new(),
+        memory_status: None,
+        memory_error: None,
+        memory_progress_step: None,
+        messages: Vec::new(),
+        archived: false,
+        created_at: 0,
+        updated_at: 0,
+    };
+    let (request_settings, extra_body_fields) = prepare_default_sampling_request(
+        &credential.provider_id,
+        &temp_session,
+        model,
+        settings,
+        0.2,
+        1.0,
+        None,
+        None,
+        None,
+    );
+
+    let tool_attempt = send_lorebook_entry_request(
+        &app,
+        credential,
+        model,
+        &api_key,
+        &messages_for_api,
+        request_settings.max_tokens,
+        request_settings.context_length,
+        extra_body_fields.clone(),
+        Some(&tool_config),
+    )
+    .await;
+
+    let tool_failure_reason = match tool_attempt {
+        Ok(api_response) => {
+            if api_response.ok {
+                let mut calls = parse_tool_calls(&credential.provider_id, api_response.data());
+                if calls.is_empty() {
+                    if let Some(text) =
+                        extract_text(api_response.data(), Some(&credential.provider_id))
+                    {
+                        calls = parse_tool_calls_from_text(&text);
+                    }
+                }
+
+                if let Some(result) = result_keywords_from_tool_calls(&calls)? {
+                    return Ok(result);
+                }
+
+                let response_text =
+                    extract_text(api_response.data(), Some(&credential.provider_id))
+                        .unwrap_or_default();
+                if let Some(result) =
+                    result_keywords_from_tool_calls(&parse_tool_calls_from_text(&response_text))?
+                {
+                    return Ok(result);
+                }
+
+                if calls.is_empty() {
+                    "model returned no usable tool calls".to_string()
+                } else {
+                    let tool_names = calls
+                        .iter()
+                        .map(|call| call.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("model returned unsupported tool calls: {}", tool_names)
+                }
+            } else {
+                let fallback = format!("Provider returned status {}", api_response.status);
+                extract_error_message(api_response.data()).unwrap_or(fallback)
+            }
+        }
+        Err(err) => err,
+    };
+
+    log_warn(
+        &app,
+        "lorebook_keyword_generator",
+        format!(
+            "tool request failed or was invalid; retrying with {} fallback: {}",
+            fallback_label, tool_failure_reason
+        ),
+    );
+
+    let mut fallback_messages = messages_for_api.clone();
+    fallback_messages.push(json!({
+        "role": "user",
+        "content": lorebook_keyword_fallback_prompt(fallback_format),
+    }));
+
+    let api_response = send_lorebook_entry_request(
+        &app,
+        credential,
+        model,
+        &api_key,
+        &fallback_messages,
+        request_settings.max_tokens,
+        request_settings.context_length,
+        extra_body_fields,
+        None,
+    )
+    .await?;
+
+    if !api_response.ok {
+        let fallback = format!("Provider returned status {}", api_response.status);
+        let err_message = extract_error_message(api_response.data()).unwrap_or(fallback);
+        return Err(format!(
+            "lorebook keyword generation {} fallback failed after tool attempt '{}': {}",
+            fallback_label, tool_failure_reason, err_message
+        ));
+    }
+
+    let fallback_text = extract_text(api_response.data(), Some(&credential.provider_id))
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| "Lorebook keyword fallback returned no text".to_string())?;
+
+    parse_keyword_fallback_result(&fallback_text, fallback_format).map_err(|err| {
+        format!(
+            "lorebook keyword {} fallback parse failed after tool attempt '{}': {}",
             fallback_label, tool_failure_reason, err
         )
     })
