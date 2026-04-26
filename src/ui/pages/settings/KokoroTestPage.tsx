@@ -11,14 +11,11 @@ import {
   Play,
   RefreshCw,
   Search,
-  Square,
   Wrench,
 } from "lucide-react";
 
 import {
-  kokoroCancelDownload,
   kokoroDefaultAssetRoot,
-  kokoroGetDownloadProgress,
   kokoroInstallModel,
   kokoroInstallVoice,
   kokoroListAvailableVoices,
@@ -27,16 +24,18 @@ import {
   kokoroSupportedVariants,
   kokoroTokenizePreview,
   kokoroValidateAssets,
-  listenToKokoroDownloadProgress,
   type KokoroAssetStatus,
   type KokoroAvailableVoice,
-  type KokoroDownloadProgress,
   type KokoroInstalledVoice,
   type KokoroModelVariant,
   type KokoroSupportedVariant,
   type KokoroTokenizePreview,
   type KokoroVoiceBlendEntry,
 } from "../../../core/storage/audioProviders";
+import {
+  useDownloadQueue,
+  type QueuedDownload,
+} from "../../../core/downloads/DownloadQueueContext";
 import { getPlatform } from "../../../core/utils/platform";
 import { cn, radius, typography } from "../../design-tokens";
 
@@ -56,19 +55,8 @@ type PersistedState = {
 
 type VariantStatusMap = Partial<Record<KokoroModelVariant, KokoroAssetStatus>>;
 
-type DownloadPhase = "idle" | "downloading" | "completed" | "failed" | "cancelled";
-
 const DEFAULT_TEXT =
   "The rain keeps falling over Auric, and the ledger should not have survived the fire.";
-
-const IDLE_DOWNLOAD_PROGRESS: KokoroDownloadProgress = {
-  downloaded: 0,
-  total: 0,
-  status: "idle",
-  currentFileIndex: 0,
-  totalFiles: 0,
-  currentFileName: "",
-};
 
 function readPersistedState(): PersistedState {
   const fallback: PersistedState = {
@@ -121,14 +109,6 @@ function formatBytes(bytes: number) {
 function formatProgressRatio(downloaded: number, total: number) {
   if (total <= 0) return "Waiting for size…";
   return `${formatBytes(downloaded)} / ${formatBytes(total)}`;
-}
-
-function normalizeDownloadPhase(status: string): DownloadPhase {
-  if (status === "downloading") return "downloading";
-  if (status === "completed") return "completed";
-  if (status === "failed") return "failed";
-  if (status === "cancelled") return "cancelled";
-  return "idle";
 }
 
 function StatusPill({
@@ -201,6 +181,8 @@ export function KokoroTestPage() {
   const platform = useMemo(() => getPlatform(), []);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const shouldAutoplayRef = useRef(false);
+  const prevKokoroQueueRef = useRef<QueuedDownload[]>([]);
+  const { queue, cancelItem, dismissItem } = useDownloadQueue();
 
   const [managedRoot, setManagedRoot] = useState("");
   const [assetRoot, setAssetRoot] = useState(initialState.assetRoot);
@@ -218,8 +200,6 @@ export function KokoroTestPage() {
   const [installedVoices, setInstalledVoices] = useState<KokoroInstalledVoice[]>([]);
   const [availableVoices, setAvailableVoices] = useState<KokoroAvailableVoice[]>([]);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] =
-    useState<KokoroDownloadProgress>(IDLE_DOWNLOAD_PROGRESS);
   const [tokenizePreview, setTokenizePreview] = useState<KokoroTokenizePreview | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isRefreshingAssets, setIsRefreshingAssets] = useState(false);
@@ -231,17 +211,15 @@ export function KokoroTestPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [supportedVariants, defaultRoot, currentDownload] = await Promise.all([
+        const [supportedVariants, defaultRoot] = await Promise.all([
           kokoroSupportedVariants(),
           kokoroDefaultAssetRoot(),
-          kokoroGetDownloadProgress(),
         ]);
 
         setVariants(supportedVariants);
         setManagedRoot(defaultRoot);
         setAssetRoot((current) => current || defaultRoot);
         setVariant((current) => current || supportedVariants[0]?.id || "");
-        setDownloadProgress(currentDownload);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -273,44 +251,43 @@ export function KokoroTestPage() {
   }, [previewSrc]);
 
   useEffect(() => {
-    let mounted = true;
-    let unsubscribe: (() => void) | null = null;
-
-    void (async () => {
-      try {
-        unsubscribe = await listenToKokoroDownloadProgress((progress) => {
-          if (!mounted) return;
-          setDownloadProgress(progress);
-          const phase = normalizeDownloadPhase(progress.status);
-          if (phase === "completed") {
-            setError(null);
-            void refreshInstalledState(progress.assetRoot ?? assetRoot);
-            void refreshVoiceCatalog(progress.assetRoot ?? assetRoot);
-          }
-        });
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [assetRoot]);
-
-  useEffect(() => {
     if (!assetRoot.trim() || variants.length === 0) return;
     void refreshInstalledState(assetRoot);
     void refreshVoiceCatalog(assetRoot);
   }, [assetRoot, variants.length]);
 
+  const trimmedAssetRoot = assetRoot.trim();
+  const kokoroQueue = useMemo(
+    () =>
+      queue.filter(
+        (item) =>
+          item.queueKind === "kokoro" &&
+          (!trimmedAssetRoot || item.assetRoot === trimmedAssetRoot),
+      ),
+    [queue, trimmedAssetRoot],
+  );
+
+  useEffect(() => {
+    const prev = prevKokoroQueueRef.current;
+    for (const item of kokoroQueue) {
+      const prevItem = prev.find((candidate) => candidate.id === item.id);
+      const becameComplete = (!prevItem || prevItem.status !== "complete") && item.status === "complete";
+      if (becameComplete) {
+        setError(null);
+        void refreshInstalledState(item.assetRoot ?? assetRoot);
+        void refreshVoiceCatalog(item.assetRoot ?? assetRoot);
+      }
+    }
+    prevKokoroQueueRef.current = kokoroQueue;
+  }, [assetRoot, kokoroQueue]);
+
   const selectedVariantStatus = variant ? variantStatuses[variant] ?? null : null;
   const selectedVoice = installedVoices.find((candidate) => candidate.id === voiceId) ?? null;
-  const downloadPhase = normalizeDownloadPhase(downloadProgress.status);
-  const isDownloading = downloadPhase === "downloading";
+  const activeKokoroQueue = kokoroQueue.filter(
+    (item) => item.status === "downloading" || item.status === "queued",
+  );
+  const latestActiveKokoroItem =
+    activeKokoroQueue.find((item) => item.status === "downloading") ?? activeKokoroQueue[0] ?? null;
 
   const filteredAvailableVoices = useMemo(() => {
     const query = voiceSearch.trim().toLowerCase();
@@ -350,8 +327,7 @@ export function KokoroTestPage() {
     Boolean(variant) &&
     activeVoiceBlend.length > 0 &&
     Boolean(previewText.trim()) &&
-    !isPreviewing &&
-    !isDownloading;
+    !isPreviewing;
 
   async function refreshInstalledState(root: string) {
     const trimmedRoot = root.trim();
@@ -492,10 +468,10 @@ export function KokoroTestPage() {
     }
   };
 
-  const handleCancelDownload = async () => {
+  const handleCancelDownloads = async () => {
     setError(null);
     try {
-      await kokoroCancelDownload();
+      await Promise.all(activeKokoroQueue.map((item) => cancelItem(item.id)));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -685,10 +661,10 @@ export function KokoroTestPage() {
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {variants.map((supportedVariant) => {
                     const installed = Boolean(variantStatuses[supportedVariant.id]?.resolvedModelPath);
-                    const isCurrentDownload =
-                      isDownloading &&
-                      downloadProgress.installKind === "model" &&
-                      downloadProgress.variant === supportedVariant.id;
+                    const isCurrentDownload = activeKokoroQueue.some(
+                      (item) =>
+                        item.installKind === "model" && item.variant === supportedVariant.id,
+                    );
                     const isSelected = variant === supportedVariant.id;
 
                     return (
@@ -724,10 +700,10 @@ export function KokoroTestPage() {
                           </button>
                           <button
                             onClick={() => void handleInstallModel(supportedVariant.id)}
-                            disabled={isDownloading || !assetRoot.trim()}
+                            disabled={!assetRoot.trim()}
                             className="flex-1 rounded-xl border border-info/25 bg-info/10 px-3 py-2 text-sm text-info/85 transition hover:border-info/40 hover:bg-info/15 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {isCurrentDownload ? "Installing…" : installed ? "Reinstall" : "Install"}
+                            {isCurrentDownload ? "Queued…" : installed ? "Reinstall" : "Install"}
                           </button>
                         </div>
                       </div>
@@ -791,10 +767,9 @@ export function KokoroTestPage() {
                     {filteredAvailableVoices.map((voice) => {
                       const isInstalled = installedVoices.some((candidate) => candidate.id === voice.id);
                       const isSelected = voice.id === voiceId;
-                      const isCurrentDownload =
-                        isDownloading &&
-                        downloadProgress.installKind === "voice" &&
-                        downloadProgress.voiceId === voice.id;
+                      const isCurrentDownload = activeKokoroQueue.some(
+                        (item) => item.installKind === "voice" && item.voiceId === voice.id,
+                      );
 
                       return (
                         <div
@@ -840,14 +815,10 @@ export function KokoroTestPage() {
                               {isInstalled && <CheckCircle2 className="h-4 w-4 text-accent" />}
                               <button
                                 onClick={() => void handleInstallVoice(voice.id)}
-                                disabled={isDownloading || !assetRoot.trim()}
+                                disabled={!assetRoot.trim()}
                                 className="rounded-xl border border-info/25 bg-info/10 px-3 py-2 text-sm text-info/85 transition hover:border-info/40 hover:bg-info/15 disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                {isCurrentDownload
-                                  ? "Installing…"
-                                  : isInstalled
-                                    ? "Reinstall"
-                                    : "Install"}
+                                {isCurrentDownload ? "Queued…" : isInstalled ? "Reinstall" : "Install"}
                               </button>
                             </div>
                           </div>
@@ -863,7 +834,7 @@ export function KokoroTestPage() {
               <SectionCard
                 icon={<Download />}
                 title="Download Progress"
-                subtitle="Kokoro downloads run through a dedicated progress slot so model and voice installs can be cancelled without touching embedding downloads."
+                subtitle="Kokoro installs now use the shared download queue, so they behave like Hugging Face model downloads and appear in the global queue UI."
               >
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-fg/10 bg-fg/5 p-3">
@@ -873,44 +844,19 @@ export function KokoroTestPage() {
                           Status
                         </div>
                         <div className="mt-2 text-sm font-medium text-fg">
-                          {isDownloading ? downloadProgress.status : downloadPhase}
+                          {activeKokoroQueue.length > 0
+                            ? `${activeKokoroQueue.length} active queue item${activeKokoroQueue.length === 1 ? "" : "s"}`
+                            : "Idle"}
                         </div>
                       </div>
-                      {isDownloading && (
+                      {activeKokoroQueue.length > 0 && (
                         <button
-                          onClick={() => void handleCancelDownload()}
+                          onClick={() => void handleCancelDownloads()}
                           className="inline-flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-danger/85 transition hover:border-danger/40 hover:bg-danger/15"
                         >
-                          <Square className="h-4 w-4" />
-                          Cancel
+                          Cancel active
                         </button>
                       )}
-                    </div>
-                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-fg/10">
-                      <div
-                        className="h-full rounded-full bg-info transition-all"
-                        style={{
-                          width:
-                            downloadProgress.total > 0
-                              ? `${Math.max(
-                                  3,
-                                  Math.min(
-                                    100,
-                                    (downloadProgress.downloaded / downloadProgress.total) * 100,
-                                  ),
-                                )}%`
-                              : isDownloading
-                                ? "12%"
-                                : "0%",
-                        }}
-                      />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-3 text-xs text-fg/45">
-                      <span>{formatProgressRatio(downloadProgress.downloaded, downloadProgress.total)}</span>
-                      <span>
-                        {downloadProgress.currentFileIndex}/{downloadProgress.totalFiles} •{" "}
-                        {downloadProgress.currentFileName || "No active file"}
-                      </span>
                     </div>
                   </div>
 
@@ -920,10 +866,10 @@ export function KokoroTestPage() {
                         Active install
                       </div>
                       <div className="mt-2 text-sm font-medium text-fg">
-                        {downloadProgress.installKind
-                          ? downloadProgress.installKind === "model"
-                            ? `Model ${downloadProgress.variant ?? ""}`.trim()
-                            : `Voice ${downloadProgress.voiceId ?? ""}`.trim()
+                        {latestActiveKokoroItem
+                          ? latestActiveKokoroItem.installKind === "model"
+                            ? `Model ${latestActiveKokoroItem.variant ?? ""}`.trim()
+                            : `Voice ${latestActiveKokoroItem.voiceId ?? ""}`.trim()
                           : "None"}
                       </div>
                     </div>
@@ -932,10 +878,78 @@ export function KokoroTestPage() {
                         Target directory
                       </div>
                       <div className="mt-2 break-all text-xs text-fg/65">
-                        {(downloadProgress.assetRoot ?? assetRoot) || "Unset"}
+                        {(latestActiveKokoroItem?.assetRoot ?? assetRoot) || "Unset"}
                       </div>
                     </div>
                   </div>
+
+                  {kokoroQueue.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-fg/10 bg-fg/[0.025] p-4 text-sm text-fg/50">
+                      No Kokoro downloads have been queued for this asset root yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {kokoroQueue.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border border-fg/10 bg-fg/5 px-3 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium text-fg">
+                                {item.filename}
+                              </div>
+                              <div className="mt-1 text-xs text-fg/45">
+                                {item.displayName || "Kokoro asset"} • {item.status}
+                              </div>
+                              <div className="mt-2 text-xs text-fg/45">
+                                {formatProgressRatio(item.downloaded, item.total)}
+                              </div>
+                              {item.status === "downloading" && (
+                                <div className="mt-3 h-2 overflow-hidden rounded-full bg-fg/10">
+                                  <div
+                                    className="h-full rounded-full bg-info transition-all"
+                                    style={{
+                                      width:
+                                        item.total > 0
+                                          ? `${Math.max(
+                                              3,
+                                              Math.min(100, (item.downloaded / item.total) * 100),
+                                            )}%`
+                                          : "12%",
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              {item.error && (
+                                <div className="mt-2 text-xs text-danger/70">{item.error}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {(item.status === "downloading" || item.status === "queued") && (
+                                <button
+                                  onClick={() => void cancelItem(item.id)}
+                                  className="rounded-xl border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger/85 transition hover:border-danger/40 hover:bg-danger/15"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              {(item.status === "complete" ||
+                                item.status === "error" ||
+                                item.status === "cancelled") && (
+                                <button
+                                  onClick={() => void dismissItem(item.id)}
+                                  className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-2 text-xs text-fg/75 transition hover:border-fg/20 hover:bg-fg/10"
+                                >
+                                  Dismiss
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </SectionCard>
 

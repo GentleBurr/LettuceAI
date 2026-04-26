@@ -23,6 +23,11 @@ export interface QueuedDownload {
   contextLength: number | null;
   kvType: string | null;
   downloadRole: "model" | "mmproj" | null;
+  queueKind?: string | null;
+  assetRoot?: string | null;
+  installKind?: string | null;
+  variant?: string | null;
+  voiceId?: string | null;
 }
 
 interface DownloadQueueContextValue {
@@ -66,6 +71,10 @@ function extractShortName(modelId: string): string {
 
 function isMmprojFilename(filename: string): boolean {
   return filename.toLowerCase().includes("mmproj");
+}
+
+function isCreateableModelDownload(item: QueuedDownload): boolean {
+  return item.queueKind !== "kokoro" && !isMmprojFilename(item.filename);
 }
 
 export function DownloadQueueProvider({ children }: { children: ReactNode }) {
@@ -116,12 +125,14 @@ export function DownloadQueueProvider({ children }: { children: ReactNode }) {
       // Download just completed
       if (prevItem.status !== "complete" && item.status === "complete") {
         if (!isOnHfPage) {
-          const displayName = extractShortName(item.modelId).replace(/-GGUF$/i, "");
+          const displayName =
+            item.queueKind === "kokoro"
+              ? item.displayName || item.filename
+              : extractShortName(item.modelId).replace(/-GGUF$/i, "");
           toast.success("Download complete", `${displayName} — ${item.filename}`, {
-            actionLabel: isMmprojFilename(item.filename) ? undefined : "Create Model",
-            onAction: isMmprojFilename(item.filename)
-              ? undefined
-              : () => {
+            actionLabel: isCreateableModelDownload(item) ? "Create Model" : undefined,
+            onAction: isCreateableModelDownload(item)
+              ? () => {
                   if (!item.resultPath) return;
                   const cleanName = extractShortName(item.modelId).replace(/-GGUF$/i, "");
                   const params = new URLSearchParams();
@@ -131,7 +142,8 @@ export function DownloadQueueProvider({ children }: { children: ReactNode }) {
                   navigate(`${Routes.settingsModelsNew}?${params.toString()}`);
                   // Dismiss the item after navigating
                   invoke("hf_dismiss_queue_item", { queueId: item.id }).catch(() => {});
-                },
+                }
+              : undefined,
             id: `dl-complete-${item.id}`,
             duration: 10000,
           });

@@ -3,12 +3,12 @@ pub mod engine;
 mod lexicon;
 mod model;
 mod phonemizer;
-mod voices;
 mod vocab;
+mod voices;
 
 pub use download::{
-    cancel_download, default_asset_root, get_download_progress, install_model, install_voice,
-    list_available_voices, KokoroAvailableVoice, KokoroDownloadProgress,
+    default_asset_root, list_available_voices, queue_model_install, queue_voice_install,
+    KokoroAvailableVoice, KokoroQueuedInstall,
 };
 pub use engine::{
     kokoro_supported_model_variants, preview_tokenization, validate_assets, KokoroAssetStatus,

@@ -159,6 +159,14 @@ pub struct QueuedDownload {
     pub context_length: Option<u64>,
     pub kv_type: Option<String>,
     pub download_role: Option<String>,
+    pub queue_kind: Option<String>,
+    pub asset_root: Option<String>,
+    pub install_kind: Option<String>,
+    pub variant: Option<String>,
+    pub voice_id: Option<String>,
+    pub download_url: Option<String>,
+    pub destination_path: Option<String>,
+    pub force_redownload: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,6 +199,22 @@ pub struct QueueDownloadMetadata {
     pub kv_type: Option<String>,
     #[serde(default)]
     pub download_role: Option<String>,
+    #[serde(default)]
+    pub queue_kind: Option<String>,
+    #[serde(default)]
+    pub asset_root: Option<String>,
+    #[serde(default)]
+    pub install_kind: Option<String>,
+    #[serde(default)]
+    pub variant: Option<String>,
+    #[serde(default)]
+    pub voice_id: Option<String>,
+    #[serde(default)]
+    pub download_url: Option<String>,
+    #[serde(default)]
+    pub destination_path: Option<String>,
+    #[serde(default)]
+    pub force_redownload: bool,
 }
 
 struct DownloadQueueState {
@@ -1535,6 +1559,14 @@ pub async fn hf_queue_download(
             context_length: metadata.context_length,
             kv_type: metadata.kv_type,
             download_role: metadata.download_role,
+            queue_kind: metadata.queue_kind,
+            asset_root: metadata.asset_root,
+            install_kind: metadata.install_kind,
+            variant: metadata.variant,
+            voice_id: metadata.voice_id,
+            download_url: metadata.download_url,
+            destination_path: metadata.destination_path,
+            force_redownload: metadata.force_redownload,
         });
         emit_queue(&app, &state.queue);
     }
@@ -1620,7 +1652,7 @@ async fn process_download_queue(app: &AppHandle) {
             emit_queue(app, &state.queue);
         }
 
-        let result = do_queue_download(app, &item.id, &item.model_id, &item.filename).await;
+        let result = do_queue_download(app, &item).await;
 
         {
             let mut state = HF_DOWNLOAD_QUEUE.lock().await;
@@ -1646,32 +1678,47 @@ async fn process_download_queue(app: &AppHandle) {
     }
 }
 
-async fn do_queue_download(
-    app: &AppHandle,
-    queue_id: &str,
-    model_id: &str,
-    filename: &str,
-) -> Result<String, String> {
-    let models_dir = hf_models_dir(app)?;
+async fn do_queue_download(app: &AppHandle, item: &QueuedDownload) -> Result<String, String> {
+    let queue_id = item.id.as_str();
+    let model_id = item.model_id.as_str();
+    let filename = item.filename.as_str();
+    let dest_path = if let Some(destination_path) = item.destination_path.as_deref() {
+        PathBuf::from(destination_path)
+    } else {
+        let models_dir = hf_models_dir(app)?;
+        let safe_model_name = model_id.replace('/', "--");
+        let model_dir = models_dir.join(&safe_model_name);
+        if !model_dir.exists() {
+            tokio::fs::create_dir_all(&model_dir).await.map_err(|e| {
+                crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!("Failed to create model directory: {}", e),
+                )
+            })?;
+        }
+        model_dir.join(filename)
+    };
 
-    let safe_model_name = model_id.replace('/', "--");
-    let model_dir = models_dir.join(&safe_model_name);
-    if !model_dir.exists() {
-        tokio::fs::create_dir_all(&model_dir).await.map_err(|e| {
+    if let Some(parent) = dest_path.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| {
             crate::utils::err_msg(
                 module_path!(),
                 line!(),
-                format!("Failed to create model directory: {}", e),
+                format!("Failed to create destination directory: {}", e),
             )
         })?;
     }
 
-    let dest_path = model_dir.join(filename);
-
-    if dest_path.exists() {
+    if dest_path.exists() && !item.force_redownload {
         let meta = tokio::fs::metadata(&dest_path).await.ok();
         if let Some(m) = meta {
-            if m.len() > 1_000_000 {
+            let min_existing_size = if item.queue_kind.as_deref() == Some("kokoro") {
+                1
+            } else {
+                1_000_000
+            };
+            if m.len() >= min_existing_size {
                 log_info(
                     app,
                     "hf_browser",
@@ -1693,10 +1740,12 @@ async fn do_queue_download(
         }
     }
 
-    let download_url = format!(
-        "https://huggingface.co/{}/resolve/main/{}",
-        model_id, filename
-    );
+    let download_url = item.download_url.clone().unwrap_or_else(|| {
+        format!(
+            "https://huggingface.co/{}/resolve/main/{}",
+            model_id, filename
+        )
+    });
 
     log_info(
         app,

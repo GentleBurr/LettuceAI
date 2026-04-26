@@ -204,10 +204,10 @@ pub async fn kokoro_install_model(
     app: AppHandle,
     asset_root: String,
     variant: String,
-) -> Result<(), String> {
+) -> Result<kokoro::KokoroQueuedInstall, String> {
     let variant = kokoro::KokoroModelVariant::from_str(&variant)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    kokoro::install_model(app, PathBuf::from(asset_root), variant)
+    kokoro::queue_model_install(app, PathBuf::from(asset_root), variant)
         .await
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
 }
@@ -217,22 +217,8 @@ pub async fn kokoro_install_voice(
     app: AppHandle,
     asset_root: String,
     voice_id: String,
-) -> Result<(), String> {
-    kokoro::install_voice(app, PathBuf::from(asset_root), voice_id)
-        .await
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
-}
-
-#[tauri::command]
-pub async fn kokoro_get_download_progress() -> Result<kokoro::KokoroDownloadProgress, String> {
-    kokoro::get_download_progress()
-        .await
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
-}
-
-#[tauri::command]
-pub async fn kokoro_cancel_download(app: AppHandle) -> Result<(), String> {
-    kokoro::cancel_download(&app)
+) -> Result<kokoro::KokoroQueuedInstall, String> {
+    kokoro::queue_voice_install(app, PathBuf::from(asset_root), voice_id)
         .await
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
 }
@@ -289,16 +275,17 @@ pub async fn kokoro_preview(
         espeak_data_path: espeak_data_path.map(PathBuf::from),
     };
 
-    let audio_bytes = tokio::task::spawn_blocking(move || kokoro::engine::synthesize_to_wav(request))
-        .await
-        .map_err(|e| {
-            crate::utils::err_msg(
-                module_path!(),
-                line!(),
-                format!("Kokoro preview task failed: {}", e),
-            )
-        })?
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let audio_bytes =
+        tokio::task::spawn_blocking(move || kokoro::engine::synthesize_to_wav(request))
+            .await
+            .map_err(|e| {
+                crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!("Kokoro preview task failed: {}", e),
+                )
+            })?
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     Ok(TtsPreviewResponse {
         audio_base64: STANDARD.encode(audio_bytes),

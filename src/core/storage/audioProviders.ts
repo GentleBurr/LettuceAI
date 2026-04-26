@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 
 export type AudioProviderType = "gemini_tts" | "elevenlabs" | "openai_tts";
 
@@ -82,17 +81,9 @@ export interface KokoroAvailableVoice {
   installed: boolean;
 }
 
-export interface KokoroDownloadProgress {
-  downloaded: number;
-  total: number;
-  status: string;
-  currentFileIndex: number;
-  totalFiles: number;
-  currentFileName: string;
-  assetRoot?: string | null;
-  installKind?: string | null;
-  variant?: KokoroModelVariant | null;
-  voiceId?: string | null;
+export interface KokoroQueuedInstall {
+  installId: string;
+  queueIds: string[];
 }
 
 export interface KokoroTokenizePreviewSegment {
@@ -233,32 +224,21 @@ export async function kokoroListAvailableVoices(
 export async function kokoroInstallModel(
   assetRoot: string,
   variant: KokoroModelVariant,
-): Promise<void> {
-  return invoke("kokoro_install_model", {
+): Promise<KokoroQueuedInstall> {
+  return invoke<KokoroQueuedInstall>("kokoro_install_model", {
     assetRoot,
     variant,
   });
 }
 
-export async function kokoroInstallVoice(assetRoot: string, voiceId: string): Promise<void> {
-  return invoke("kokoro_install_voice", {
+export async function kokoroInstallVoice(
+  assetRoot: string,
+  voiceId: string,
+): Promise<KokoroQueuedInstall> {
+  return invoke<KokoroQueuedInstall>("kokoro_install_voice", {
     assetRoot,
     voiceId,
   });
-}
-
-export async function kokoroGetDownloadProgress(): Promise<KokoroDownloadProgress> {
-  return invoke<KokoroDownloadProgress>("kokoro_get_download_progress");
-}
-
-export async function listenToKokoroDownloadProgress(
-  callback: (progress: KokoroDownloadProgress) => void,
-): Promise<() => void> {
-  return listen<KokoroDownloadProgress>("kokoro_download_progress", (event) => callback(event.payload));
-}
-
-export async function kokoroCancelDownload(): Promise<void> {
-  return invoke("kokoro_cancel_download");
 }
 
 export async function kokoroTokenizePreview(

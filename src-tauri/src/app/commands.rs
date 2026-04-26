@@ -242,8 +242,6 @@ macro_rules! invoke_handler {
             crate::tts_manager::commands::kokoro_list_available_voices,
             crate::tts_manager::commands::kokoro_install_model,
             crate::tts_manager::commands::kokoro_install_voice,
-            crate::tts_manager::commands::kokoro_get_download_progress,
-            crate::tts_manager::commands::kokoro_cancel_download,
             crate::tts_manager::commands::kokoro_tokenize_preview,
             crate::tts_manager::commands::kokoro_preview,
             crate::tts_manager::commands::audio_provider_voices,

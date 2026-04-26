@@ -30,6 +30,17 @@ function isMmprojFilename(filename: string): boolean {
   return filename.toLowerCase().includes("mmproj");
 }
 
+function queueSubtitle(item: QueuedDownload): string {
+  if (item.queueKind === "kokoro") {
+    return item.displayName || "Kokoro asset";
+  }
+  return extractShortName(item.modelId);
+}
+
+function isCreateableModelDownload(item: QueuedDownload): boolean {
+  return item.queueKind !== "kokoro" && !isMmprojFilename(item.filename);
+}
+
 function pct(d: QueuedDownload): number {
   if (d.total === 0) return 0;
   return Math.min(100, Math.round((d.downloaded / d.total) * 100));
@@ -111,11 +122,7 @@ export function InlineDownloadCards({
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12px] font-medium text-fg/80">{item.filename}</p>
-                  {!compact && (
-                    <p className="truncate text-[10px] text-fg/40">
-                      {extractShortName(item.modelId)}
-                    </p>
-                  )}
+                  {!compact && <p className="truncate text-[10px] text-fg/40">{queueSubtitle(item)}</p>}
                 </div>
                 <button
                   onClick={() => cancelItem(item.id)}
@@ -179,7 +186,7 @@ export function InlineDownloadCards({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  {!isMmprojFilename(item.filename) && (
+                  {isCreateableModelDownload(item) && (
                     <button
                       onClick={() => createModel(item)}
                       className={cn(

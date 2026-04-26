@@ -27,6 +27,10 @@ function extractShortName(modelId: string): string {
   return parts[parts.length - 1] || modelId;
 }
 
+function isCreateableModelDownload(item: QueuedDownload): boolean {
+  return item.queueKind !== "kokoro";
+}
+
 function goToModel(navigate: ReturnType<typeof useNavigate>, modelId: string) {
   const params = new URLSearchParams();
   params.set("model", modelId);
@@ -59,10 +63,12 @@ export function ModelsDownloadIndicator() {
   if (!ctx || !ctx.hasItems) return null;
 
   const { queue, cancelItem, dismissItem } = ctx;
+  const visibleQueue = queue.filter((d) => d.queueKind !== "kokoro");
+  const activeItems = visibleQueue.filter((d) => d.status === "downloading" || d.status === "queued");
+  const completedItems = visibleQueue.filter((d) => d.status === "complete");
+  const failedItems = visibleQueue.filter((d) => d.status === "error" || d.status === "cancelled");
 
-  const activeItems = queue.filter((d) => d.status === "downloading" || d.status === "queued");
-  const completedItems = queue.filter((d) => d.status === "complete");
-  const failedItems = queue.filter((d) => d.status === "error" || d.status === "cancelled");
+  if (visibleQueue.length === 0) return null;
 
   return (
     <div className="space-y-2">
@@ -181,20 +187,22 @@ export function ModelsDownloadIndicator() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      createModel(item);
-                    }}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-semibold text-emerald-300",
-                      interactive.transition.fast,
-                      "hover:bg-emerald-500/25 active:scale-95",
-                    )}
-                  >
-                    <Cpu size={11} />
-                    Create
-                  </button>
+                  {isCreateableModelDownload(item) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        createModel(item);
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-semibold text-emerald-300",
+                        interactive.transition.fast,
+                        "hover:bg-emerald-500/25 active:scale-95",
+                      )}
+                    >
+                      <Cpu size={11} />
+                      Create
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
