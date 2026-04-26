@@ -810,6 +810,8 @@ pub struct Scene {
     pub content: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub direction: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_image_path: Option<String>,
     pub created_at: u64,
     #[serde(default)]
     pub variants: Vec<SceneVariant>,

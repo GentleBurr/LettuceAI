@@ -2055,6 +2055,7 @@ export const SceneSchema = z.object({
   id: z.string().uuid(),
   content: z.string(),
   direction: z.string().optional(),
+  backgroundImagePath: z.string().nullish().optional(),
   createdAt: z.number().int(),
   variants: z.array(SceneVariantSchema).optional(),
   selectedVariantId: z.string().uuid().nullish(),

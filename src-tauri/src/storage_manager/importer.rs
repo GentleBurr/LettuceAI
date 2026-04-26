@@ -287,7 +287,7 @@ fn import_characters(conn: &mut rusqlite::Connection, json: &str) -> Result<(), 
                 if s.is_string() {
                     let sid = uuid::Uuid::new_v4().to_string();
                     let content = s.as_str().unwrap_or("");
-                    tx.execute("INSERT INTO scenes (id, character_id, content, direction, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, NULL)", params![&sid, &id, content, None::<String>, now]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+                    tx.execute("INSERT INTO scenes (id, character_id, content, direction, background_image_path, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?, NULL)", params![&sid, &id, content, None::<String>, None::<String>, now]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                 } else if let Some(obj) = s.as_object() {
                     let sid = obj
                         .get("id")
@@ -301,7 +301,8 @@ fn import_characters(conn: &mut rusqlite::Connection, json: &str) -> Result<(), 
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string());
                     let direction = obj.get("direction").and_then(|v| v.as_str());
-                    tx.execute("INSERT INTO scenes (id, character_id, content, direction, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?)", params![&sid, &id, content, direction, screated, sel]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+                    let background_image_path = obj.get("backgroundImagePath").and_then(|v| v.as_str());
+                    tx.execute("INSERT INTO scenes (id, character_id, content, direction, background_image_path, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?, ?)", params![&sid, &id, content, direction, background_image_path, screated, sel]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                     if let Some(vars) = obj.get("variants").and_then(|v| v.as_array()) {
                         for v in vars {
                             let vid = v

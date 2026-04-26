@@ -148,21 +148,22 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
     }
 
     // scenes
-    let mut scenes_stmt = conn.prepare("SELECT id, content, direction, created_at, selected_variant_id FROM scenes WHERE character_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut scenes_stmt = conn.prepare("SELECT id, content, direction, background_image_path, created_at, selected_variant_id FROM scenes WHERE character_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let scenes_rows = scenes_stmt
         .query_map(params![id], |r| {
             Ok((
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
                 r.get::<_, Option<String>>(2)?,
-                r.get::<_, i64>(3)?,
-                r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, Option<String>>(5)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let mut scenes: Vec<JsonValue> = Vec::new();
     for row in scenes_rows {
-        let (scene_id, content, direction, created_at_s, selected_variant_id) =
+        let (scene_id, content, direction, background_image_path, created_at_s, selected_variant_id) =
             row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         // variants
         let mut var_stmt = conn.prepare("SELECT id, content, direction, created_at FROM scene_variants WHERE scene_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -192,6 +193,9 @@ fn read_character(conn: &rusqlite::Connection, id: &str) -> Result<JsonValue, St
         obj.insert("content".into(), JsonValue::String(content));
         if let Some(dir) = direction {
             obj.insert("direction".into(), JsonValue::String(dir));
+        }
+        if let Some(path) = background_image_path {
+            obj.insert("backgroundImagePath".into(), JsonValue::String(path));
         }
         obj.insert("createdAt".into(), JsonValue::from(created_at_s));
         if !variants.is_empty() {
@@ -840,7 +844,8 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
                 .and_then(|v| v.as_str())
                 .map(|x| x.to_string());
             let direction = s.get("direction").and_then(|v| v.as_str());
-            tx.execute("INSERT INTO scenes (id, character_id, content, direction, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?)", params![&sid, &id, content, direction, created_at_s, selected_variant_id]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            let background_image_path = s.get("backgroundImagePath").and_then(|v| v.as_str());
+            tx.execute("INSERT INTO scenes (id, character_id, content, direction, background_image_path, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?, ?)", params![&sid, &id, content, direction, background_image_path, created_at_s, selected_variant_id]).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             if i == 0 && new_default_scene_id.is_none() {
                 new_default_scene_id = Some(sid.clone());
             }

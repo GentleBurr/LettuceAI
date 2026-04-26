@@ -1059,7 +1059,7 @@ fn maybe_read_character_snapshots(
 
         let mut scenes_stmt = conn
             .prepare(
-                "SELECT id, content, direction, created_at, selected_variant_id
+                "SELECT id, content, direction, background_image_path, created_at, selected_variant_id
                  FROM scenes WHERE character_id = ?1 ORDER BY created_at ASC",
             )
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1069,15 +1069,16 @@ fn maybe_read_character_snapshots(
                     r.get::<_, String>(0)?,
                     r.get::<_, String>(1)?,
                     r.get::<_, Option<String>>(2)?,
-                    r.get::<_, i64>(3)?,
-                    r.get::<_, Option<String>>(4)?,
+                    r.get::<_, Option<String>>(3)?,
+                    r.get::<_, i64>(4)?,
+                    r.get::<_, Option<String>>(5)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
         let mut scenes = Vec::new();
         for scene in scenes_rows {
-            let (scene_id, content, direction, scene_created_at, selected_variant_id) =
+            let (scene_id, content, direction, background_image_path, scene_created_at, selected_variant_id) =
                 scene.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
             let mut variants_stmt = conn
@@ -1103,6 +1104,7 @@ fn maybe_read_character_snapshots(
                 "id": scene_id,
                 "content": content,
                 "direction": direction,
+                "backgroundImagePath": background_image_path,
                 "createdAt": scene_created_at,
                 "selectedVariantId": selected_variant_id,
                 "variants": variants,

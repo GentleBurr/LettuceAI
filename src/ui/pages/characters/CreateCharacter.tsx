@@ -133,6 +133,9 @@ export function CreateCharacterPage() {
     if (typeof window === "undefined") {
       return;
     }
+    if (state.loadingModels || state.loadingTemplates) {
+      return;
+    }
 
     const draft = {
       step: state.step,
@@ -185,6 +188,8 @@ export function CreateCharacterPage() {
 
     sessionStorage.setItem(CREATE_CHARACTER_DRAFT_KEY, JSON.stringify(draft));
   }, [
+    state.loadingModels,
+    state.loadingTemplates,
     state.step,
     state.name,
     state.avatarPath,

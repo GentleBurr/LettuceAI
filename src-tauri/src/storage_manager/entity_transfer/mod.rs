@@ -111,6 +111,8 @@ pub struct SceneExport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub direction: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_image_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<i64>,
     pub selected_variant_id: Option<String>,
     pub variants: Vec<SceneVariantExport>,
@@ -394,6 +396,7 @@ fn extract_v2_scene_variants_as_scenes(
         id: base_id.clone(),
         content: base_content,
         direction: base_direction,
+        background_image_path: None,
         created_at: base_created_at,
         selected_variant_id: None,
         variants: Vec::new(),
@@ -418,6 +421,7 @@ fn extract_v2_scene_variants_as_scenes(
                     .get("direction")
                     .and_then(JsonValue::as_str)
                     .map(|value| value.to_string()),
+                background_image_path: None,
                 created_at: variant_map.get("createdAt").and_then(number_to_i64),
                 selected_variant_id: None,
                 variants: Vec::new(),
@@ -619,6 +623,10 @@ fn parse_uec_character(value: &JsonValue) -> Result<CharacterExportPackage, Stri
                         id,
                         content,
                         direction,
+                        background_image_path: map
+                            .get("backgroundImagePath")
+                            .and_then(|value| value.as_str())
+                            .map(|value| value.to_string()),
                         created_at,
                         selected_variant_id,
                         variants,
@@ -1219,7 +1227,7 @@ fn load_character_export_snapshot(
 
     let mut scenes: Vec<SceneExport> = Vec::new();
     let mut scenes_stmt = conn
-        .prepare("SELECT id, content, direction, created_at, selected_variant_id FROM scenes WHERE character_id = ? ORDER BY created_at ASC")
+        .prepare("SELECT id, content, direction, background_image_path, created_at, selected_variant_id FROM scenes WHERE character_id = ? ORDER BY created_at ASC")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let scene_rows = scenes_stmt
         .query_map(params![character_id], |r| {
@@ -1227,14 +1235,15 @@ fn load_character_export_snapshot(
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
                 r.get::<_, Option<String>>(2)?,
-                r.get::<_, i64>(3)?,
-                r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, Option<String>>(5)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     for row in scene_rows {
-        let (scene_id, content, direction, scene_created_at, selected_variant_id) =
+        let (scene_id, content, direction, background_image_path, scene_created_at, selected_variant_id) =
             row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
         let mut variants: Vec<SceneVariantExport> = Vec::new();
@@ -1267,6 +1276,7 @@ fn load_character_export_snapshot(
             id: scene_id,
             content,
             direction,
+            background_image_path,
             created_at: Some(scene_created_at),
             selected_variant_id,
             variants,
@@ -2110,12 +2120,13 @@ pub fn character_import(app: tauri::AppHandle, import_json: String) -> Result<St
 
         let scene_created_at = scene.created_at.unwrap_or(now);
         tx.execute(
-            "INSERT INTO scenes (id, character_id, content, direction, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO scenes (id, character_id, content, direction, background_image_path, created_at, selected_variant_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             params![
                 &new_scene_id,
                 &new_character_id,
                 &scene.content,
                 &scene.direction,
+                &scene.background_image_path,
                 scene_created_at,
                 new_selected_variant_id
             ],
@@ -3011,7 +3022,7 @@ fn read_imported_character(
     // Read scenes
     let mut scenes: Vec<JsonValue> = Vec::new();
     let mut scenes_stmt = conn
-        .prepare("SELECT id, content, direction, created_at, selected_variant_id FROM scenes WHERE character_id = ? ORDER BY created_at ASC")
+        .prepare("SELECT id, content, direction, background_image_path, created_at, selected_variant_id FROM scenes WHERE character_id = ? ORDER BY created_at ASC")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let scenes_rows = scenes_stmt
         .query_map(params![character_id], |r| {
@@ -3019,14 +3030,15 @@ fn read_imported_character(
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
                 r.get::<_, Option<String>>(2)?,
-                r.get::<_, i64>(3)?,
-                r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, Option<String>>(5)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     for row in scenes_rows {
-        let (scene_id, content, direction, _scene_created_at, selected_variant_id) =
+        let (scene_id, content, direction, background_image_path, _scene_created_at, selected_variant_id) =
             row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
         // Read scene variants
@@ -3061,6 +3073,9 @@ fn read_imported_character(
         scene_obj.insert("content".into(), JsonValue::String(content));
         if let Some(dir) = direction {
             scene_obj.insert("direction".into(), JsonValue::String(dir));
+        }
+        if let Some(path) = background_image_path {
+            scene_obj.insert("backgroundImagePath".into(), JsonValue::String(path));
         }
         scene_obj.insert("createdAt".into(), JsonValue::from(_scene_created_at));
         if !variants.is_empty() {

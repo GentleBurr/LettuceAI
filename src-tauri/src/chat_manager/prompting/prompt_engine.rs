@@ -3377,8 +3377,9 @@ mod tests {
         character2.scenes = vec![Scene {
             id: "scene1".into(),
             content: "Meeting {{char}} and {{persona}}".into(),
-            created_at: 0,
             direction: None,
+            background_image_path: None,
+            created_at: 0,
             variants: vec![SceneVariant {
                 id: "v1".into(),
                 content: "Var {{char}}".into(),

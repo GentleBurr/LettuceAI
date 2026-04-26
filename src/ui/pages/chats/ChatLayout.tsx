@@ -89,8 +89,14 @@ export function ChatLayout() {
     setLoadCount((c) => c + 1);
   }, []);
 
+  const effectiveSceneId =
+    chatController.session?.selectedSceneId ?? character?.defaultSceneId ?? null;
+  const effectiveSceneBackgroundImagePath =
+    character?.scenes.find((scene) => scene.id === effectiveSceneId)?.backgroundImagePath;
   const effectiveBackgroundImagePath =
-    chatController.session?.backgroundImagePath ?? character?.backgroundImagePath;
+    chatController.session?.backgroundImagePath ??
+    effectiveSceneBackgroundImagePath ??
+    character?.backgroundImagePath;
   const backgroundImageData = useImageData(effectiveBackgroundImagePath);
 
   useEffect(() => {

@@ -21,6 +21,7 @@ export interface SceneExport {
   id: string;
   content: string;
   direction?: string;
+  backgroundImagePath?: string;
   createdAt?: number;
   selectedVariantId?: string;
   variants: SceneVariantExport[];

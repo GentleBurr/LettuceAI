@@ -793,22 +793,33 @@ export function AvatarLibraryPickerPage() {
         typeof (location.state as { selectionKind?: unknown }).selectionKind === "string"
           ? (location.state as { selectionKind: string }).selectionKind
           : "avatar";
+      const selectionStorageKey =
+        typeof location.state === "object" &&
+        location.state &&
+        "selectionStorageKey" in location.state &&
+        typeof (location.state as { selectionStorageKey?: unknown }).selectionStorageKey ===
+          "string"
+          ? (location.state as { selectionStorageKey: string }).selectionStorageKey
+          : returnPath;
 
       if (selectionKind === "background") {
         const payload: BackgroundLibrarySelectionPayload = {
           filePath: item.filePath,
         };
         sessionStorage.setItem(
-          buildBackgroundLibrarySelectionKey(returnPath),
+          buildBackgroundLibrarySelectionKey(selectionStorageKey),
           JSON.stringify(payload),
         );
       } else {
         const payload: AvatarLibrarySelectionPayload = {
           filePath: item.filePath,
         };
-        sessionStorage.setItem(buildAvatarLibrarySelectionKey(returnPath), JSON.stringify(payload));
+        sessionStorage.setItem(
+          buildAvatarLibrarySelectionKey(selectionStorageKey),
+          JSON.stringify(payload),
+        );
       }
-      navigate(-1);
+      navigate(returnPath, { replace: true });
     },
     [location.state, navigate],
   );

@@ -64,6 +64,8 @@ import {
   APP_GROUP_CHAT_TEMPLATE_ID,
 } from "../../../core/prompts/constants";
 import { generateCompanionSoulDraft } from "../../../core/companion/soul";
+import { useImageData } from "../../hooks/useImageData";
+import { processBackgroundImage } from "../../../core/utils/image";
 
 const wordCount = (text: string) => {
   const trimmed = text.trim();
@@ -113,12 +115,16 @@ export function EditCharacterPage() {
   const [showVoiceMenu, setShowVoiceMenu] = React.useState(false);
   const [voiceSearchQuery, setVoiceSearchQuery] = React.useState("");
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false);
+  const [sceneBackgroundLibraryTarget, setSceneBackgroundLibraryTarget] = React.useState<
+    "new" | "edit" | null
+  >(null);
   const tabsId = React.useId();
   const tabPanelId = `${tabsId}-panel`;
   const characterTabId = `${tabsId}-tab-character`;
   const soulTabId = `${tabsId}-tab-soul`;
   const settingsTabId = `${tabsId}-tab-settings`;
   const returnPath = `${location.pathname}${location.search}`;
+  const sceneBackgroundLibraryReturnPath = `${returnPath}:scene-background`;
 
   const {
     loading,
@@ -144,6 +150,7 @@ export function EditCharacterPage() {
     defaultSceneId,
     newSceneContent,
     newSceneDirection,
+    newSceneBackgroundImagePath,
     selectedModelId,
     selectedFallbackModelId,
     groupChatPromptTemplateId,
@@ -171,6 +178,7 @@ export function EditCharacterPage() {
     editingSceneId,
     editingSceneContent,
     editingSceneDirection,
+    editingSceneBackgroundImagePath,
   } = state;
 
   const {
@@ -232,7 +240,11 @@ export function EditCharacterPage() {
     activeTab === "character" ? characterTabId : activeTab === "soul" ? soulTabId : settingsTabId;
 
   const closeNewSceneEditor = React.useCallback(() => {
-    setFields({ newSceneContent: "", newSceneDirection: "" });
+    setFields({
+      newSceneContent: "",
+      newSceneDirection: "",
+      newSceneBackgroundImagePath: "",
+    });
     setNewSceneEditorOpen(false);
   }, [setFields]);
 
@@ -241,6 +253,30 @@ export function EditCharacterPage() {
     addScene();
     setNewSceneEditorOpen(false);
   }, [addScene, newSceneContent]);
+
+  const sceneBackgroundInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleSceneBackgroundUpload = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      const input = event.target;
+      if (!file) return;
+
+      try {
+        const dataUrl = await processBackgroundImage(file);
+        setFields(
+          editingSceneId !== null
+            ? { editingSceneBackgroundImagePath: dataUrl }
+            : { newSceneBackgroundImagePath: dataUrl },
+        );
+      } catch (error) {
+        console.warn("EditCharacter: failed to process scene background image", error);
+      } finally {
+        input.value = "";
+      }
+    },
+    [editingSceneId, setFields],
+  );
 
   const handleExportFormat = React.useCallback(
     async (format: CharacterFileFormat) => {
@@ -376,6 +412,42 @@ export function EditCharacterPage() {
     };
   }, [loading, returnPath, setFields]);
 
+  React.useEffect(() => {
+    if (loading) return;
+
+    const storageKey = buildBackgroundLibrarySelectionKey(sceneBackgroundLibraryReturnPath);
+    const rawSelection = sessionStorage.getItem(storageKey);
+    if (!rawSelection) return;
+
+    sessionStorage.removeItem(storageKey);
+
+    let parsed: BackgroundLibrarySelectionPayload | null = null;
+    try {
+      parsed = JSON.parse(rawSelection) as BackgroundLibrarySelectionPayload;
+    } catch (error) {
+      console.error("Failed to parse scene background library selection:", error);
+      return;
+    }
+
+    if (!parsed?.filePath) return;
+
+    let cancelled = false;
+    void (async () => {
+      const dataUrl = await convertFilePathToDataUrl(parsed.filePath);
+      if (!dataUrl || cancelled) return;
+      setFields(
+        sceneBackgroundLibraryTarget === "edit"
+          ? { editingSceneBackgroundImagePath: dataUrl }
+          : { newSceneBackgroundImagePath: dataUrl },
+      );
+      setSceneBackgroundLibraryTarget(null);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, sceneBackgroundLibraryReturnPath, sceneBackgroundLibraryTarget, setFields]);
+
   const handleChooseBackgroundFromLibrary = React.useCallback(() => {
     navigate("/library/images/pick", {
       state: {
@@ -384,6 +456,20 @@ export function EditCharacterPage() {
       },
     });
   }, [navigate, returnPath]);
+
+  const handleChooseSceneBackgroundFromLibrary = React.useCallback(
+    (target: "new" | "edit") => {
+      setSceneBackgroundLibraryTarget(target);
+      navigate("/library/images/pick", {
+        state: {
+          returnPath,
+          selectionStorageKey: sceneBackgroundLibraryReturnPath,
+          selectionKind: "background",
+        },
+      });
+    },
+    [navigate, sceneBackgroundLibraryReturnPath],
+  );
 
   const loadVoices = React.useCallback(async () => {
     setLoadingVoices(true);
@@ -1336,6 +1422,14 @@ export function EditCharacterPage() {
                                         </div>
                                       )}
 
+                                      {scene.backgroundImagePath && (
+                                        <SceneBackgroundCard
+                                          path={scene.backgroundImagePath}
+                                          label="Scene background"
+                                          compact
+                                        />
+                                      )}
+
                                       {/* Actions when expanded */}
                                       <div className="flex items-center gap-2 pt-2 border-t border-fg/5">
                                         {!isDefault && (
@@ -1922,6 +2016,15 @@ export function EditCharacterPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
+              <input
+                ref={sceneBackgroundInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  void handleSceneBackgroundUpload(event);
+                }}
+              />
               <div className="space-y-6">
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-fg/80">Scene</div>
@@ -1971,6 +2074,70 @@ export function EditCharacterPage() {
                   <p className="text-[11px] text-fg/40">
                     Hidden guidance for the AI on how this scene should unfold.
                   </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-fg/80">
+                        <Image className="h-4 w-4 text-fg/50" />
+                        Scene Background
+                      </div>
+                      <p className="mt-1 text-[11px] text-fg/40">
+                        Becomes the active chat background for this scene unless the session overrides it.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleChooseSceneBackgroundFromLibrary(
+                            editingSceneId !== null ? "edit" : "new",
+                          )
+                        }
+                        className="flex items-center gap-2 rounded-full border border-fg/10 px-3 py-1.5 text-xs font-medium text-fg/60 transition hover:bg-fg/10 hover:text-fg"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Library
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          (editingSceneId !== null
+                            ? editingSceneBackgroundImagePath
+                            : newSceneBackgroundImagePath)
+                            ? setFields(
+                                editingSceneId !== null
+                                  ? { editingSceneBackgroundImagePath: "" }
+                                  : { newSceneBackgroundImagePath: "" },
+                              )
+                            : sceneBackgroundInputRef.current?.click()
+                        }
+                        className="rounded-full border border-fg/10 px-3 py-1.5 text-xs font-medium text-fg/70 transition hover:bg-fg/10 hover:text-fg"
+                      >
+                        {(editingSceneId !== null
+                          ? editingSceneBackgroundImagePath
+                          : newSceneBackgroundImagePath)
+                          ? "Remove"
+                          : "Upload"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {(editingSceneId !== null
+                    ? editingSceneBackgroundImagePath
+                    : newSceneBackgroundImagePath) ? (
+                    <div>
+                      <SceneBackgroundCard
+                        path={
+                          editingSceneId !== null
+                            ? editingSceneBackgroundImagePath
+                            : newSceneBackgroundImagePath
+                        }
+                        label="Scene background preview"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -2232,6 +2399,29 @@ export function EditCharacterPage() {
           </div>
         </div>
       </BottomMenu>
+    </div>
+  );
+}
+
+function SceneBackgroundCard({
+  path,
+  label,
+  compact = false,
+}: {
+  path: string;
+  label: string;
+  compact?: boolean;
+}) {
+  const imageData = useImageData(path) ?? path;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-fg/10 bg-fg/[0.04]">
+      <img
+        src={imageData}
+        alt={label}
+        className={cn("w-full object-cover", compact ? "h-24" : "h-32")}
+      />
+      <div className="border-t border-fg/10 px-4 py-3 text-sm text-fg/60">{label}</div>
     </div>
   );
 }

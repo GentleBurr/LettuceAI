@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { storageBridge } from "./files";
 import { getDefaultCharacterRules } from "./defaults";
+import { convertToImageRef } from "./images";
 import {
   CharacterSchema,
   CompanionTurnEffectSchema,
@@ -873,6 +874,7 @@ export async function listReferencedBackgroundImagePaths(): Promise<string[]> {
 
   return [
     ...characters.map((item) => item.backgroundImagePath),
+    ...characters.flatMap((item) => item.scenes.map((scene) => scene.backgroundImagePath)),
     ...z
       .array(BackgroundImageRefSchema)
       .parse(groups)
@@ -892,7 +894,19 @@ export async function saveCharacter(c: Partial<Character>): Promise<Character> {
     c.rules && c.rules.length > 0 ? c.rules : await getDefaultCharacterRules(pureModeLevel);
   const timestamp = now();
 
-  const scenes = c.scenes ?? [];
+  const scenes = (
+    await Promise.all(
+      (c.scenes ?? []).map(async (scene) => ({
+        ...scene,
+        backgroundImagePath: scene.backgroundImagePath?.startsWith("data:")
+          ? ((await convertToImageRef(scene.backgroundImagePath)) ?? scene.backgroundImagePath)
+          : scene.backgroundImagePath,
+      })),
+    )
+  ).map((scene) => ({
+    ...scene,
+    backgroundImagePath: scene.backgroundImagePath || undefined,
+  }));
   const defaultSceneId = c.defaultSceneId ?? null;
   const derivedScenario =
     scenes.find((scene) => scene.id === defaultSceneId)?.direction?.trim() || undefined;

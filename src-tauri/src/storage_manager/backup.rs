@@ -485,7 +485,7 @@ fn export_characters(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
 
         // Get scenes with variants
         let mut scenes_stmt = conn
-            .prepare("SELECT id, content, direction, created_at, selected_variant_id FROM scenes WHERE character_id = ?")
+            .prepare("SELECT id, content, direction, background_image_path, created_at, selected_variant_id FROM scenes WHERE character_id = ?")
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let scenes: Vec<JsonValue> = scenes_stmt
             .query_map([&char_id], |r| {
@@ -493,8 +493,9 @@ fn export_characters(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
                     "id": r.get::<_, String>(0)?,
                     "content": r.get::<_, String>(1)?,
                     "direction": r.get::<_, Option<String>>(2)?,
-                    "created_at": r.get::<_, i64>(3)?,
-                    "selected_variant_id": r.get::<_, Option<String>>(4)?,
+                    "background_image_path": r.get::<_, Option<String>>(3)?,
+                    "created_at": r.get::<_, i64>(4)?,
+                    "selected_variant_id": r.get::<_, Option<String>>(5)?,
                 }))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
@@ -1881,13 +1882,14 @@ fn import_characters(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), Str
                     let scene_id = scene.get("id").and_then(|v| v.as_str()).unwrap_or("");
 
                     conn.execute(
-                        "INSERT INTO scenes (id, character_id, content, direction, created_at, selected_variant_id)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        "INSERT INTO scenes (id, character_id, content, direction, background_image_path, created_at, selected_variant_id)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                         params![
                             scene_id,
                             char_id,
                             scene.get("content").and_then(|v| v.as_str()),
                             scene.get("direction").and_then(|v| v.as_str()),
+                            scene.get("background_image_path").and_then(|v| v.as_str()),
                             scene.get("created_at").and_then(|v| v.as_i64()),
                             scene.get("selected_variant_id").and_then(|v| v.as_str()),
                         ],

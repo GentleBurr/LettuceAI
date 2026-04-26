@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 59;
+pub const CURRENT_MIGRATION_VERSION: u32 = 60;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -627,6 +627,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v58_to_v59(app)?;
         version = 59;
+    }
+
+    if version < 60 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v59 -> v60: Add background_image_path to scenes",
+        );
+        migrate_v59_to_v60(app)?;
+        version = 60;
     }
 
     // Update the stored version
@@ -3358,6 +3368,32 @@ fn migrate_v55_to_v56(app: &AppHandle) -> Result<(), String> {
 
     if !has_author_note {
         conn.execute("ALTER TABLE sessions ADD COLUMN author_note TEXT", [])
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    Ok(())
+}
+
+fn migrate_v59_to_v60(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+
+    let mut has_background_image_path = false;
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(scenes)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    for column in rows {
+        let column = column.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if column == "background_image_path" {
+            has_background_image_path = true;
+            break;
+        }
+    }
+
+    if !has_background_image_path {
+        conn.execute("ALTER TABLE scenes ADD COLUMN background_image_path TEXT", [])
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     }
 

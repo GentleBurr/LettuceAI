@@ -56,6 +56,7 @@ type EditCharacterState = {
   defaultChatTemplateId: string | null;
   newSceneContent: string;
   newSceneDirection: string;
+  newSceneBackgroundImagePath: string;
   selectedModelId: string | null;
   selectedFallbackModelId: string | null;
   systemPromptTemplateId: string | null;
@@ -82,6 +83,7 @@ type EditCharacterState = {
   editingSceneId: string | null;
   editingSceneContent: string;
   editingSceneDirection: string;
+  editingSceneBackgroundImagePath: string;
 };
 
 type EditCharacterAction =
@@ -118,6 +120,7 @@ const initialState: EditCharacterState = {
   defaultChatTemplateId: null,
   newSceneContent: "",
   newSceneDirection: "",
+  newSceneBackgroundImagePath: "",
   selectedModelId: null,
   selectedFallbackModelId: null,
   systemPromptTemplateId: null,
@@ -144,6 +147,7 @@ const initialState: EditCharacterState = {
   editingSceneId: null,
   editingSceneContent: "",
   editingSceneDirection: "",
+  editingSceneBackgroundImagePath: "",
 };
 
 function reducer(state: EditCharacterState, action: EditCharacterAction): EditCharacterState {
@@ -674,6 +678,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         id: sceneId,
         content: state.newSceneContent.trim(),
         direction: state.newSceneDirection.trim() || undefined,
+        backgroundImagePath: state.newSceneBackgroundImagePath || undefined,
         createdAt: timestamp,
       },
     ];
@@ -683,10 +688,12 @@ export function useEditCharacterForm(characterId: string | undefined) {
       defaultSceneId: newScenes.length === 1 ? sceneId : state.defaultSceneId,
       newSceneContent: "",
       newSceneDirection: "",
+      newSceneBackgroundImagePath: "",
     });
   }, [
     setFields,
     state.defaultSceneId,
+    state.newSceneBackgroundImagePath,
     state.newSceneContent,
     state.newSceneDirection,
     state.scenes,
@@ -713,6 +720,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         editingSceneId: scene.id,
         editingSceneContent: scene.content,
         editingSceneDirection: scene.direction || "",
+        editingSceneBackgroundImagePath: scene.backgroundImagePath || "",
       });
     },
     [setFields],
@@ -727,6 +735,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
             ...scene,
             content: state.editingSceneContent.trim(),
             direction: state.editingSceneDirection.trim() || undefined,
+            backgroundImagePath: state.editingSceneBackgroundImagePath || undefined,
           }
         : scene,
     );
@@ -736,10 +745,12 @@ export function useEditCharacterForm(characterId: string | undefined) {
       editingSceneId: null,
       editingSceneContent: "",
       editingSceneDirection: "",
+      editingSceneBackgroundImagePath: "",
     });
   }, [
     setFields,
     state.editingSceneContent,
+    state.editingSceneBackgroundImagePath,
     state.editingSceneDirection,
     state.editingSceneId,
     state.scenes,
@@ -750,6 +761,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
       editingSceneId: null,
       editingSceneContent: "",
       editingSceneDirection: "",
+      editingSceneBackgroundImagePath: "",
     });
   }, [setFields]);
 
@@ -832,9 +844,11 @@ export function useEditCharacterForm(characterId: string | undefined) {
       companion: JSON.parse(initial.companion) as CompanionConfig | null,
       newSceneContent: "",
       newSceneDirection: "",
+      newSceneBackgroundImagePath: "",
       editingSceneId: null,
       editingSceneContent: "",
       editingSceneDirection: "",
+      editingSceneBackgroundImagePath: "",
     });
     setError(null);
   }, [setError, setFields]);

@@ -1,10 +1,60 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X, BookOpen, Edit2, ChevronDown, EyeOff } from "lucide-react";
+import { Plus, X, BookOpen, Edit2, ChevronDown, EyeOff, Image as ImageIcon, Upload, FolderOpen, Trash2 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { CharacterMode, Scene } from "../../../../core/storage/schemas";
 import { typography, radius, spacing, interactive, shadows, cn } from "../../../design-tokens";
 import { BottomMenu } from "../../../components/BottomMenu";
 import { useI18n } from "../../../../core/i18n/context";
+import { processBackgroundImage } from "../../../../core/utils/image";
+import { useImageData } from "../../../hooks/useImageData";
+import { convertFilePathToDataUrl } from "../../../../core/storage/images";
+import {
+  buildBackgroundLibrarySelectionKey,
+  buildCharacterCreateLibraryReturnKey,
+  type BackgroundLibrarySelectionPayload,
+} from "../../../components/AvatarPicker/librarySelection";
+
+interface SceneEditorDraft {
+  target: "new" | "edit";
+  editingSceneId: string | null;
+  newSceneContent: string;
+  newSceneDirection: string;
+  newSceneBackgroundImagePath: string;
+  editingSceneContent: string;
+  editingSceneDirection: string;
+  editingSceneBackgroundImagePath: string;
+  showNewDirectionInput: boolean;
+  editDirectionExpanded: boolean;
+}
+
+const CREATE_SCENE_BACKGROUND_SELECTION_KEY = "create-character-scene-background";
+const CREATE_SCENE_EDITOR_DRAFT_KEY = "create-character-scene-editor-draft";
+const CREATE_SCENE_EDITOR_RETURN_KEY = "create-character-scene-editor-return";
+
+function loadStartingSceneEditorDraft(): SceneEditorDraft | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (sessionStorage.getItem(CREATE_SCENE_EDITOR_RETURN_KEY) !== "true") {
+    return null;
+  }
+
+  const rawDraft = sessionStorage.getItem(CREATE_SCENE_EDITOR_DRAFT_KEY);
+  if (!rawDraft) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawDraft) as SceneEditorDraft;
+  } catch (error) {
+    console.error("Failed to parse starting scene editor draft:", error);
+    sessionStorage.removeItem(CREATE_SCENE_EDITOR_DRAFT_KEY);
+    sessionStorage.removeItem(CREATE_SCENE_EDITOR_RETURN_KEY);
+    return null;
+  }
+}
 
 interface StartingSceneStepProps {
   scenes: Scene[];
@@ -26,15 +76,83 @@ export function StartingSceneStep({
   mode = "roleplay",
 }: StartingSceneStepProps) {
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isCompanion = mode === "companion";
-  const [newSceneContent, setNewSceneContent] = React.useState("");
-  const [newSceneDirection, setNewSceneDirection] = React.useState("");
-  const [showNewDirectionInput, setShowNewDirectionInput] = React.useState(false);
-  const [editingSceneId, setEditingSceneId] = React.useState<string | null>(null);
-  const [editingSceneContent, setEditingSceneContent] = React.useState("");
-  const [editingSceneDirection, setEditingSceneDirection] = React.useState("");
-  const [editDirectionExpanded, setEditDirectionExpanded] = React.useState(false);
+  const returnPath = `${location.pathname}${location.search}`;
+  const initialSceneEditorDraft = React.useMemo(() => loadStartingSceneEditorDraft(), []);
+  const restoredSceneBackgroundTarget = initialSceneEditorDraft?.target ?? null;
+  const [newSceneContent, setNewSceneContent] = React.useState(
+    () => initialSceneEditorDraft?.newSceneContent ?? "",
+  );
+  const [newSceneDirection, setNewSceneDirection] = React.useState(
+    () => initialSceneEditorDraft?.newSceneDirection ?? "",
+  );
+  const [showNewDirectionInput, setShowNewDirectionInput] = React.useState(
+    () => initialSceneEditorDraft?.showNewDirectionInput ?? false,
+  );
+  const [editingSceneId, setEditingSceneId] = React.useState<string | null>(
+    () => initialSceneEditorDraft?.editingSceneId ?? null,
+  );
+  const [editingSceneContent, setEditingSceneContent] = React.useState(
+    () => initialSceneEditorDraft?.editingSceneContent ?? "",
+  );
+  const [editingSceneDirection, setEditingSceneDirection] = React.useState(
+    () => initialSceneEditorDraft?.editingSceneDirection ?? "",
+  );
+  const [newSceneBackgroundImagePath, setNewSceneBackgroundImagePath] = React.useState(
+    () => initialSceneEditorDraft?.newSceneBackgroundImagePath ?? "",
+  );
+  const [editingSceneBackgroundImagePath, setEditingSceneBackgroundImagePath] = React.useState(
+    () => initialSceneEditorDraft?.editingSceneBackgroundImagePath ?? "",
+  );
+  const [editDirectionExpanded, setEditDirectionExpanded] = React.useState(
+    () => initialSceneEditorDraft?.editDirectionExpanded ?? false,
+  );
   const [expandedSceneId, setExpandedSceneId] = React.useState<string | null>(null);
+  const newSceneBackgroundInputRef = React.useRef<HTMLInputElement | null>(null);
+  const editSceneBackgroundInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    const rawSelection = sessionStorage.getItem(
+      buildBackgroundLibrarySelectionKey(CREATE_SCENE_BACKGROUND_SELECTION_KEY),
+    );
+
+    let cancelled = false;
+    const clearResumeStateTimeout = window.setTimeout(() => {
+      sessionStorage.removeItem(CREATE_SCENE_EDITOR_DRAFT_KEY);
+      sessionStorage.removeItem(CREATE_SCENE_EDITOR_RETURN_KEY);
+      sessionStorage.removeItem(
+        buildBackgroundLibrarySelectionKey(CREATE_SCENE_BACKGROUND_SELECTION_KEY),
+      );
+    }, 0);
+
+    if (rawSelection) {
+      let parsed: BackgroundLibrarySelectionPayload | null = null;
+      try {
+        parsed = JSON.parse(rawSelection) as BackgroundLibrarySelectionPayload;
+      } catch (error) {
+        console.error("Failed to parse starting scene background library selection:", error);
+      }
+
+      if (parsed?.filePath) {
+        void (async () => {
+          const dataUrl = await convertFilePathToDataUrl(parsed.filePath);
+          if (!dataUrl || cancelled) return;
+          if (restoredSceneBackgroundTarget === "edit") {
+            setEditingSceneBackgroundImagePath(dataUrl);
+          } else {
+            setNewSceneBackgroundImagePath(dataUrl);
+          }
+        })();
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(clearResumeStateTimeout);
+    };
+  }, [restoredSceneBackgroundTarget]);
 
   const addScene = () => {
     if (!newSceneContent.trim()) return;
@@ -46,6 +164,7 @@ export function StartingSceneStep({
       id: sceneId,
       content: newSceneContent.trim(),
       direction: newSceneDirection.trim() || undefined,
+      backgroundImagePath: newSceneBackgroundImagePath || undefined,
       createdAt: timestamp,
     };
 
@@ -58,6 +177,7 @@ export function StartingSceneStep({
 
     setNewSceneContent("");
     setNewSceneDirection("");
+    setNewSceneBackgroundImagePath("");
     setShowNewDirectionInput(false);
   };
 
@@ -76,6 +196,7 @@ export function StartingSceneStep({
     setEditingSceneId(scene.id);
     setEditingSceneContent(scene.content);
     setEditingSceneDirection(scene.direction || "");
+    setEditingSceneBackgroundImagePath(scene.backgroundImagePath || "");
     setEditDirectionExpanded(Boolean(scene.direction));
   };
 
@@ -88,6 +209,7 @@ export function StartingSceneStep({
             ...scene,
             content: editingSceneContent.trim(),
             direction: editingSceneDirection.trim() || undefined,
+            backgroundImagePath: editingSceneBackgroundImagePath || undefined,
           }
         : scene,
     );
@@ -96,6 +218,7 @@ export function StartingSceneStep({
     setEditingSceneId(null);
     setEditingSceneContent("");
     setEditingSceneDirection("");
+    setEditingSceneBackgroundImagePath("");
     setEditDirectionExpanded(false);
   };
 
@@ -103,8 +226,74 @@ export function StartingSceneStep({
     setEditingSceneId(null);
     setEditingSceneContent("");
     setEditingSceneDirection("");
+    setEditingSceneBackgroundImagePath("");
     setEditDirectionExpanded(false);
   };
+
+  const handleSceneBackgroundUpload = React.useCallback(
+    async (
+      event: React.ChangeEvent<HTMLInputElement>,
+      mode: "new" | "edit",
+    ) => {
+      const file = event.target.files?.[0];
+      const input = event.target;
+      if (!file) return;
+
+      try {
+        const dataUrl = await processBackgroundImage(file);
+        if (mode === "new") {
+          setNewSceneBackgroundImagePath(dataUrl);
+        } else {
+          setEditingSceneBackgroundImagePath(dataUrl);
+        }
+      } catch (error) {
+        console.warn("StartingSceneStep: failed to process scene background", error);
+      } finally {
+        input.value = "";
+      }
+    },
+    [],
+  );
+
+  const handleChooseSceneBackgroundFromLibrary = React.useCallback(
+    (target: "new" | "edit") => {
+      const draft: SceneEditorDraft = {
+        target,
+        editingSceneId,
+        newSceneContent,
+        newSceneDirection,
+        newSceneBackgroundImagePath,
+        editingSceneContent,
+        editingSceneDirection,
+        editingSceneBackgroundImagePath,
+        showNewDirectionInput,
+        editDirectionExpanded,
+      };
+      sessionStorage.setItem(CREATE_SCENE_EDITOR_DRAFT_KEY, JSON.stringify(draft));
+      sessionStorage.setItem(CREATE_SCENE_EDITOR_RETURN_KEY, "true");
+      sessionStorage.setItem(buildCharacterCreateLibraryReturnKey(returnPath), "true");
+      navigate("/library/images/pick", {
+        state: {
+          returnPath,
+          selectionStorageKey: CREATE_SCENE_BACKGROUND_SELECTION_KEY,
+          selectionKind: "background",
+        },
+      });
+    },
+    [
+      editDirectionExpanded,
+      editingSceneBackgroundImagePath,
+      editingSceneContent,
+      editingSceneDirection,
+      editingSceneId,
+      navigate,
+      newSceneBackgroundImagePath,
+      newSceneContent,
+      newSceneDirection,
+      returnPath,
+      showNewDirectionInput,
+    ],
+  );
 
   return (
     <div className={cn(spacing.section, "flex flex-col flex-1 min-h-0")}>
@@ -237,6 +426,14 @@ export function StartingSceneStep({
                             </div>
                           )}
 
+                          {scene.backgroundImagePath && (
+                            <SceneBackgroundPreview
+                              path={scene.backgroundImagePath}
+                              label="Scene background"
+                              compact
+                            />
+                          )}
+
                           {/* Actions when expanded */}
                           <div className="flex items-center gap-2 pt-2 border-t border-fg/5">
                             {!isDefault && (
@@ -326,6 +523,38 @@ export function StartingSceneStep({
             <code className="text-accent/80">{"{{persona}}"}</code>) for the persona.
           </div>
 
+          <input
+            ref={newSceneBackgroundInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              void handleSceneBackgroundUpload(event, "new");
+            }}
+          />
+
+          <div className="mt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <ImageIcon className="h-3.5 w-3.5 text-fg/50" />
+              <span className="text-xs font-medium text-fg/70">Scene Background</span>
+              <span className="text-[10px] text-fg/35">Optional</span>
+            </div>
+            {newSceneBackgroundImagePath ? (
+              <SceneBackgroundDropzone
+                path={newSceneBackgroundImagePath}
+                onLibrary={() => handleChooseSceneBackgroundFromLibrary("new")}
+                onUpload={() => newSceneBackgroundInputRef.current?.click()}
+                onRemove={() => setNewSceneBackgroundImagePath("")}
+              />
+            ) : (
+              <SceneBackgroundEmptyZone
+                onLibrary={() => handleChooseSceneBackgroundFromLibrary("new")}
+                onUpload={() => newSceneBackgroundInputRef.current?.click()}
+                hint="Overrides the character background for chats using this scene."
+              />
+            )}
+          </div>
+
           {/* Scene Direction Input - CSS grid for smooth height */}
           <div
             className={cn(
@@ -410,6 +639,16 @@ export function StartingSceneStep({
       {/* Edit Scene Bottom Menu */}
       <BottomMenu isOpen={editingSceneId !== null} onClose={cancelEditingScene} title="Edit Scene">
         <div className="space-y-4">
+          <input
+            ref={editSceneBackgroundInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              void handleSceneBackgroundUpload(event, "edit");
+            }}
+          />
+
           {/* Scene Content */}
           <div>
             <textarea
@@ -469,6 +708,28 @@ export function StartingSceneStep({
             )}
           </div>
 
+          <div className="border-t border-fg/10 pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <ImageIcon className="h-3.5 w-3.5 text-fg/50" />
+              <span className="text-xs font-medium text-fg/70">Scene Background</span>
+              <span className="text-[10px] text-fg/35">Optional</span>
+            </div>
+            {editingSceneBackgroundImagePath ? (
+              <SceneBackgroundDropzone
+                path={editingSceneBackgroundImagePath}
+                onLibrary={() => handleChooseSceneBackgroundFromLibrary("edit")}
+                onUpload={() => editSceneBackgroundInputRef.current?.click()}
+                onRemove={() => setEditingSceneBackgroundImagePath("")}
+              />
+            ) : (
+              <SceneBackgroundEmptyZone
+                onLibrary={() => handleChooseSceneBackgroundFromLibrary("edit")}
+                onUpload={() => editSceneBackgroundInputRef.current?.click()}
+                hint="Used as the chat background for this scene unless the session overrides it."
+              />
+            )}
+          </div>
+
           <div className="flex gap-3">
             <button
               onClick={cancelEditingScene}
@@ -508,3 +769,117 @@ const wordCount = (text: string) => {
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).length;
 };
+
+function SceneBackgroundPreview({
+  path,
+  label,
+  compact = false,
+}: {
+  path: string;
+  label: string;
+  compact?: boolean;
+}) {
+  const imageData = useImageData(path) ?? path;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-fg/10 bg-fg/[0.04]">
+      <img
+        src={imageData}
+        alt={label}
+        className={cn("w-full object-cover", compact ? "h-24" : "h-28")}
+      />
+      <div className="flex items-center gap-2 border-t border-fg/10 px-3 py-2 text-[11px] text-fg/55">
+        <Upload className="h-3 w-3" />
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function SceneBackgroundEmptyZone({
+  onLibrary,
+  onUpload,
+  hint,
+}: {
+  onLibrary: () => void;
+  onUpload: () => void;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-fg/15 bg-fg/[0.02] p-4">
+      <div className="flex flex-col items-center text-center">
+        <div className="rounded-xl border border-fg/10 bg-fg/5 p-2.5 mb-2">
+          <ImageIcon className="h-5 w-5 text-fg/40" />
+        </div>
+        <p className="text-xs text-fg/50 mb-3 max-w-xs">{hint}</p>
+        <div className="flex items-center gap-2 w-full max-w-xs">
+          <button
+            type="button"
+            onClick={onLibrary}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-xs font-medium text-fg/70 transition active:scale-95 active:bg-fg/10"
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            Library
+          </button>
+          <button
+            type="button"
+            onClick={onUpload}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-medium text-accent/90 transition active:scale-95 active:bg-accent/20"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SceneBackgroundDropzone({
+  path,
+  onLibrary,
+  onUpload,
+  onRemove,
+}: {
+  path: string;
+  onLibrary: () => void;
+  onUpload: () => void;
+  onRemove: () => void;
+}) {
+  const imageData = useImageData(path) ?? path;
+
+  return (
+    <div className="group relative overflow-hidden rounded-xl border border-fg/15 bg-fg/[0.04]">
+      <img src={imageData} alt="Scene background" className="w-full h-40 object-cover" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+      <div className="absolute top-2 right-2">
+        <button
+          type="button"
+          onClick={onRemove}
+          className="flex items-center justify-center rounded-lg border border-white/20 bg-black/50 backdrop-blur-sm p-1.5 text-white/90 transition active:scale-95 hover:bg-black/70"
+          title="Remove background"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 p-2.5 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onLibrary}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-black/50 backdrop-blur-sm px-3 py-1.5 text-[11px] font-medium text-white/90 transition active:scale-95 hover:bg-black/70"
+        >
+          <FolderOpen className="h-3 w-3" />
+          Library
+        </button>
+        <button
+          type="button"
+          onClick={onUpload}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-black/50 backdrop-blur-sm px-3 py-1.5 text-[11px] font-medium text-white/90 transition active:scale-95 hover:bg-black/70"
+        >
+          <Upload className="h-3 w-3" />
+          Upload
+        </button>
+      </div>
+    </div>
+  );
+}

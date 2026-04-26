@@ -394,6 +394,7 @@ export function useCharacterForm(draftCharacter?: any) {
             const mappedScenes = draftCharacter.scenes.map((s: any) => ({
               id: s.id || crypto.randomUUID(),
               content: s.content || "",
+              backgroundImagePath: s.backgroundImagePath || undefined,
               createdAt: Date.now(),
               direction: s.direction || null,
               variants: [],
@@ -663,6 +664,7 @@ export function useCharacterForm(draftCharacter?: any) {
         return {
           id: newSceneId,
           content: scene.content,
+          backgroundImagePath: scene.backgroundImagePath || undefined,
           createdAt: Date.now(),
           selectedVariantId: newSelectedVariantId,
           variants: newVariants,

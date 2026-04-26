@@ -202,9 +202,17 @@ export function ChatConversationPage() {
   const sessionBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const backgroundLibraryScrollRef = useRef<HTMLDivElement | null>(null);
 
+  const selectedScene =
+    chatController.character?.scenes.find(
+      (scene) =>
+        scene.id ===
+        (chatController.session?.selectedSceneId ?? chatController.character?.defaultSceneId),
+    ) ?? null;
   const sessionBackgroundPreview = useImageData(chatController.session?.backgroundImagePath);
+  const sceneBackgroundPreview = useImageData(selectedScene?.backgroundImagePath);
   const characterBackgroundPreview = useImageData(chatController.character?.backgroundImagePath);
   const hasSessionBackgroundOverride = !!chatController.session?.backgroundImagePath;
+  const hasSceneBackgroundDefault = !!selectedScene?.backgroundImagePath;
   const hasCharacterBackgroundDefault = !!chatController.character?.backgroundImagePath;
 
   const handleImageClick = useCallback((src: string, alt: string) => {
@@ -494,7 +502,11 @@ export function ChatConversationPage() {
         ownerCharacterId: character.id,
         personaId: sourceSession.personaDisabled ? null : (sourceSession.personaId ?? null),
         startingScene,
-        backgroundImagePath: character.backgroundImagePath ?? null,
+        backgroundImagePath:
+          sourceSession.backgroundImagePath ??
+          ownerScene?.backgroundImagePath ??
+          character.backgroundImagePath ??
+          null,
       });
 
       setShowGroupCharacterSelector(false);
@@ -2103,9 +2115,11 @@ export function ChatConversationPage() {
           <MenuButton
             icon={Image}
             title="Chat Background"
-            description={
+              description={
               hasSessionBackgroundOverride
                 ? "Session override active"
+                : hasSceneBackgroundDefault
+                  ? "Using scene background"
                 : hasCharacterBackgroundDefault
                   ? "Using character default background"
                   : "No background selected"
@@ -2181,7 +2195,10 @@ export function ChatConversationPage() {
             }}
           />
 
-          {(backgroundImageData || characterBackgroundPreview || sessionBackgroundPreview) && (
+          {(backgroundImageData ||
+            sceneBackgroundPreview ||
+            characterBackgroundPreview ||
+            sessionBackgroundPreview) && (
             <div className="space-y-3">
               {backgroundImageData && (
                 <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/[0.04]">
@@ -2193,14 +2210,32 @@ export function ChatConversationPage() {
                   <div className="border-t border-fg/10 px-4 py-3 text-sm text-fg/70">
                     {hasSessionBackgroundOverride
                       ? "Current session background"
-                      : "Current character default background"}
+                      : hasSceneBackgroundDefault
+                        ? "Current scene background"
+                        : "Current character default background"}
                   </div>
                 </div>
               )}
 
               {hasSessionBackgroundOverride &&
+                sceneBackgroundPreview &&
+                sceneBackgroundPreview !== sessionBackgroundPreview && (
+                  <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/[0.04]">
+                    <img
+                      src={sceneBackgroundPreview}
+                      alt="Scene background"
+                      className="h-24 w-full object-cover"
+                    />
+                    <div className="border-t border-fg/10 px-4 py-3 text-sm text-fg/55">
+                      Scene background
+                    </div>
+                  </div>
+                )}
+
+              {hasSessionBackgroundOverride &&
                 characterBackgroundPreview &&
-                characterBackgroundPreview !== sessionBackgroundPreview && (
+                characterBackgroundPreview !== sessionBackgroundPreview &&
+                characterBackgroundPreview !== sceneBackgroundPreview && (
                   <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/[0.04]">
                     <img
                       src={characterBackgroundPreview}
@@ -2230,13 +2265,23 @@ export function ChatConversationPage() {
               loading={savingSessionBackground}
               onClick={() => setShowBackgroundLibraryMenu(true)}
             />
-            {(hasSessionBackgroundOverride || hasCharacterBackgroundDefault) && (
+            {(hasSessionBackgroundOverride ||
+              hasSceneBackgroundDefault ||
+              hasCharacterBackgroundDefault) && (
               <MenuButton
                 icon={X}
-                title={hasCharacterBackgroundDefault ? "Use Character Default" : "Remove Background"}
+                title={
+                  hasSceneBackgroundDefault
+                    ? "Use Scene Default"
+                    : hasCharacterBackgroundDefault
+                      ? "Use Character Default"
+                      : "Remove Background"
+                }
                 description={
-                  hasCharacterBackgroundDefault
-                    ? "Clear the session override and return to the character background"
+                  hasSceneBackgroundDefault
+                    ? "Clear the session override and return to the current scene background"
+                    : hasCharacterBackgroundDefault
+                      ? "Clear the session override and return to the character background"
                     : "Remove the session background override"
                 }
                 loading={savingSessionBackground}

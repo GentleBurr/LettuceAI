@@ -221,13 +221,29 @@ fn resolve_chat_background_image(
 
 fn build_scene_reference_images(
     app: &AppHandle,
+    session: &Session,
     character: &Character,
     persona: Option<&Persona>,
 ) -> SceneReferenceImages {
     let character_design_images =
         resolve_design_reference_images(app, &character.design_reference_image_ids);
-    let chat_background_images =
-        resolve_chat_background_image(app, character.background_image_path.as_deref());
+    let selected_scene_background = session
+        .selected_scene_id
+        .as_ref()
+        .or(character.default_scene_id.as_ref())
+        .and_then(|scene_id| {
+            character
+                .scenes
+                .iter()
+                .find(|scene| &scene.id == scene_id)
+                .and_then(|scene| scene.background_image_path.as_deref())
+        });
+    let effective_background_path = session
+        .background_image_path
+        .as_deref()
+        .or(selected_scene_background)
+        .or(character.background_image_path.as_deref());
+    let chat_background_images = resolve_chat_background_image(app, effective_background_path);
     let (character_images, character_reference_count, character_reference_source) =
         if !character_design_images.is_empty() {
             let count = character_design_images.len();
@@ -1481,7 +1497,7 @@ pub async fn chat_generate_scene_image(
             .and_then(|persona_id| personas.iter().find(|value| value.id == persona_id))
     };
 
-    let reference_images = build_scene_reference_images(&app, character, persona);
+    let reference_images = build_scene_reference_images(&app, &session, character, persona);
     let request = build_scene_generation_request(
         &scene_prompt,
         model,
@@ -1591,7 +1607,7 @@ pub async fn chat_generate_scene_prompt(
     let api_key = require_api_key(&app, credential, "scene_prompt")?;
 
     let recent_messages_text = build_scene_prompt_context_messages(&session, &message_id)?;
-    let reference_images = build_scene_reference_images(&app, &character, persona);
+    let reference_images = build_scene_reference_images(&app, &session, &character, persona);
     let prompt_entries = render_scene_generation_prompt_entries(
         &app,
         settings,
@@ -1905,4 +1921,3 @@ pub async fn chat_generate_design_reference_description(
 
     Ok(cleaned)
 }
-
