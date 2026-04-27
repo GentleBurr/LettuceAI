@@ -107,11 +107,9 @@ fn export_android_bridge_class() {
                 );
                 "com.lettuceai.app".to_string()
             });
-            format!(
-                "{}/{}",
-                identifier.replace('.', "/"),
-                BRIDGE_CLASS_NAME
-            )
+            // Dotted form — used with ClassLoader.loadClass() at runtime, since
+            // env.find_class() can't see app classes from a Tauri jni_handle context.
+            format!("{}.{}", identifier, BRIDGE_CLASS_NAME)
         });
     println!("cargo:rustc-env=KOKORO_ANDROID_BRIDGE_CLASS={value}");
 }

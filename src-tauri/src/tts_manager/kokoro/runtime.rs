@@ -99,7 +99,7 @@ mod android {
     use std::path::PathBuf;
     use std::sync::mpsc;
 
-    use jni::objects::{JString, JValue};
+    use jni::objects::{JClass, JString, JValue};
     use tauri::{AppHandle, Manager};
 
     use super::{EspeakConfig, KokoroError};
@@ -117,9 +117,26 @@ mod android {
             .with_webview(move |webview| {
                 webview.jni_handle().exec(move |env, activity, _webview| {
                     let result = (|| -> Result<String, jni::errors::Error> {
-                        let class = env.find_class(env!("KOKORO_ANDROID_BRIDGE_CLASS"))?;
+                        let class_loader = env
+                            .call_method(
+                                activity,
+                                "getClassLoader",
+                                "()Ljava/lang/ClassLoader;",
+                                &[],
+                            )?
+                            .l()?;
+                        let class_name = env.new_string(env!("KOKORO_ANDROID_BRIDGE_CLASS"))?;
+                        let class_obj = env
+                            .call_method(
+                                &class_loader,
+                                "loadClass",
+                                "(Ljava/lang/String;)Ljava/lang/Class;",
+                                &[JValue::Object(&class_name)],
+                            )?
+                            .l()?;
+                        let class: JClass = class_obj.into();
                         let value = env.call_static_method(
-                            class,
+                            &class,
                             "resolve",
                             "(Landroid/content/Context;)Ljava/lang/String;",
                             &[JValue::Object(activity)],
