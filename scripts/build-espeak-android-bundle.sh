@@ -76,21 +76,27 @@ if [[ ! -d "${ANDROID_PROJECT_DIR}" ]]; then
   exit 1
 fi
 
-log "Running ./gradlew :app:assembleRelease (Gradle will pull NDK + CMake on demand)"
+log "Running ./gradlew assembleRelease (module name varies upstream; we assemble every release variant)"
 pushd "${ANDROID_PROJECT_DIR}" >/dev/null
 chmod +x ./gradlew
-./gradlew --no-daemon :app:assembleRelease
+./gradlew --no-daemon assembleRelease
 popd >/dev/null
 
-# Locate the APK that Gradle just produced. Path varies a bit between AGP versions, so glob it.
+# Locate the APK that Gradle just produced. Module name varies upstream
+# (e.g. `espeak` vs `app`), and the path varies between AGP versions, so glob broadly
+# and prefer one that actually contains the libttsespeak.so we need.
 APK_PATH=""
 while IFS= read -r candidate; do
-  APK_PATH="${candidate}"
-  break
-done < <(find "${ANDROID_PROJECT_DIR}/app/build/outputs/apk" -type f -name '*.apk' | sort)
+  if unzip -l "${candidate}" 2>/dev/null | grep -q 'lib/arm64-v8a/libttsespeak\.so'; then
+    APK_PATH="${candidate}"
+    break
+  fi
+done < <(find "${ANDROID_PROJECT_DIR}" -type f -path '*/build/outputs/apk/*.apk' | sort)
 
 if [[ -z "${APK_PATH}" ]]; then
-  echo "error: no APK found under ${ANDROID_PROJECT_DIR}/app/build/outputs/apk" >&2
+  echo "error: no APK containing libttsespeak.so was produced under ${ANDROID_PROJECT_DIR}" >&2
+  echo "Found APKs:" >&2
+  find "${ANDROID_PROJECT_DIR}" -type f -path '*/build/outputs/apk/*.apk' >&2 || true
   exit 1
 fi
 log "Using APK: ${APK_PATH}"
