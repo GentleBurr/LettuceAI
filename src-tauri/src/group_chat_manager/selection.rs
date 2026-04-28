@@ -9,6 +9,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::{CharacterInfo, GroupChatContext};
+use crate::infra::serde_utils::truncate_for_log;
+
+const RECENT_MESSAGE_PREVIEW_CHAR_LIMIT: usize = 512;
 
 // ============================================================================
 // Types
@@ -216,8 +219,8 @@ pub fn build_selection_prompt(context: &GroupChatContext) -> String {
         };
 
         // Truncate long messages
-        let content = if msg.content.len() > 200 {
-            format!("{}...", &msg.content[..200])
+        let content = if msg.content.chars().count() > RECENT_MESSAGE_PREVIEW_CHAR_LIMIT {
+            truncate_for_log(&msg.content, RECENT_MESSAGE_PREVIEW_CHAR_LIMIT)
         } else {
             msg.content.clone()
         };
@@ -681,6 +684,36 @@ mod tests {
         assert!(prompt.contains(r#"- Name: "Alice \"Quoted\"""#));
         assert!(prompt.contains(r#"- Definition: "Says \"hello\" often""#));
         assert!(prompt.contains(r#""Tell \"Alice\" to respond""#));
+    }
+
+    #[test]
+    fn test_build_selection_prompt_truncates_utf8_safely() {
+        let mut context = test_context(vec![]);
+        let mut content = "a".repeat(510);
+        content.push('—');
+        content.push_str("tail");
+        context.recent_messages = vec![crate::storage_manager::group_sessions::GroupMessage {
+            id: "m1".to_string(),
+            session_id: "session-1".to_string(),
+            role: "assistant".to_string(),
+            content,
+            speaker_character_id: Some("char-1".to_string()),
+            turn_number: 1,
+            created_at: 0,
+            usage: None,
+            variants: None,
+            selected_variant_id: None,
+            is_pinned: false,
+            attachments: vec![],
+            used_lorebook_entries: vec![],
+            reasoning: None,
+            selection_reasoning: None,
+            model_id: None,
+        }];
+
+        let prompt = build_selection_prompt(&context);
+        assert!(prompt.contains(&format!("{}—t…", "a".repeat(510))));
+        assert!(!prompt.contains("tail"));
     }
 
     #[test]
