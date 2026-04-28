@@ -28,6 +28,7 @@ import { ConvertPage } from "./ui/pages/settings/ConvertPage";
 import { UsagePage } from "./ui/pages/settings/UsagePage";
 import { UsageActivityPage } from "./ui/pages/settings/UsageActivityPage";
 import { AccessibilityPage } from "./ui/pages/settings/AccessibilityPage";
+import { SpeechRecognitionPage } from "./ui/pages/settings/SpeechRecognitionPage";
 import { ColorCustomizationPage } from "./ui/pages/settings/ColorCustomizationPage";
 import { ChatAppearancePage } from "./ui/pages/settings/ChatAppearancePage";
 import { LogsPage } from "./ui/pages/settings/LogsPage";
@@ -1018,6 +1019,7 @@ function AppContent() {
               <Route path="/settings/usage" element={<UsagePage />} />
               <Route path="/settings/usage/activity" element={<UsageActivityPage />} />
               <Route path="/settings/accessibility" element={<AccessibilityPage />} />
+              <Route path="/settings/speech-recognition" element={<SpeechRecognitionPage />} />
               <Route path="/settings/accessibility/colors" element={<ColorCustomizationPage />} />
               <Route path="/settings/accessibility/chat" element={<ChatAppearancePage />} />
               <Route path="/settings/logs" element={<LogsPage />} />

@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 61;
+pub const CURRENT_MIGRATION_VERSION: u32 = 62;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -647,6 +647,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v60_to_v61(app)?;
         version = 61;
+    }
+
+    if version < 62 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v61 -> v62: Add ASR learning counters and ignored suggestions",
+        );
+        migrate_v61_to_v62(app)?;
+        version = 62;
     }
 
     // Update the stored version
@@ -3473,6 +3483,43 @@ fn migrate_v60_to_v61(app: &AppHandle) -> Result<(), String> {
 
         CREATE INDEX IF NOT EXISTS idx_asr_voice_examples_scope_language
           ON asr_voice_examples(scope, language, created_at DESC);
+        "#,
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    Ok(())
+}
+
+fn migrate_v61_to_v62(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+    conn.execute_batch(
+        r#"
+        ALTER TABLE asr_corrections ADD COLUMN accepted_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE asr_corrections ADD COLUMN rejected_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE asr_corrections ADD COLUMN seen_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE asr_corrections ADD COLUMN last_seen_at TEXT;
+
+        UPDATE asr_corrections
+        SET accepted_count = CASE WHEN user_approved != 0 THEN MAX(use_count, 1) ELSE 0 END,
+            seen_count = CASE WHEN user_approved != 0 THEN MAX(use_count, 1) ELSE 0 END,
+            last_seen_at = CASE WHEN user_approved != 0 THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE accepted_count = 0 AND seen_count = 0;
+
+        CREATE TABLE IF NOT EXISTS asr_ignored_suggestions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          wrong TEXT NOT NULL,
+          normalized_wrong TEXT NOT NULL,
+          correct TEXT NOT NULL,
+          normalized_correct TEXT NOT NULL,
+          language TEXT,
+          scope TEXT NOT NULL DEFAULT 'global',
+          ignored_count INTEGER NOT NULL DEFAULT 1,
+          last_ignored_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_asr_ignored_suggestions_lookup
+          ON asr_ignored_suggestions(normalized_wrong, normalized_correct, language, scope);
         "#,
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

@@ -24,7 +24,11 @@ type TourConfig = {
   steps: TourStep[];
 };
 
-export type TourId = "appShell" | "chatDetail" | "postFirstMessage";
+export type TourId =
+  | "appShell"
+  | "chatDetail"
+  | "postFirstMessage"
+  | "speechRecognition";
 
 const TOURS: Record<TourId, TourConfig> = {
   appShell: {
@@ -120,6 +124,36 @@ const TOURS: Record<TourId, TourConfig> = {
         title: "One button, four jobs",
         body: "The send button changes its job based on what's happening:",
         extra: <SendButtonStates />,
+      },
+    ],
+  },
+
+  speechRecognition: {
+    storageKey: "asr_tour_v1",
+    steps: [
+      {
+        id: "asr-active-model",
+        targetAttr: "asr-active-model",
+        title: "Pick a Whisper model",
+        body: "Tap here to open the model picker. Models that aren't downloaded yet queue automatically and become active when ready.",
+      },
+      {
+        id: "asr-library",
+        targetAttr: "asr-library",
+        title: "Shape what Whisper hears",
+        body: "Three layers tune transcription: vocabulary biases the prompt, corrections rewrite output, and voice examples train from real recordings.",
+      },
+      {
+        id: "asr-mic-test",
+        targetAttr: "asr-mic-test",
+        title: "Try it before you commit",
+        body: "Record a short clip and run it through the active model with your vocabulary and corrections applied. Great for sanity-checking changes.",
+      },
+      {
+        id: "asr-runtime",
+        targetAttr: "asr-runtime",
+        title: "Runtime and library tools",
+        body: "Toggle GPU acceleration, keep the model warm between runs, and import or export your full library as JSON.",
       },
     ],
   },

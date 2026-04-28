@@ -13,6 +13,7 @@ export const enMessages = {
       models: "Models",
       security: "Security",
       accessibility: "Accessibility",
+      speechRecognition: "Speech Recognition",
       reset: "Reset",
       backupRestore: "Backup & Restore",
       convertFiles: "Convert Files",

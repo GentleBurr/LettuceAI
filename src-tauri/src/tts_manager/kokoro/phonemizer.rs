@@ -290,7 +290,8 @@ fn strip_inline_markdown(text: &str) -> String {
 
         if matches!(ch, '*' | '_') {
             let run_len = marker_run_len(&chars, idx, ch);
-            if let Some(closing_idx) = find_matching_marker_run(&chars, idx + run_len, ch, run_len) {
+            if let Some(closing_idx) = find_matching_marker_run(&chars, idx + run_len, ch, run_len)
+            {
                 let inner_has_content = chars[idx + run_len..closing_idx]
                     .iter()
                     .any(|inner| !inner.is_whitespace());
@@ -355,7 +356,10 @@ fn find_matching_marker_run(
 }
 
 fn is_trailing_punctuation(ch: char) -> bool {
-    matches!(ch, '.' | ',' | '!' | '?' | ';' | ':' | ')' | ']' | '"' | '\'')
+    matches!(
+        ch,
+        '.' | ',' | '!' | '?' | ';' | ':' | ')' | ']' | '"' | '\''
+    )
 }
 
 fn apply_lexicon_annotations(

@@ -72,6 +72,7 @@ fn manage_core_state(app: &mut tauri::App) -> Arc<usage::app_activity::AppActive
 
     app.manage(sync::manager::SyncManagerState::new());
     app.manage(host_api::HostApiManager::default());
+    app.manage(crate::asr_manager::WhisperRuntimeState::default());
 
     app_usage_service
 }
@@ -97,6 +98,7 @@ fn initialize_logging(app: &mut tauri::App) {
     if let Err(err) = utils::init_tracing(app.handle().clone()) {
         eprintln!("Failed to initialize tracing: {}", err);
     }
+    crate::asr_manager::initialize_whisper_logging();
     let previous_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let payload = if let Some(message) = info.payload().downcast_ref::<&str>() {
@@ -331,6 +333,44 @@ impl WindowChromeFlags {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
+    let result = window.with_webview(|webview| {
+        use webkit2gtk::gio::prelude::Cast;
+        use webkit2gtk::{
+            PermissionRequestExt, SettingsExt, UserMediaPermissionRequest, WebViewExt,
+        };
+
+        let wv = webview.inner();
+        if let Some(settings) = WebViewExt::settings(&wv) {
+            settings.set_enable_media_stream(true);
+            settings.set_enable_mediasource(true);
+            settings.set_media_playback_requires_user_gesture(false);
+        }
+        wv.connect_permission_request(|_, request| {
+            if request
+                .downcast_ref::<UserMediaPermissionRequest>()
+                .is_some()
+            {
+                request.allow();
+                return true;
+            }
+            false
+        });
+    });
+
+    if let Err(err) = result {
+        utils::log_error(
+            window.app_handle(),
+            "webview",
+            format!(
+                "Failed to configure Linux webview media permissions: {}",
+                err
+            ),
+        );
+    }
+}
+
 pub(crate) fn setup_app(
     app: &mut tauri::App,
     aptabase_plugin_enabled: bool,
@@ -341,6 +381,8 @@ pub(crate) fn setup_app(
     #[cfg(not(mobile))]
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_decorations(true);
+        #[cfg(target_os = "linux")]
+        configure_linux_webview_media(&window);
     }
 
     let app_usage_service = manage_core_state(app);

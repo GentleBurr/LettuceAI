@@ -38,7 +38,11 @@ function queueSubtitle(item: QueuedDownload): string {
 }
 
 function isCreateableModelDownload(item: QueuedDownload): boolean {
-  return item.queueKind !== "kokoro" && !isMmprojFilename(item.filename);
+  return (
+    item.queueKind !== "kokoro" &&
+    item.queueKind !== "whisper" &&
+    !isMmprojFilename(item.filename)
+  );
 }
 
 function pct(d: QueuedDownload): number {

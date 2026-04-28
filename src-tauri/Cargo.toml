@@ -7,16 +7,16 @@ edition = "2021"
 
 [features]
 default = []
-# NVIDIA GPU acceleration for desktop llama.cpp (CUDA backend).
-llama-gpu-cuda = ["llama-cpp-2/cuda"]
+# NVIDIA GPU acceleration for desktop llama.cpp and whisper.cpp (CUDA backend).
+llama-gpu-cuda = ["llama-cpp-2/cuda", "whisper-rs/cuda"]
 # Same as llama-gpu-cuda, but disables CUDA VMM in llama.cpp.
 llama-gpu-cuda-no-vmm = ["llama-gpu-cuda", "llama-cpp-2/cuda-no-vmm"]
-# Cross-vendor GPU acceleration path for desktop llama.cpp (ROCm backend).
-llama-gpu-rocm = ["llama-cpp-2/rocm"]
-# Cross-vendor GPU acceleration path for desktop llama.cpp (Vulkan backend).
-llama-gpu-vulkan = ["llama-cpp-2/vulkan"]
-# Apple GPU acceleration for desktop llama.cpp (Metal backend, macOS only).
-llama-gpu-metal = ["llama-cpp-2/metal"]
+# Cross-vendor GPU acceleration path for desktop llama.cpp and whisper.cpp (ROCm/hipBLAS backend).
+llama-gpu-rocm = ["llama-cpp-2/rocm", "whisper-rs/hipblas"]
+# Cross-vendor GPU acceleration path for desktop llama.cpp and whisper.cpp (Vulkan backend).
+llama-gpu-vulkan = ["llama-cpp-2/vulkan", "whisper-rs/vulkan"]
+# Apple GPU acceleration for desktop llama.cpp and whisper.cpp (Metal backend, macOS only).
+llama-gpu-metal = ["llama-cpp-2/metal", "whisper-rs/metal"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -91,6 +91,7 @@ libc = "0.2"
 tiktoken-rs = "0.11.0"
 hound = "3.5.1"
 thiserror = "2.0.16"
+whisper-rs = { version = "0.16.0", features = ["tracing_backend"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_os = "macos")))'.dependencies]
 machine-uid = "0.3"
@@ -98,6 +99,9 @@ ort = { version = "=2.0.0-rc.10", default-features = false, features = ["load-dy
 llama-cpp-2 = { version="0.1.143", features = ["mtmd"] }
 llama-cpp-sys-2 = { version="0.1.143" }
 sysinfo = "0.33"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 machine-uid = "0.3"

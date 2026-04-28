@@ -347,6 +347,10 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           scope TEXT NOT NULL DEFAULT 'global',
           confidence REAL NOT NULL DEFAULT 0.75,
           use_count INTEGER NOT NULL DEFAULT 1,
+          accepted_count INTEGER NOT NULL DEFAULT 0,
+          rejected_count INTEGER NOT NULL DEFAULT 0,
+          seen_count INTEGER NOT NULL DEFAULT 0,
+          last_seen_at TEXT,
           user_approved INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -356,6 +360,23 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           ON asr_corrections(scope, language, user_approved, confidence DESC, use_count DESC);
         CREATE INDEX IF NOT EXISTS idx_asr_corrections_normalized_wrong
           ON asr_corrections(normalized_wrong);
+
+        CREATE TABLE IF NOT EXISTS asr_ignored_suggestions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          wrong TEXT NOT NULL,
+          normalized_wrong TEXT NOT NULL,
+          correct TEXT NOT NULL,
+          normalized_correct TEXT NOT NULL,
+          language TEXT,
+          scope TEXT NOT NULL DEFAULT 'global',
+          ignored_count INTEGER NOT NULL DEFAULT 1,
+          last_ignored_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_asr_ignored_suggestions_lookup
+          ON asr_ignored_suggestions(normalized_wrong, normalized_correct, language, scope);
 
         CREATE TABLE IF NOT EXISTS asr_voice_examples (
           id INTEGER PRIMARY KEY AUTOINCREMENT,

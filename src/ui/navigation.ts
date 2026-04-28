@@ -89,6 +89,7 @@ export const Routes = {
     return query ? `/chat/${characterId}?${query}` : `/chat/${characterId}`;
   },
   settings: "/settings",
+  settingsSpeechRecognition: "/settings/speech-recognition",
   settingsConvert: "/settings/convert",
   settingsAdvancedLorebookEntryGenerator: "/settings/advanced/lorebook-entry-generator",
   settingsAdvancedCompanionSoulWriter: "/settings/advanced/companion-soul-writer",
@@ -236,6 +237,7 @@ export const BACK_MAPPINGS: BackMapping[] = [
   },
   { match: (p) => p.startsWith("/settings/embedding-test"), target: "/settings/advanced" },
   { match: (p) => p.startsWith("/settings/security"), target: Routes.settings },
+  { match: (p) => p.startsWith("/settings/speech-recognition"), target: Routes.settings },
   { match: (p) => p.startsWith("/settings/backup"), target: Routes.settings },
   { match: (p) => p.startsWith("/settings/convert"), target: Routes.settings },
   { match: (p) => p.startsWith("/settings/usage/activity"), target: Routes.settingsUsage },

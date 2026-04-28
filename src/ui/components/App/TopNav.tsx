@@ -16,6 +16,7 @@ import {
   Upload,
   Eye,
   Minus,
+  RefreshCw,
   Square,
   X,
 } from "lucide-react";
@@ -110,6 +111,10 @@ export function TopNav({
       },
       { match: (p) => p === "/settings/security", titleKey: "common.nav.security" },
       { match: (p) => p === "/settings/accessibility", titleKey: "common.nav.accessibility" },
+      {
+        match: (p) => p === "/settings/speech-recognition",
+        titleKey: "common.nav.speechRecognition",
+      },
       { match: (p) => p === "/settings/reset", titleKey: "common.nav.reset" },
       { match: (p) => p === "/settings/backup", titleKey: "common.nav.backupRestore" },
       { match: (p) => p === "/settings/convert", titleKey: "common.nav.convertFiles" },
@@ -298,6 +303,11 @@ export function TopNav({
     () =>
       basePath === "/settings/models" ||
       /^\/settings\/characters\/[^/]+\/templates$/.test(basePath),
+    [basePath],
+  );
+
+  const showRefreshButton = useMemo(
+    () => basePath === "/settings/speech-recognition",
     [basePath],
   );
 
@@ -580,6 +590,12 @@ export function TopNav({
     }
   };
 
+  const handleRefreshClick = () => {
+    if (basePath === "/settings/speech-recognition") {
+      window.dispatchEvent(new CustomEvent("asr:refresh"));
+    }
+  };
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-40 border-b border-fg/10 backdrop-blur-md bg-nav/80"
@@ -744,6 +760,21 @@ export function TopNav({
               aria-label={t("common.buttons.import")}
             >
               <Upload size={20} strokeWidth={2.5} className="text-fg" />
+            </button>
+          )}
+          {showRefreshButton && (
+            <button
+              data-tour-id="asr-refresh"
+              onClick={handleRefreshClick}
+              className={cn(
+                "flex items-center px-[0.6em] py-[0.3em] justify-center rounded-full",
+                "text-fg/70 hover:text-fg hover:bg-fg/10",
+                interactive.transition.fast,
+                interactive.active.scale,
+              )}
+              aria-label="Refresh"
+            >
+              <RefreshCw size={18} strokeWidth={2.4} className="text-fg" />
             </button>
           )}
           {showChatAppearancePreviewButton && (

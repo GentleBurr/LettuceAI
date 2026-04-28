@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Volume2,
   Accessibility,
+  Mic,
   HelpCircle,
   ArrowLeftRight,
   Image,
@@ -171,6 +172,14 @@ export function SettingsPage() {
         subtitle: t("settings.items.accessibility.subtitle"),
         tone: "experience" as const,
         onClick: () => navigate("/settings/accessibility"),
+      },
+      {
+        key: "speechRecognition",
+        icon: <Mic />,
+        title: "Speech Recognition",
+        subtitle: "Vocabulary, corrections, and voice examples",
+        tone: "experience" as const,
+        onClick: () => navigate("/settings/speech-recognition"),
       },
       {
         key: "prompts",
@@ -360,7 +369,7 @@ export function SettingsPage() {
           </h2>
           <div className={spacing.field}>
             {items
-              .filter((i) => ["voices", "accessibility"].includes(i.key))
+              .filter((i) => ["voices", "accessibility", "speechRecognition"].includes(i.key))
               .map((item) => (
                 <Row
                   key={item.key}

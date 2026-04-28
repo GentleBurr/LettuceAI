@@ -12,5 +12,6 @@ export * from "./ConvertPage";
 export * from "./LogsPage";
 export * from "./AboutPage";
 export * from "./LorebookEntryGeneratorPage";
+export * from "./SpeechRecognitionPage";
 export * from "./CompanionSoulWriterPage";
 export * from "./CompanionDownloadQueuePage";

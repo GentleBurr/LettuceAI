@@ -74,7 +74,11 @@ function isMmprojFilename(filename: string): boolean {
 }
 
 function isCreateableModelDownload(item: QueuedDownload): boolean {
-  return item.queueKind !== "kokoro" && !isMmprojFilename(item.filename);
+  return (
+    item.queueKind !== "kokoro" &&
+    item.queueKind !== "whisper" &&
+    !isMmprojFilename(item.filename)
+  );
 }
 
 export function DownloadQueueProvider({ children }: { children: ReactNode }) {
