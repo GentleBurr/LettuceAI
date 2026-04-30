@@ -33,8 +33,8 @@ use crate::chat_manager::storage::recent_messages;
 use crate::chat_manager::turn_builder::{
     append_image_directive_instructions, build_enriched_query, conversation_window_with_pinned,
     insert_in_chat_prompt_entries, is_dynamic_memory_active, manual_window_size,
-    maybe_swap_message_for_api, partition_prompt_entries, role_swap_enabled,
-    swapped_prompt_entities,
+    maybe_swap_message_for_api, message_visible_to_model, partition_prompt_entries,
+    role_swap_enabled, swapped_prompt_entities,
 };
 use crate::chat_manager::types::{
     ChatContinueArgs, ContinueResult, ImageAttachment, StoredMessage,
@@ -308,7 +308,7 @@ impl ContinueFlow {
             .messages
             .iter()
             .rev()
-            .find(|message| message.role == "user" || message.role == "assistant")
+            .find(|message| message_visible_to_model(message) && message.role != "scene")
             .map(|message| message.role != "user")
             .unwrap_or(true);
 
@@ -635,6 +635,7 @@ impl ContinueFlow {
             role: "assistant".into(),
             content: text.clone(),
             created_at: assistant_created_at,
+            visible_in_chat: false,
             scene_edited: false,
             usage: usage.clone(),
             variants: vec![variant],
@@ -729,6 +730,8 @@ impl ContinueFlow {
 fn conversation_count(messages: &[StoredMessage]) -> usize {
     messages
         .iter()
-        .filter(|m| m.role == "user" || m.role == "assistant")
+        .filter(|m| {
+            m.role == "user" || m.role == "assistant" || (m.role == "system" && m.visible_in_chat)
+        })
         .count()
 }

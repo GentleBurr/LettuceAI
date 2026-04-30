@@ -291,8 +291,8 @@ fn setup_android_espeak_bundle() -> anyhow::Result<()> {
         "cargo:warning=Downloading Android eSpeak NG bundle from default URL {}",
         DEFAULT_KOKORO_ESPEAK_ANDROID_BUNDLE_URL
     );
-    let response = reqwest::blocking::get(DEFAULT_KOKORO_ESPEAK_ANDROID_BUNDLE_URL)?
-        .error_for_status()?;
+    let response =
+        reqwest::blocking::get(DEFAULT_KOKORO_ESPEAK_ANDROID_BUNDLE_URL)?.error_for_status()?;
     let bytes = response.bytes()?;
     extract_android_espeak_bundle(&bytes, DEFAULT_KOKORO_ESPEAK_ANDROID_BUNDLE_URL)?;
     Ok(())

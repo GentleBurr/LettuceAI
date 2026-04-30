@@ -608,6 +608,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           role TEXT NOT NULL,
           content TEXT NOT NULL,
           created_at INTEGER NOT NULL,
+          visible_in_chat INTEGER NOT NULL DEFAULT 0,
           scene_edited INTEGER NOT NULL DEFAULT 0,
           prompt_tokens INTEGER,
           completion_tokens INTEGER,
@@ -1243,6 +1244,32 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     if !has_scene_edited {
         let _ = conn.execute(
             "ALTER TABLE messages ADD COLUMN scene_edited INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+    }
+
+    let mut has_visible_in_chat = false;
+    let mut stmt_visible_in_chat = conn
+        .prepare("PRAGMA table_info(messages)")
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut rows_visible_in_chat = stmt_visible_in_chat
+        .query([])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    while let Some(row) = rows_visible_in_chat
+        .next()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+    {
+        let col_name: String = row
+            .get(1)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if col_name == "visible_in_chat" {
+            has_visible_in_chat = true;
+            break;
+        }
+    }
+    if !has_visible_in_chat {
+        let _ = conn.execute(
+            "ALTER TABLE messages ADD COLUMN visible_in_chat INTEGER NOT NULL DEFAULT 0",
             [],
         );
     }

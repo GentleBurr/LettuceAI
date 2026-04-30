@@ -209,6 +209,31 @@ pub(crate) fn parse_data_url(data_url: &str) -> Option<(String, String)> {
     Some((mime_type.to_string(), data.to_string()))
 }
 
+pub(crate) fn is_visible_chat_system_message(message: &Value) -> bool {
+    message.get("role").and_then(|v| v.as_str()) == Some("system")
+        && message
+            .get("visible_in_chat")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+}
+
+pub(crate) fn visible_chat_system_instruction_text(message: &Value) -> Option<String> {
+    if !is_visible_chat_system_message(message) {
+        return None;
+    }
+
+    let content = extract_text_content(message.get("content"))?;
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    Some(format!(
+        "Visible system message from the chat UI. Treat this as a high-priority instruction that remains in effect unless later context overrides it.\n\n<system-message>\n{}\n</system-message>",
+        trimmed
+    ))
+}
+
 mod anannas;
 mod anthropic;
 mod automatic1111;

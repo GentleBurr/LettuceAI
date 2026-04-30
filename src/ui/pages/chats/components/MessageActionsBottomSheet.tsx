@@ -213,6 +213,8 @@ export function MessageActionsBottomSheet({
   const [companionEffectLoading, setCompanionEffectLoading] = useState(false);
   const [companionEffectError, setCompanionEffectError] = useState<string | null>(null);
   const isSceneMessage = messageAction?.message.role === "scene";
+  const isVisibleSystemMessage =
+    messageAction?.message.role === "system" && Boolean(messageAction.message.visibleInChat);
   const isAssistantLikeMessage =
     messageAction?.message.role === "assistant" || messageAction?.message.role === "scene";
   const canDeleteMessage = !isSceneMessage || isCompanionChat;
@@ -223,6 +225,7 @@ export function MessageActionsBottomSheet({
 
   const canEdit =
     isAssistantLikeMessage ||
+    isVisibleSystemMessage ||
     (() => {
       const userMessages = messages.filter(
         (m) => m.role === "user" && !m.id.startsWith("placeholder"),
@@ -357,7 +360,9 @@ export function MessageActionsBottomSheet({
             ? t("chats.message.sceneLabel")
             : isAssistantLikeMessage
               ? t("chats.actions.assistantMessage")
-              : t("chats.actions.userMessage")
+              : isVisibleSystemMessage
+                ? "System message"
+                : t("chats.actions.userMessage")
         }
       >
         {messageAction && (
@@ -653,7 +658,8 @@ export function MessageActionsBottomSheet({
               {/* Chat flow actions */}
               {(messageAction.message.role === "assistant" ||
                 messageAction.message.role === "scene" ||
-                messageAction.message.role === "user") && (
+                messageAction.message.role === "user" ||
+                isVisibleSystemMessage) && (
                 <ActionRow
                   icon={RotateCcw}
                   label={t("chats.actions.rewindToHere")}

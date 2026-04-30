@@ -3517,6 +3517,7 @@ mod tests {
             role: "scene".into(),
             content: "Edited scene with {{char}} and {{persona}}".into(),
             created_at: 1,
+            visible_in_chat: false,
             scene_edited: true,
             usage: None,
             variants: vec![],

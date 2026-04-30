@@ -14,7 +14,7 @@ use crate::chat_manager::storage::{
 use crate::chat_manager::turn_builder::{
     append_image_directive_instructions, conversation_window_with_pinned,
     insert_in_chat_prompt_entries, manual_window_size, maybe_swap_message_for_api,
-    partition_prompt_entries,
+    message_visible_to_model, partition_prompt_entries,
 };
 use crate::utils::now_millis;
 
@@ -95,7 +95,7 @@ fn infer_debug_operation(session: &Session, message_index: usize) -> DebugMessag
     let previous_non_scene = session.messages[..message_index]
         .iter()
         .rev()
-        .find(|item| item.role == "user" || item.role == "assistant");
+        .find(|item| message_visible_to_model(item) && item.role != "scene");
 
     if previous_non_scene
         .map(|item| item.role.eq_ignore_ascii_case("assistant"))

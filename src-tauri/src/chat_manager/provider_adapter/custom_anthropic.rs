@@ -4,7 +4,10 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use super::{extract_image_data_urls, extract_text_content, parse_data_url, ProviderAdapter};
+use super::{
+    extract_image_data_urls, extract_text_content, parse_data_url,
+    visible_chat_system_instruction_text, ProviderAdapter,
+};
 use crate::chat_manager::tooling::{anthropic_tool_choice, anthropic_tools, ToolConfig};
 use crate::chat_manager::types::ProviderCredential;
 
@@ -227,6 +230,16 @@ impl ProviderAdapter for CustomAnthropicAdapter {
             let image_urls = extract_image_data_urls(msg.get("content"));
 
             if role == "system" || role == "developer" {
+                if let Some(visible_instruction) = visible_chat_system_instruction_text(msg) {
+                    msgs.push(json!({
+                        "role": user_role.clone(),
+                        "content": [{
+                            "type": "text",
+                            "text": visible_instruction,
+                        }],
+                    }));
+                    continue;
+                }
                 if let Some(content_text) = content_text.filter(|text| !text.is_empty()) {
                     system_parts.push(content_text);
                 }

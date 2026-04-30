@@ -3,6 +3,7 @@ import { useCallback, useReducer, useRef, useEffect } from "react";
 import { useChatAbortController } from "./useChatAbortController";
 import { isStartingSceneMessage, queueSessionSave } from "./chatControllerShared";
 import { chatReducer, initialChatState, type MessageActionState } from "./chatReducer";
+import { applyLiveChatAction } from "./chatLiveState";
 import { useChatEnhancementsController } from "./useChatEnhancementsController";
 import {
   useChatMessageActionsController,
@@ -63,6 +64,7 @@ export interface ChatController {
     attachments?: ImageAttachment[],
     options?: { swapPlaces?: boolean },
   ) => Promise<void>;
+  handleSendSystemMessage: (message: string, attachments?: ImageAttachment[]) => Promise<void>;
   handleContinue: (options?: { swapPlaces?: boolean }) => Promise<void>;
   handleRegenerate: (
     message: StoredMessage,
@@ -187,6 +189,88 @@ export function useChatController(
     }
   }, [state.session?.id, state.draft]);
 
+  const handleSendSystemMessage = useCallback(
+    async (message: string, attachments?: ImageAttachment[]) => {
+      if (!state.session) return;
+
+      const content = message.trim();
+      const messageAttachments = attachments ?? state.pendingAttachments;
+      if (!content && messageAttachments.length === 0) return;
+
+      const timestamp = Date.now();
+      const createdMessage: StoredMessage = {
+        id: globalThis.crypto?.randomUUID?.() ?? `${timestamp}-${Math.random()}`,
+        role: "system",
+        content,
+        createdAt: timestamp,
+        memoryRefs: [],
+        visibleInChat: true,
+        attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+      };
+
+      const previousSession = state.session;
+      const previousMessages = messagesRef.current;
+      const updatedMessages = [...previousMessages, createdMessage];
+      const updatedSession: Session = {
+        ...previousSession,
+        messages: updatedMessages,
+        updatedAt: timestamp,
+      };
+
+      messagesRef.current = updatedMessages;
+      dispatch({
+        type: "BATCH",
+        actions: [
+          { type: "SET_ERROR", payload: null },
+          { type: "SET_SESSION", payload: updatedSession },
+          { type: "SET_MESSAGES", payload: updatedMessages },
+          { type: "CLEAR_DRAFT" },
+          { type: "CLEAR_PENDING_ATTACHMENTS" },
+        ],
+      });
+      applyLiveChatAction(previousSession.id, state, {
+        type: "BATCH",
+        actions: [
+          { type: "SET_ERROR", payload: null },
+          { type: "SET_SESSION", payload: updatedSession },
+          { type: "SET_MESSAGES", payload: updatedMessages },
+          { type: "CLEAR_DRAFT" },
+          { type: "CLEAR_PENDING_ATTACHMENTS" },
+        ],
+      });
+
+      try {
+        await persistSession(updatedSession);
+      } catch (error) {
+        messagesRef.current = previousMessages;
+        dispatch({
+          type: "BATCH",
+          actions: [
+            { type: "SET_SESSION", payload: previousSession },
+            { type: "SET_MESSAGES", payload: previousMessages },
+            {
+              type: "SET_ERROR",
+              payload: error instanceof Error ? error.message : String(error),
+            },
+          ],
+        });
+        applyLiveChatAction(previousSession.id, state, {
+          type: "BATCH",
+          actions: [
+            { type: "SET_SESSION", payload: previousSession },
+            { type: "SET_MESSAGES", payload: previousMessages },
+            {
+              type: "SET_ERROR",
+              payload: error instanceof Error ? error.message : String(error),
+            },
+          ],
+        });
+        throw error;
+      }
+    },
+    [dispatch, messagesRef, persistSession, state],
+  );
+
   return {
     // State
     character: state.character,
@@ -262,6 +346,7 @@ export function useChatController(
 
     // Actions
     handleSend,
+    handleSendSystemMessage,
     handleContinue,
     handleRegenerate,
     handleAbort,

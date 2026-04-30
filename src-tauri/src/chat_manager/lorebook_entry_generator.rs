@@ -1499,6 +1499,7 @@ fn load_selected_messages(
                 role: row.get::<_, String>(1)?,
                 content: row.get::<_, String>(2)?,
                 created_at: row.get::<_, i64>(3)? as u64,
+                visible_in_chat: false,
                 scene_edited: row.get::<_, i64>(4)? != 0,
                 usage: None,
                 variants: Vec::new(),

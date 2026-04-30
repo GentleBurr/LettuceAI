@@ -677,6 +677,8 @@ pub struct StoredMessage {
     pub content: String,
     pub created_at: u64,
     #[serde(default)]
+    pub visible_in_chat: bool,
+    #[serde(default)]
     pub scene_edited: bool,
     #[serde(default)]
     pub usage: Option<UsageSummary>,

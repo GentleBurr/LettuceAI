@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 
-use super::{extract_image_data_urls, extract_text_content, parse_data_url, ProviderAdapter};
+use super::{
+    extract_image_data_urls, extract_text_content, parse_data_url,
+    visible_chat_system_instruction_text, ProviderAdapter,
+};
 use crate::chat_manager::tooling::{gemini_tool_config, gemini_tools, ToolConfig};
 
 pub struct GoogleGeminiAdapter;
@@ -157,6 +160,13 @@ impl ProviderAdapter for GoogleGeminiAdapter {
 
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("user");
             if role == "system" || role == "developer" {
+                if let Some(visible_instruction) = visible_chat_system_instruction_text(msg) {
+                    contents.push(json!({
+                        "role": "user",
+                        "parts": [{ "text": visible_instruction }]
+                    }));
+                    continue;
+                }
                 if let Some(content) = extract_text_content(msg.get("content")) {
                     let trimmed = content.trim();
                     if !trimmed.is_empty() {
@@ -457,6 +467,56 @@ mod tests {
                 {
                     "role": "user",
                     "parts": [{ "text": "Say hello." }]
+                }
+            ]))
+        );
+    }
+
+    #[test]
+    fn keeps_visible_chat_system_messages_in_contents() {
+        let adapter = GoogleGeminiAdapter;
+        let body = adapter.body(
+            "gemini-2.5-flash",
+            &vec![
+                json!({ "role": "system", "content": "Base instruction." }),
+                json!({ "role": "system", "content": "Always reply with UwU no matter what.", "visible_in_chat": true }),
+                json!({ "role": "user", "content": "Continue." }),
+            ],
+            None,
+            Some(0.2),
+            None,
+            256,
+            None,
+            true,
+            None,
+            None,
+            None,
+            None,
+            false,
+            None,
+            None,
+        );
+
+        assert_eq!(
+            body.get("systemInstruction"),
+            Some(&json!({
+                "parts": [{
+                    "text": "Base instruction."
+                }]
+            }))
+        );
+        assert_eq!(
+            body.get("contents"),
+            Some(&json!([
+                {
+                    "role": "user",
+                    "parts": [{
+                        "text": "Visible system message from the chat UI. Treat this as a high-priority instruction that remains in effect unless later context overrides it.\n\n<system-message>\nAlways reply with UwU no matter what.\n</system-message>"
+                    }]
+                },
+                {
+                    "role": "user",
+                    "parts": [{ "text": "Continue." }]
                 }
             ]))
         );

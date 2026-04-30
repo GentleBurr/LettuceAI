@@ -31,8 +31,8 @@ use crate::chat_manager::service::{
 use crate::chat_manager::turn_builder::{
     append_image_directive_instructions, build_enriched_query, conversation_window_with_pinned,
     insert_in_chat_prompt_entries, is_dynamic_memory_active, manual_window_size,
-    maybe_swap_message_for_api, partition_prompt_entries, role_swap_enabled,
-    swapped_prompt_entities,
+    maybe_swap_message_for_api, message_visible_to_model, partition_prompt_entries,
+    role_swap_enabled, swapped_prompt_entities,
 };
 use crate::chat_manager::types::{
     ChatRegenerateArgs, ImageAttachment, RegenerateResult, StoredMessage,
@@ -130,13 +130,9 @@ impl RegenerateFlow {
 
         let preceding_index = target_index - 1;
         let preceding_message = &session.messages[preceding_index];
-        if preceding_message.role != "user"
-            && preceding_message.role != "assistant"
-            && preceding_message.role != "scene"
-        {
+        if !message_visible_to_model(preceding_message) {
             return Err(
-                "Expected preceding user, assistant, or scene message before assistant response"
-                    .into(),
+                "Expected preceding model-visible message before assistant response".into(),
             );
         }
 

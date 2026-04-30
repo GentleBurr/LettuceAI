@@ -477,6 +477,7 @@ export function ChatConversationPage() {
     addPendingAttachment,
     removePendingAttachment,
     handleSend,
+    handleSendSystemMessage,
     handleContinue,
     handleRegenerate,
     handleAbort,
@@ -648,8 +649,12 @@ export function ChatConversationPage() {
     navigate,
   ]);
 
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => message.role !== "system" || message.visibleInChat),
+    [messages],
+  );
   const isGenerating = sending || regeneratingMessageId !== null;
-  const lastMessageContentLength = messages[messages.length - 1]?.content.length ?? 0;
+  const lastMessageContentLength = visibleMessages[visibleMessages.length - 1]?.content.length ?? 0;
 
   useEffect(() => {
     const checkModelCapabilities = async () => {
@@ -1830,6 +1835,23 @@ export function ChatConversationPage() {
     setFooterAsrMode,
   ]);
 
+  const handleSendVisibleSystemMessage = useCallback(async () => {
+    if (sending) return;
+    setError(null);
+    playAccessibilitySound("send", accessibilitySettings);
+    await handleSendSystemMessage(draft, undefined);
+    setFooterAsrMode("idle");
+    setFooterAsrRawText("");
+    setFooterAsrBaseText("");
+    setFooterAsrSuggestions([]);
+  }, [
+    accessibilitySettings,
+    draft,
+    handleSendSystemMessage,
+    sending,
+    setError,
+  ]);
+
   const captureFooterFocusForDrawer = useCallback(() => {
     shouldRestoreFooterFocusRef.current = document.activeElement === footerTextareaRef.current;
   }, []);
@@ -1900,7 +1922,7 @@ export function ChatConversationPage() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [messages.length, lastMessageContentLength, isGenerating, updateIsAtBottom]);
+  }, [visibleMessages.length, lastMessageContentLength, isGenerating, updateIsAtBottom]);
 
   useEffect(() => {
     if (sending && !sendingPrevRef.current) {
@@ -2184,7 +2206,7 @@ export function ChatConversationPage() {
           )}
 
           <LayoutGroup id="swap-message-layout">
-            {messages.map((message, index) => {
+            {visibleMessages.map((message, index) => {
               const isSceneMessage = isStartingSceneMessage(message);
               const sourceContent = message.content;
               const renderedMessage =
@@ -2201,8 +2223,11 @@ export function ChatConversationPage() {
                     };
               const isAssistant = renderedMessage.role === "assistant";
               const isUser = renderedMessage.role === "user";
+              const isVisibleSystem =
+                renderedMessage.role === "system" && Boolean(renderedMessage.visibleInChat);
               const actionable =
-                (isAssistant || isUser || isSceneMessage) && !message.id.startsWith("placeholder");
+                (isAssistant || isUser || isSceneMessage || isVisibleSystem) &&
+                !message.id.startsWith("placeholder");
               // Replace placeholders for display only
               const charName = swapPlaces
                 ? (chatController.persona?.title ?? "")
@@ -2245,7 +2270,7 @@ export function ChatConversationPage() {
                     key={message.id}
                     message={renderedMessage}
                     index={index}
-                    messagesLength={messages.length}
+                    messagesLength={visibleMessages.length}
                     heldMessageId={heldMessageId}
                     regeneratingMessageId={regeneratingMessageId}
                     sending={sending}
@@ -2315,6 +2340,7 @@ export function ChatConversationPage() {
           sending={sending}
           character={character}
           onSendMessage={handleSendMessage}
+          onSendSystemMessage={handleSendVisibleSystemMessage}
           onAbort={handleAbortWithFlag}
           hasBackgroundImage={!!backgroundImageData}
           footerOverlayClassName={theme.footerOverlay}

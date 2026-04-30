@@ -2011,6 +2011,8 @@ export const MessageSchema = z.object({
   role: z.enum(["system", "user", "assistant", "scene"]),
   content: z.string(),
   createdAt: z.number().int(),
+  /** Opt-in visibility for system messages that should render in chat UI. */
+  visibleInChat: z.boolean().optional(),
   /** Session-only override for scene messages so reloads do not snap back to the character scene. */
   sceneEdited: z.boolean().optional(),
   usage: UsageSummarySchema.optional().nullable(),

@@ -150,6 +150,20 @@ const MessageAvatar = React.memo(function MessageAvatar({
     );
   }
 
+  if (role === "system") {
+    return (
+      <div
+        className={cn(
+          "relative flex shrink-0 items-center justify-center overflow-hidden border border-white/10 bg-linear-to-br from-white/5 to-white/10",
+          sizeClass,
+          shapeClass,
+        )}
+      >
+        <Bot size={iconSize} className="text-white/60" />
+      </div>
+    );
+  }
+
   return null;
 });
 
@@ -493,8 +507,9 @@ function ChatMessageInner({
     const isAssistant = message.role === "assistant";
     const isScene = message.role === "scene";
     const isUser = message.role === "user";
+    const isVisibleSystem = message.role === "system" && Boolean(message.visibleInChat);
     const isPlaceholder = message.id.startsWith("placeholder");
-    const actionable = (isAssistant || isUser || isScene) && !isPlaceholder;
+    const actionable = (isAssistant || isUser || isScene || isVisibleSystem) && !isPlaceholder;
     const isLatestAssistant = isAssistant && actionable && index === messagesLength - 1;
     const variantState = getVariantState(message);
     const totalVariants = variantState.total || (isAssistant || isScene ? 1 : 0);
@@ -517,6 +532,7 @@ function ChatMessageInner({
       isAssistant,
       isScene,
       isUser,
+      isVisibleSystem,
       isPlaceholder,
       isLatestAssistant,
       totalVariants,
@@ -528,6 +544,7 @@ function ChatMessageInner({
     };
   }, [
     message.role,
+    message.visibleInChat,
     message.id,
     message.content,
     index,
@@ -633,7 +650,7 @@ function ChatMessageInner({
   const bubbleStyle =
     chatAppearance?.bubbleStyle === "minimal"
       ? undefined
-      : message.role === "user"
+      : message.role === "user" || computed.isVisibleSystem
         ? {
             backgroundColor: theme.userBgColor,
             borderColor: theme.userBorderColor,
@@ -657,7 +674,7 @@ function ChatMessageInner({
       }
       className={cn(
         "relative flex gap-2",
-        message.role === "user" ? "justify-end" : "justify-start",
+        message.role === "user" || computed.isVisibleSystem ? "justify-end" : "justify-start",
       )}
     >
       {/* Avatar for assistant/scene messages (left side) */}
@@ -722,7 +739,7 @@ function ChatMessageInner({
           chatAppearance ? BUBBLE_RADIUS_MAP[chatAppearance.bubbleRadius] : radius.lg,
           chatAppearance ? FONT_SIZE_MAP[chatAppearance.fontSize] : typography.body.size,
           chatAppearance ? BUBBLE_BLUR_MAP[chatAppearance.bubbleBlur] : "",
-          message.role === "user"
+          message.role === "user" || computed.isVisibleSystem
             ? cn(
                 "ml-auto",
                 chatAppearance?.bubbleStyle === "minimal"
@@ -896,9 +913,10 @@ function ChatMessageInner({
         )}
       </motion.div>
 
-      {message.role === "user" && chatAppearance?.avatarShape !== "hidden" && (
+      {(message.role === "user" || computed.isVisibleSystem) &&
+        chatAppearance?.avatarShape !== "hidden" && (
         <MessageAvatar
-          role={message.role}
+          role={computed.isVisibleSystem ? "system" : message.role}
           character={character}
           persona={persona}
           avatarShape={chatAppearance?.avatarShape}
@@ -947,6 +965,7 @@ export const ChatMessage = React.memo(ChatMessageInner, (prev, next) => {
   return (
     a.id === b.id &&
     a.role === b.role &&
+    a.visibleInChat === b.visibleInChat &&
     a.content === b.content &&
     a.selectedVariantId === b.selectedVariantId &&
     (a.variants?.length ?? 0) === (b.variants?.length ?? 0) &&

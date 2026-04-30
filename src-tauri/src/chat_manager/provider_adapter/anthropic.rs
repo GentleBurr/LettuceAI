@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use super::{extract_image_data_urls, extract_text_content, parse_data_url, ProviderAdapter};
+use super::{
+    extract_image_data_urls, extract_text_content, parse_data_url,
+    visible_chat_system_instruction_text, ProviderAdapter,
+};
 use crate::chat_manager::tooling::{anthropic_tool_choice, anthropic_tools, ToolConfig};
 
 pub struct AnthropicAdapter;
@@ -121,6 +124,16 @@ impl ProviderAdapter for AnthropicAdapter {
             let image_urls = extract_image_data_urls(msg.get("content"));
 
             if role == "system" || role == "developer" {
+                if let Some(visible_instruction) = visible_chat_system_instruction_text(msg) {
+                    msgs.push(json!({
+                        "role": "user",
+                        "content": [{
+                            "type": "text",
+                            "text": visible_instruction,
+                        }],
+                    }));
+                    continue;
+                }
                 if let Some(content_text) = content_text.filter(|text| !text.is_empty()) {
                     system_parts.push(content_text);
                 }
@@ -250,5 +263,59 @@ impl ProviderAdapter for AnthropicAdapter {
             }
         }
         models
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AnthropicAdapter;
+    use crate::chat_manager::provider_adapter::ProviderAdapter;
+    use serde_json::json;
+
+    #[test]
+    fn keeps_visible_chat_system_messages_in_conversation() {
+        let adapter = AnthropicAdapter;
+        let body = adapter.body(
+            "claude-test",
+            &vec![
+                json!({ "role": "system", "content": "Base instruction." }),
+                json!({ "role": "system", "content": "Always reply with UwU no matter what.", "visible_in_chat": true }),
+                json!({ "role": "user", "content": "Continue." }),
+            ],
+            None,
+            None,
+            None,
+            256,
+            None,
+            false,
+            None,
+            None,
+            None,
+            None,
+            false,
+            None,
+            None,
+        );
+
+        assert_eq!(body.get("system"), Some(&json!("Base instruction.")));
+        assert_eq!(
+            body.get("messages"),
+            Some(&json!([
+                {
+                    "role": "user",
+                    "content": [{
+                        "type": "text",
+                        "text": "Visible system message from the chat UI. Treat this as a high-priority instruction that remains in effect unless later context overrides it.\n\n<system-message>\nAlways reply with UwU no matter what.\n</system-message>"
+                    }]
+                },
+                {
+                    "role": "user",
+                    "content": [{
+                        "type": "text",
+                        "text": "Continue."
+                    }]
+                }
+            ]))
+        );
     }
 }

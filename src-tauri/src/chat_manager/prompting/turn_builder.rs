@@ -4,6 +4,13 @@ use crate::chat_manager::types::{
     Character, Persona, PromptEntryPosition, Settings, StoredMessage, SystemPromptEntry,
 };
 
+pub fn message_visible_to_model(message: &StoredMessage) -> bool {
+    message.role == "user"
+        || message.role == "assistant"
+        || message.role == "scene"
+        || (message.role == "system" && message.visible_in_chat)
+}
+
 pub fn is_dynamic_memory_active(settings: &Settings, session_character: &Character) -> bool {
     settings
         .advanced_settings
@@ -126,13 +133,15 @@ pub fn conversation_window_with_pinned(
     messages: &[StoredMessage],
     limit: usize,
 ) -> (Vec<StoredMessage>, Vec<StoredMessage>) {
-    let pinned: Vec<StoredMessage> = messages.iter().filter(|m| m.is_pinned).cloned().collect();
+    let pinned: Vec<StoredMessage> = messages
+        .iter()
+        .filter(|m| m.is_pinned && message_visible_to_model(m))
+        .cloned()
+        .collect();
     let recent_non_pinned: Vec<StoredMessage> = messages
         .iter()
         .rev()
-        .filter(|m| {
-            !m.is_pinned && (m.role == "user" || m.role == "assistant" || m.role == "scene")
-        })
+        .filter(|m| !m.is_pinned && message_visible_to_model(m))
         .take(limit)
         .cloned()
         .collect::<Vec<_>>()
@@ -145,7 +154,9 @@ pub fn conversation_window_with_pinned(
 pub fn build_enriched_query(messages: &[StoredMessage]) -> String {
     let recent: Vec<&StoredMessage> = messages
         .iter()
-        .filter(|m| m.role == "user" || m.role == "assistant")
+        .filter(|m| {
+            m.role == "user" || m.role == "assistant" || (m.role == "system" && m.visible_in_chat)
+        })
         .collect();
 
     match recent.len() {
