@@ -1240,10 +1240,10 @@ export function EditModelPage() {
     isCpuOnlyLlamaBackend
       ? "RAM"
       : modelAdvancedDraft.llamaOffloadKqv === true
-      ? "VRAM"
-      : modelAdvancedDraft.llamaOffloadKqv === false
-        ? "RAM"
-        : "Auto";
+        ? "VRAM"
+        : modelAdvancedDraft.llamaOffloadKqv === false
+          ? "RAM"
+          : "Auto";
   const selectedSamplerProfile = modelAdvancedDraft.llamaSamplerProfile ?? "balanced";
   const ollamaStopText = (modelAdvancedDraft.ollamaStop ?? []).join("\n");
   const selectedFetchedModel = fetchedModels.find((model) => model.id === editorModel?.name);
@@ -1271,70 +1271,70 @@ export function EditModelPage() {
   }
   const generationSummary = isAutomatic1111Provider
     ? [
-        modelAdvancedDraft.sdSteps != null ? `Steps ${modelAdvancedDraft.sdSteps}` : null,
-        modelAdvancedDraft.sdCfgScale != null
-          ? `CFG ${modelAdvancedDraft.sdCfgScale.toFixed(1)}`
-          : null,
-        modelAdvancedDraft.sdSampler ? modelAdvancedDraft.sdSampler : null,
-        modelAdvancedDraft.sdSize ? modelAdvancedDraft.sdSize : null,
-      ]
-        .filter(Boolean)
-        .join(" • ") || "Stable Diffusion sampler, CFG, seed, and size defaults"
+      modelAdvancedDraft.sdSteps != null ? `Steps ${modelAdvancedDraft.sdSteps}` : null,
+      modelAdvancedDraft.sdCfgScale != null
+        ? `CFG ${modelAdvancedDraft.sdCfgScale.toFixed(1)}`
+        : null,
+      modelAdvancedDraft.sdSampler ? modelAdvancedDraft.sdSampler : null,
+      modelAdvancedDraft.sdSize ? modelAdvancedDraft.sdSize : null,
+    ]
+      .filter(Boolean)
+      .join(" • ") || "Stable Diffusion sampler, CFG, seed, and size defaults"
     : [
-        modelAdvancedDraft.temperature != null
-          ? `Temp ${modelAdvancedDraft.temperature.toFixed(2)}`
-          : null,
-        modelAdvancedDraft.topP != null ? `Top P ${modelAdvancedDraft.topP.toFixed(2)}` : null,
-        modelAdvancedDraft.maxOutputTokens != null
-          ? `Max ${modelAdvancedDraft.maxOutputTokens.toLocaleString()}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" • ") || "Default sampling and output limits";
+      modelAdvancedDraft.temperature != null
+        ? `Temp ${modelAdvancedDraft.temperature.toFixed(2)}`
+        : null,
+      modelAdvancedDraft.topP != null ? `Top P ${modelAdvancedDraft.topP.toFixed(2)}` : null,
+      modelAdvancedDraft.maxOutputTokens != null
+        ? `Max ${modelAdvancedDraft.maxOutputTokens.toLocaleString()}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" • ") || "Default sampling and output limits";
   const runtimeSummary = isLocalModel
     ? [
-        modelAdvancedDraft.llamaBatchSize != null
-          ? `Batch ${modelAdvancedDraft.llamaBatchSize}`
+      modelAdvancedDraft.llamaBatchSize != null
+        ? `Batch ${modelAdvancedDraft.llamaBatchSize}`
+        : null,
+      modelAdvancedDraft.llamaKvType ? `KV ${modelAdvancedDraft.llamaKvType}` : null,
+      modelAdvancedDraft.llamaOffloadKqv === true
+        ? "KV cache in VRAM"
+        : modelAdvancedDraft.llamaOffloadKqv === false
+          ? "KV cache in RAM"
           : null,
-        modelAdvancedDraft.llamaKvType ? `KV ${modelAdvancedDraft.llamaKvType}` : null,
-        modelAdvancedDraft.llamaOffloadKqv === true
-          ? "KV cache in VRAM"
-          : modelAdvancedDraft.llamaOffloadKqv === false
-            ? "KV cache in RAM"
-            : null,
-      ]
-        .filter(Boolean)
-        .join(" • ") || "Execution, memory, and hardware defaults"
+    ]
+      .filter(Boolean)
+      .join(" • ") || "Execution, memory, and hardware defaults"
     : isOllamaModel
       ? [
-          modelAdvancedDraft.ollamaNumCtx != null
-            ? `Ctx ${modelAdvancedDraft.ollamaNumCtx.toLocaleString()}`
-            : null,
-          modelAdvancedDraft.ollamaNumPredict != null
-            ? `Predict ${modelAdvancedDraft.ollamaNumPredict.toLocaleString()}`
-            : null,
-          modelAdvancedDraft.ollamaNumThread != null
-            ? `Threads ${modelAdvancedDraft.ollamaNumThread}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" • ") || "Ollama runtime defaults"
+        modelAdvancedDraft.ollamaNumCtx != null
+          ? `Ctx ${modelAdvancedDraft.ollamaNumCtx.toLocaleString()}`
+          : null,
+        modelAdvancedDraft.ollamaNumPredict != null
+          ? `Predict ${modelAdvancedDraft.ollamaNumPredict.toLocaleString()}`
+          : null,
+        modelAdvancedDraft.ollamaNumThread != null
+          ? `Threads ${modelAdvancedDraft.ollamaNumThread}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" • ") || "Ollama runtime defaults"
       : "";
   const reasoningSummary = isAutoReasoning
     ? "Always enabled for this provider"
     : modelAdvancedDraft.reasoningEnabled === false
       ? "Reasoning disabled"
       : [
-          modelAdvancedDraft.reasoningEnabled ? "Enabled" : "Provider default",
-          modelAdvancedDraft.reasoningEffort
-            ? `Effort ${modelAdvancedDraft.reasoningEffort}`
-            : null,
-          modelAdvancedDraft.reasoningBudgetTokens != null
-            ? `Budget ${modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" • ") || "Thinking controls stay on provider defaults";
+        modelAdvancedDraft.reasoningEnabled ? "Enabled" : "Provider default",
+        modelAdvancedDraft.reasoningEffort
+          ? `Effort ${modelAdvancedDraft.reasoningEffort}`
+          : null,
+        modelAdvancedDraft.reasoningBudgetTokens != null
+          ? `Budget ${modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" • ") || "Thinking controls stay on provider defaults";
   const inputCapabilitySummary = (editorModel?.inputScopes ?? [])
     .filter((scope) => scope !== "text")
     .map((scope) => scope[0].toUpperCase() + scope.slice(1))
@@ -1627,7 +1627,7 @@ export function EditModelPage() {
                             )}
                           >
                             {llamaRuntimeReport.status === "succeeded" ||
-                            llamaRuntimeReport.status === "cpuFallbackSucceeded" ? (
+                              llamaRuntimeReport.status === "cpuFallbackSucceeded" ? (
                               <Check className="h-4 w-4" />
                             ) : (
                               <AlertTriangle className="h-4 w-4" />
@@ -1684,29 +1684,29 @@ export function EditModelPage() {
                             <div className="space-y-4 px-4 py-4">
                               {(llamaRuntimeReport.gpuFallbackReason ||
                                 llamaRuntimeReport.errorMessage) && (
-                                <div className="grid gap-3 lg:grid-cols-2">
-                                  {llamaRuntimeReport.gpuFallbackReason && (
-                                    <div className="rounded-lg border border-warning/25 bg-warning/8 px-3 py-2.5">
-                                      <div className="text-[11px] font-medium uppercase tracking-wide text-warning/90">
-                                        GPU fallback reason
+                                  <div className="grid gap-3 lg:grid-cols-2">
+                                    {llamaRuntimeReport.gpuFallbackReason && (
+                                      <div className="rounded-lg border border-warning/25 bg-warning/8 px-3 py-2.5">
+                                        <div className="text-[11px] font-medium uppercase tracking-wide text-warning/90">
+                                          GPU fallback reason
+                                        </div>
+                                        <p className="mt-1 text-[13px] leading-relaxed text-fg/78">
+                                          {llamaRuntimeReport.gpuFallbackReason}
+                                        </p>
                                       </div>
-                                      <p className="mt-1 text-[13px] leading-relaxed text-fg/78">
-                                        {llamaRuntimeReport.gpuFallbackReason}
-                                      </p>
-                                    </div>
-                                  )}
-                                  {llamaRuntimeReport.errorMessage && (
-                                    <div className="rounded-lg border border-danger/25 bg-danger/8 px-3 py-2.5">
-                                      <div className="text-[11px] font-medium uppercase tracking-wide text-danger/90">
-                                        Final error
+                                    )}
+                                    {llamaRuntimeReport.errorMessage && (
+                                      <div className="rounded-lg border border-danger/25 bg-danger/8 px-3 py-2.5">
+                                        <div className="text-[11px] font-medium uppercase tracking-wide text-danger/90">
+                                          Final error
+                                        </div>
+                                        <p className="mt-1 text-[13px] leading-relaxed text-fg/78">
+                                          {llamaRuntimeReport.errorMessage}
+                                        </p>
                                       </div>
-                                      <p className="mt-1 text-[13px] leading-relaxed text-fg/78">
-                                        {llamaRuntimeReport.errorMessage}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                    )}
+                                  </div>
+                                )}
 
                               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                                 {llamaRuntimeFacts.map((item) => (
@@ -1961,8 +1961,8 @@ export function EditModelPage() {
                         }
                       >
                         {modelFetchEnabledForSelectedProvider &&
-                        !isManualInput &&
-                        fetchedModels.length > 0 ? (
+                          !isManualInput &&
+                          fetchedModels.length > 0 ? (
                           <>
                             <button
                               type="button"
@@ -3022,55 +3022,55 @@ export function EditModelPage() {
                                           availableRamGiB ||
                                           availableVramGiB ||
                                           modelSizeGiB) && (
-                                          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] leading-5 text-fg/52 sm:grid-cols-3 lg:grid-cols-6">
-                                            <div>
-                                              <div className="text-fg/38">Max supported</div>
-                                              <div className="font-mono text-fg/78">
-                                                {llamaContextInfo
-                                                  ? llamaContextInfo.maxContextLength.toLocaleString()
-                                                  : contextLimit.toLocaleString()}
+                                            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] leading-5 text-fg/52 sm:grid-cols-3 lg:grid-cols-6">
+                                              <div>
+                                                <div className="text-fg/38">Max supported</div>
+                                                <div className="font-mono text-fg/78">
+                                                  {llamaContextInfo
+                                                    ? llamaContextInfo.maxContextLength.toLocaleString()
+                                                    : contextLimit.toLocaleString()}
+                                                </div>
+                                              </div>
+                                              {recommendedContextLength !== null && (
+                                                <div>
+                                                  <div className="text-fg/38">Recommended</div>
+                                                  <div className="font-mono text-fg/78">
+                                                    {recommendedContextLength.toLocaleString()}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {availableRamGiB && (
+                                                <div>
+                                                  <div className="text-fg/38">Available RAM</div>
+                                                  <div className="font-mono text-fg/78">
+                                                    {availableRamGiB} GB
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {availableVramGiB && (
+                                                <div>
+                                                  <div className="text-fg/38">Available VRAM</div>
+                                                  <div className="font-mono text-fg/78">
+                                                    {availableVramGiB} GB
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {modelSizeGiB && (
+                                                <div>
+                                                  <div className="text-fg/38">Model size</div>
+                                                  <div className="font-mono text-fg/78">
+                                                    {modelSizeGiB} GB
+                                                  </div>
+                                                </div>
+                                              )}
+                                              <div>
+                                                <div className="text-fg/38">Context cache</div>
+                                                <div className="font-mono text-fg/78">
+                                                  {contextCacheLocationLabel}
+                                                </div>
                                               </div>
                                             </div>
-                                            {recommendedContextLength !== null && (
-                                              <div>
-                                                <div className="text-fg/38">Recommended</div>
-                                                <div className="font-mono text-fg/78">
-                                                  {recommendedContextLength.toLocaleString()}
-                                                </div>
-                                              </div>
-                                            )}
-                                            {availableRamGiB && (
-                                              <div>
-                                                <div className="text-fg/38">Available RAM</div>
-                                                <div className="font-mono text-fg/78">
-                                                  {availableRamGiB} GB
-                                                </div>
-                                              </div>
-                                            )}
-                                            {availableVramGiB && (
-                                              <div>
-                                                <div className="text-fg/38">Available VRAM</div>
-                                                <div className="font-mono text-fg/78">
-                                                  {availableVramGiB} GB
-                                                </div>
-                                              </div>
-                                            )}
-                                            {modelSizeGiB && (
-                                              <div>
-                                                <div className="text-fg/38">Model size</div>
-                                                <div className="font-mono text-fg/78">
-                                                  {modelSizeGiB} GB
-                                                </div>
-                                              </div>
-                                            )}
-                                            <div>
-                                              <div className="text-fg/38">Context cache</div>
-                                              <div className="font-mono text-fg/78">
-                                                {contextCacheLocationLabel}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        )}
+                                          )}
                                         {!selectedContextLength &&
                                           recommendedContextLength &&
                                           recommendedContextLength > 0 &&
@@ -3185,8 +3185,8 @@ export function EditModelPage() {
                                           e.target.value === "auto"
                                             ? null
                                             : (e.target.value as NonNullable<
-                                                typeof modelAdvancedDraft.llamaKvType
-                                              >),
+                                              typeof modelAdvancedDraft.llamaKvType
+                                            >),
                                         )
                                       }
                                       className={selectInputClassName}
@@ -3217,7 +3217,7 @@ export function EditModelPage() {
                                     <select
                                       value={
                                         modelAdvancedDraft.llamaOffloadKqv === null ||
-                                        modelAdvancedDraft.llamaOffloadKqv === undefined
+                                          modelAdvancedDraft.llamaOffloadKqv === undefined
                                           ? "auto"
                                           : modelAdvancedDraft.llamaOffloadKqv
                                             ? "on"
@@ -3386,7 +3386,7 @@ export function EditModelPage() {
                                       </div>
                                       <span className="rounded-lg bg-surface-el/30 px-2 py-1 font-mono text-[13px] text-accent">
                                         {modelAdvancedDraft.llamaGpuLayers !== null &&
-                                        modelAdvancedDraft.llamaGpuLayers !== undefined
+                                          modelAdvancedDraft.llamaGpuLayers !== undefined
                                           ? modelAdvancedDraft.llamaGpuLayers
                                           : "Auto"}
                                       </span>
@@ -3570,10 +3570,10 @@ export function EditModelPage() {
                                     onChange={(e) =>
                                       handleLlamaSamplerProfileChange(
                                         e.target.value as
-                                          | "balanced"
-                                          | "creative"
-                                          | "stable"
-                                          | "reasoning",
+                                        | "balanced"
+                                        | "creative"
+                                        | "stable"
+                                        | "reasoning",
                                       )
                                     }
                                     className={selectInputClassName}
@@ -3819,7 +3819,7 @@ export function EditModelPage() {
                                           modelAdvancedDraft.llamaRawCompletionFallback === true
                                             ? "enabled"
                                             : modelAdvancedDraft.llamaRawCompletionFallback ===
-                                                false
+                                              false
                                               ? "disabled"
                                               : "default"
                                         }
@@ -4232,7 +4232,7 @@ export function EditModelPage() {
                                   <select
                                     value={
                                       modelAdvancedDraft.ollamaMirostat === null ||
-                                      modelAdvancedDraft.ollamaMirostat === undefined
+                                        modelAdvancedDraft.ollamaMirostat === undefined
                                         ? "auto"
                                         : modelAdvancedDraft.ollamaMirostat.toString()
                                     }
@@ -4437,38 +4437,38 @@ export function EditModelPage() {
 
                                   {(reasoningSupport === "budget-only" ||
                                     reasoningSupport === "dynamic") && (
-                                    <div className="space-y-4">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
-                                          Budget Tokens
-                                        </span>
-                                        <span className="font-mono text-[13px] text-warning">
-                                          {modelAdvancedDraft.reasoningBudgetTokens
-                                            ? modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()
-                                            : "Auto"}
-                                        </span>
+                                      <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
+                                            Budget Tokens
+                                          </span>
+                                          <span className="font-mono text-[13px] text-warning">
+                                            {modelAdvancedDraft.reasoningBudgetTokens
+                                              ? modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()
+                                              : "Auto"}
+                                          </span>
+                                        </div>
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={ADVANCED_REASONING_BUDGET_RANGE.min}
+                                          max={ADVANCED_REASONING_BUDGET_RANGE.max}
+                                          step={1024}
+                                          value={modelAdvancedDraft.reasoningBudgetTokens || ""}
+                                          onChange={(e) => {
+                                            const raw = e.target.value;
+                                            const next = raw === "" ? null : Number(raw);
+                                            handleReasoningBudgetChange(
+                                              next === null || !Number.isFinite(next) || next === 0
+                                                ? null
+                                                : Math.trunc(next),
+                                            );
+                                          }}
+                                          placeholder="Auto"
+                                          className={numberInputClassName}
+                                        />
                                       </div>
-                                      <input
-                                        type="number"
-                                        inputMode="numeric"
-                                        min={ADVANCED_REASONING_BUDGET_RANGE.min}
-                                        max={ADVANCED_REASONING_BUDGET_RANGE.max}
-                                        step={1024}
-                                        value={modelAdvancedDraft.reasoningBudgetTokens || ""}
-                                        onChange={(e) => {
-                                          const raw = e.target.value;
-                                          const next = raw === "" ? null : Number(raw);
-                                          handleReasoningBudgetChange(
-                                            next === null || !Number.isFinite(next) || next === 0
-                                              ? null
-                                              : Math.trunc(next),
-                                          );
-                                        }}
-                                        placeholder="Auto"
-                                        className={numberInputClassName}
-                                      />
-                                    </div>
-                                  )}
+                                    )}
                                 </div>
                               )}
                             </div>
