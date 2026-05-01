@@ -166,7 +166,7 @@ function getLlamaRuntimeDetail(report: LlamaLastRuntimeReport): string {
 
 type EditorViewMode = "simple" | "advanced";
 type EditorSectionKey = "generation" | "runtime" | "reasoning" | "caching" | "capabilities";
-type SimpleEditorSectionKey = "generation" | "runtime" | "reasoning" | "capabilities";
+type SimpleEditorSectionKey = "runtime" | "reasoning" | "capabilities";
 
 const EDITOR_FADE_DURATION = 0.16;
 const MODEL_EDITOR_VIEW_MODE_STORAGE_KEY = "lettuce.settings.models.editorViewMode";
@@ -1345,13 +1345,11 @@ export function EditModelPage() {
     .join(", ");
   const capabilitiesSummary = `Input: ${inputCapabilitySummary || "Text only"} • Output: ${outputCapabilitySummary || "Text only"}`;
   const simpleDetailOrder =
-    activeSimplePanel === "generation"
+    activeSimplePanel === "runtime"
       ? 15
-      : activeSimplePanel === "runtime"
+      : activeSimplePanel === "reasoning"
         ? 25
-        : activeSimplePanel === "reasoning"
-          ? 35
-          : 45;
+        : 35;
   const applyLlamaPreset = (preset: "balanced" | "throughput" | "vram" | "cpu_ram") => {
     setSelectedLlamaQuickPreset(preset);
     if (preset === "balanced") {
@@ -2238,21 +2236,8 @@ export function EditModelPage() {
                     </div>
                   ) : (
                     <>
-                      <div style={{ order: 10 }}>
-                        <CollapsedEditorSectionButton
-                          title="Generation Parameters"
-                          description={
-                            isAutomatic1111Provider
-                              ? "Sampler, CFG, seed, negative prompt, denoise, and size defaults."
-                              : "Temperature, sampling, penalties, and output limits."
-                          }
-                          summary={generationSummary}
-                          isOpen={activeSimplePanel === "generation"}
-                          onClick={() => toggleSimplePanel("generation")}
-                        />
-                      </div>
                       {hasRuntimePanel && (
-                        <div style={{ order: 20 }}>
+                        <div style={{ order: 10 }}>
                           <CollapsedEditorSectionButton
                             title="Runtime"
                             description={`${runtimePanelTitle} execution, memory, and hardware controls.`}
@@ -2263,7 +2248,7 @@ export function EditModelPage() {
                         </div>
                       )}
                       {showReasoningSection && (
-                        <div style={{ order: 30 }}>
+                        <div style={{ order: 20 }}>
                           <CollapsedEditorSectionButton
                             title="Reasoning"
                             description="Thinking mode, effort, and token budget controls."
@@ -2273,7 +2258,7 @@ export function EditModelPage() {
                           />
                         </div>
                       )}
-                      <div style={{ order: 40 }}>
+                      <div style={{ order: 30 }}>
                         <CollapsedEditorSectionButton
                           title="Capabilities"
                           description="Mark which modalities this model accepts and what it can produce."
