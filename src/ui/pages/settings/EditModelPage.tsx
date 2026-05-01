@@ -1254,7 +1254,7 @@ export function EditModelPage() {
     "Select platform";
   const hasRuntimePanel = isLocalModel || isOllamaModel;
   const runtimePanelTitle = isLocalModel ? "llama.cpp" : isOllamaModel ? "Ollama" : "Runtime";
-  const effectiveEditorViewMode: EditorViewMode = isMobile ? "simple" : editorViewMode;
+  const effectiveEditorViewMode: EditorViewMode = editorViewMode;
   const activeDetailPanel =
     effectiveEditorViewMode === "advanced" ? activeAdvancedPanel : activeSimplePanel;
   const toggleSimplePanel = (panel: SimpleEditorSectionKey) => {
@@ -1422,9 +1422,6 @@ export function EditModelPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") {
-      return;
-    }
-    if (isMobile) {
       return;
     }
     window.localStorage.setItem(MODEL_EDITOR_VIEW_MODE_STORAGE_KEY, editorViewMode);
@@ -2114,42 +2111,40 @@ export function EditModelPage() {
                     effectiveEditorViewMode === "simple" && "flex flex-col gap-2 space-y-0",
                   )}
                 >
-                  {!isMobile && (
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[13px] font-medium text-fg/78">Editor mode</div>
-                        <div className="mt-1 text-[13px] text-fg/45">
-                          Simple starts collapsed. Advanced keeps the current full editor.
-                        </div>
-                      </div>
-                      <div className="inline-flex rounded-lg border border-fg/10 bg-fg/4 p-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditorViewMode("simple")}
-                          className={cn(
-                            "rounded-md px-3 py-1.5 text-[13px] transition",
-                            editorViewMode === "simple"
-                              ? "bg-fg/10 text-fg"
-                              : "text-fg/55 hover:text-fg/82",
-                          )}
-                        >
-                          Simple
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditorViewMode("advanced")}
-                          className={cn(
-                            "rounded-md px-3 py-1.5 text-[13px] transition",
-                            editorViewMode === "advanced"
-                              ? "bg-fg/10 text-fg"
-                              : "text-fg/55 hover:text-fg/82",
-                          )}
-                        >
-                          Advanced
-                        </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[13px] font-medium text-fg/78">Editor mode</div>
+                      <div className="mt-1 text-[13px] text-fg/45">
+                        Simple starts collapsed. Advanced keeps the current full editor.
                       </div>
                     </div>
-                  )}
+                    <div className="inline-flex rounded-lg border border-fg/10 bg-fg/4 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditorViewMode("simple")}
+                        className={cn(
+                          "rounded-md px-3 py-1.5 text-[13px] transition",
+                          editorViewMode === "simple"
+                            ? "bg-fg/10 text-fg"
+                            : "text-fg/55 hover:text-fg/82",
+                        )}
+                      >
+                        Simple
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditorViewMode("advanced")}
+                        className={cn(
+                          "rounded-md px-3 py-1.5 text-[13px] transition",
+                          editorViewMode === "advanced"
+                            ? "bg-fg/10 text-fg"
+                            : "text-fg/55 hover:text-fg/82",
+                        )}
+                      >
+                        Advanced
+                      </button>
+                    </div>
+                  </div>
 
                   {effectiveEditorViewMode === "advanced" ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
