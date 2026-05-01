@@ -4355,31 +4355,44 @@ export function EditModelPage() {
                         {/* Reasoning Section (Thinking) */}
                         {activeDetailPanel === "reasoning" && showReasoningSection && (
                           <div className="space-y-4">
-                            <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
-                              Reasoning (Thinking)
-                            </label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[13px] font-bold tracking-wider text-fg/50 uppercase">
+                                Reasoning (Thinking)
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => setShowParameterSupport(true)}
+                                className="text-fg/40 hover:text-fg/60 transition"
+                                title="View Parameter Support"
+                              >
+                                <Info size={14} />
+                              </button>
+                            </div>
 
                             <div className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Brain size={14} className="text-warning" />
-                                  <div className="space-y-0.5">
-                                    <span className="block text-[13px] font-medium text-fg/70">
-                                      Enabled
+                              <div className="flex items-center justify-between rounded-xl border border-fg/8 bg-surface-el/10 p-4">
+                                <div className="flex items-center gap-3 border-l-2 border-warning/30 pl-3">
+                                  <Brain size={14} className="text-warning shrink-0" />
+                                  <div className="min-w-0 space-y-0.5">
+                                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-fg/70">
+                                      Enable Extended Thinking
+                                      <button
+                                        type="button"
+                                        onClick={() => openDocs("models", "reasoning-mode")}
+                                        className="text-fg/30 hover:text-fg/60 transition"
+                                        aria-label="Help with reasoning mode"
+                                      >
+                                        <HelpCircle size={12} />
+                                      </button>
                                     </span>
+
                                     <span className="block text-[13px] text-fg/40">
-                                      Show thinking process
+                                      Allow the model to reason before answering.
                                     </span>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => openDocs("models", "reasoning-mode")}
-                                    className="text-fg/30 hover:text-fg/60 transition"
-                                    aria-label="Help with reasoning mode"
-                                  >
-                                    <HelpCircle size={12} />
-                                  </button>
                                 </div>
+
                                 {!isAutoReasoning && (
                                   <Switch
                                     checked={modelAdvancedDraft.reasoningEnabled || false}
@@ -4476,8 +4489,8 @@ export function EditModelPage() {
                               {/* ── Enable toggle ── */}
                               <div className="flex items-center justify-between rounded-xl border border-fg/8 bg-surface-el/10 p-4">
                                 <div className="flex items-center gap-3 border-l-2 border-accent/30 pl-3">
-                                  <HardDrive size={16} className="text-accent/80" />
-                                  <div className="space-y-0.5">
+                                  <HardDrive size={16} className="shrink-0 text-accent/80" />
+                                  <div className="min-w-0 space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
                                       Enable Context Caching
                                     </span>
